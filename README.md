@@ -8,7 +8,7 @@ Setup
 
 ```
 git clone https://github.com/darren-tpk/tremor_ml.git
-cd sonify
+cd tremor_ml
 ```
 
 2. Create environment and activate
