@@ -6,17 +6,17 @@ Setup
 
 1. Obtain
 
-   .. code-block:: xml
-
-     git clone https://github.com/darren-tpk/tremor_ml.git
-     cd sonify
+```
+git clone https://github.com/darren-tpk/tremor_ml.git
+cd sonify
+```
 
 2. Create environment and activate
 
-   .. code-block:: xml
-
-     conda env create
-     conda activate tremor_ml
+```
+conda env create
+conda activate tremor_ml
+```
 
 Example Script
 -------
