@@ -1,6 +1,6 @@
 # Import dependencies
 import glob
-from obspy import UTCDateTime, read, Stream
+from obspy import UTCDateTime, read, Stream, Trace
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import dates
@@ -178,7 +178,7 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
             print('Waveform bandpass filtered from %.2f Hz to %.2f Hz.' % (filter_band[0],filter_band[1]))
     return stream
 
-def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,export_path=None):
+def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_percent_lims=(20,100),cmap='inferno',export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -188,17 +188,22 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,expo
     :param window_duration (float): Duration of spectrogram window [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
     :param log (bool): If `True`, plot spectrogram with logarithmic y-axis
+    :param v_percent_lims (tuple): Tuple of length 2 storing the percentile values in the spectrogram matrix used as colorbar limits. Default is (20,100).
+    :param cmap (str): Colormap for spectrogram plot. Default is 'inferno'.
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     """
 
+    # Be nice and accept traces as well
+    if type(stream) == Trace:
+        stream = Stream() + stream
+
     # Loop over each trace in the stream
     for trace in stream:
-
         # Check if input trace is infrasound (SEED channel name ends with 'DF'). Else, assume seismic.
         if trace.stats.channel[1:] == 'DF':
             # If infrasound, define corresponding axis labels and reference values
             y_axis_label = 'Pressure (Pa)'
-            REFERENCE_VALUE = 20 ** -6  # Pressure, in Pa
+            REFERENCE_VALUE = 20 * 10**-6  # Pressure, in Pa
             colorbar_label = f'Power (dB rel. [{REFERENCE_VALUE * 1e6:g} µPa]$^2$ Hz$^{{-1}}$)'
             rescale_factor = 1  # Plot waveform in Pa
         else:
@@ -229,13 +234,17 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,expo
 
         # Craft figure
         fig, (ax1,ax2) = plt.subplots(2,1,figsize=(16,9),constrained_layout=True)
-        c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,20), vmax=spec_db.max(), cmap='inferno', shading='nearest', rasterized=True)
+        if freq_lims is not None:
+            freq_min = freq_lims[0]
+            freq_max = freq_lims[1]
+            spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
+            c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+        else:
+            c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
         ax1.set_ylabel('Frequency (Hz)',fontsize=22)
         if log:
             ax1.set_yscale('log')
         if freq_lims is not None:
-            freq_min = freq_lims[0]
-            freq_max = freq_lims[1]
             ax1.set_ylim([freq_min,freq_max])
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
@@ -260,7 +269,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,expo
         if export_path is None:
             fig.show()
         else:
-            file_label = starttime.strftime('%Y%m%d_%H%M_') + trace.id.replace('.','_') + '.png'
+            file_label = starttime.strftime('%Y%m%d_%H%M_') + trace.id.replace('.','_')
             fig.savefig(export_path + file_label + '.png',bbox_inches='tight')
             extent = ax1.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
