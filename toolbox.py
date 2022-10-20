@@ -273,4 +273,5 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
             fig.savefig(export_path + file_label + '.png',bbox_inches='tight')
             extent = ax1.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
+            plt.close()
 
