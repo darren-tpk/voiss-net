@@ -12,4 +12,5 @@ dependencies:
   - pygmt
   - scikit-learn
   - jupyter
-  - label-studio
+  - pip:
+    - label-studio
