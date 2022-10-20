@@ -3,7 +3,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - cartopy
   - ipython
   - tsfresh
   - numpy<=1.21  # To fix "Numba needs NumPy 1.21 or less" TSFRESH ImportError
