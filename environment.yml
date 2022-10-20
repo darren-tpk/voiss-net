@@ -11,4 +11,4 @@ dependencies:
   - pip
   - pygmt
   - scikit-learn
-  - jupyter
+  
