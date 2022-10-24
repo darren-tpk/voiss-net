@@ -152,6 +152,10 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
         print('Processing trace/stream...')
     if remove_response:
         stream.remove_response()
+        for tr in stream:
+            fs_resp = tr.stats.sampling_rate
+            pre_filt = [0.0005, 0.001, fs_resp/2-2, fs_resp/2]
+            tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=None)
         if verbose:
             print('Response removed.')
     if detrend:
@@ -221,7 +225,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann', scaling='density', nperseg=samples_per_segment, noverlap=samples_per_segment*.9)
 
         # Convert spectrogram matrix to decibels for plotting
-        spec_db = 10 * np.log10(spec / (REFERENCE_VALUE**2))
+        spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE**2))
 
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
@@ -255,7 +259,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         cbar.ax.tick_params(labelsize=16)
         ax2.plot(trace.times('matplotlib'), trace.data * rescale_factor,'k-',linewidth=1)
         if trace.stats.channel[1:] == 'DF':
-            ax2.set_ylabel('Pressure (Pa/s)', fontsize=22)
+            ax2.set_ylabel('Pressure (Pa)', fontsize=22)
         else:
             ax2.set_ylabel(r'Velocity ($\mu$m/s)', fontsize=22)
         ax2.tick_params(axis='y',labelsize=18)

@@ -12,10 +12,10 @@ from obspy import UTCDateTime
 
 # Define variables for functions
 network = ['AV','AV']  # SEED network code(s)
-station = ['PS4A','PS4A']  # SEED station code(s)
+station = ['PS1A','PS1A']  # SEED station code(s)
 channel = ['BHZ','BDF']  # SEED channel code(s)
 location = ['','']  # SEED location code(s)
-starttime = UTCDateTime(2022, 7, 22, 13, 40)  # start time for data pull and spectrogram plot
+starttime = UTCDateTime(2022, 10, 21, 22, 30)  # start time for data pull and spectrogram plot
 endtime = starttime + 10*60  # end time for data pull and spectrogram plot
 pad = 60  # padding length [s]
 local = False  # pull data from local
@@ -31,10 +31,10 @@ export_path = None  # show figure in iPython
 stream = load_data(network, station, channel, location, starttime, endtime, pad=pad, local=local, data_dir=data_dir, client=client)
 
 # Process waveform
-stream = process_waveform(stream, remove_response=True, detrend=True, taper_length=pad, taper_percentage=None, filter_band=None, verbose=True)
+stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=None, verbose=True)
 
 # Plot spectrogram for every trace in input stream
-plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, export_path=None)
+plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, export_path=export_path)
 
 ### EXAMPLE 2: Plot 30 minutes of seismic data from PS1A.
 ### Data are filtered in the same way (0.1 to 10 Hz) as above, but a longer window duration is used (6 s).
