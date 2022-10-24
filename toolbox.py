@@ -216,10 +216,9 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         # Extract trace information for FFT
         sampling_rate = trace.stats.sampling_rate
         samples_per_segment = int(window_duration * sampling_rate)
-        nfft = np.power(2, int(np.ceil(np.log2(samples_per_segment))) + 1)
 
         # Compute spectrogram
-        sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann', nperseg=samples_per_segment, noverlap=samples_per_segment// 2, nfft=nfft)
+        sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann', scaling='density', nperseg=samples_per_segment, noverlap=samples_per_segment*.9)
 
         # Convert spectrogram matrix to decibels for plotting
         spec_db = 10 * np.log10(spec / (REFERENCE_VALUE**2))

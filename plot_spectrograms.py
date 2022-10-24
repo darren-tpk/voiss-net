@@ -22,7 +22,7 @@ local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
 client = 'IRIS'  # FDSN client for data pull
 filter_band = (0.1,10)  # frequency band for bandpass filter
-window_duration = 2  # spectrogram window duration [s]
+window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.1,10)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
 log = False  # logarithmic scale in spectrogram
 export_path = None  # show figure in iPython
@@ -31,7 +31,7 @@ export_path = None  # show figure in iPython
 stream = load_data(network, station, channel, location, starttime, endtime, pad=pad, local=local, data_dir=data_dir, client=client)
 
 # Process waveform
-stream = process_waveform(stream, remove_response=True, detrend=True, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=True)
+stream = process_waveform(stream, remove_response=True, detrend=True, taper_length=pad, taper_percentage=None, filter_band=None, verbose=True)
 
 # Plot spectrogram for every trace in input stream
 plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, export_path=None)
