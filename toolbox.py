@@ -158,14 +158,13 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
         #     tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=None)
         if verbose:
             print('Response removed.')
-    #stream.detrend(type='linear')
-    #stream.taper(max_percentage=.02)
     if detrend:
+        #stream.detrend(type='linear')
         stream.detrend('demean')
         if verbose:
             print('Waveform demeaned.')
-
     if taper_length is not None and taper_percentage is None:
+        #stream.taper(max_percentage=.02)
         stream.taper(max_percentage=None, max_length=taper_length/2)
         if verbose:
             print('Waveform tapered by pad length.')
@@ -224,7 +223,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         sampling_rate = trace.stats.sampling_rate
         samples_per_segment = int(window_duration * sampling_rate)
 
-        # Compute spectrogram
+        # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
         sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann', scaling='density', nperseg=samples_per_segment, noverlap=samples_per_segment*.9)
 
         # Convert spectrogram matrix to decibels for plotting
