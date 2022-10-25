@@ -9,4 +9,5 @@ dependencies:
   - pip
   - pygmt
   - scikit-learn
+  - colorcet
   
