@@ -185,7 +185,7 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
             print('Waveform bandpass filtered from %.2f Hz to %.2f Hz.' % (filter_band[0],filter_band[1]))
     return stream
 
-def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_percent_lims=(20,100),cmap='inferno',export_path=None):
+def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_percent_lims=(20,100),cmap='inferno',figsize=(16,9),export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -239,7 +239,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
 
         # Craft figure
-        fig, (ax1,ax2) = plt.subplots(2,1,figsize=(16,9),constrained_layout=True)
+        fig, (ax1,ax2) = plt.subplots(2,1,figsize=figsize,constrained_layout=True)
         if freq_lims is not None:
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                             sample_frequencies[0], sample_frequencies[-1]],
