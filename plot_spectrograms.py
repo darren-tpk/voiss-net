@@ -7,7 +7,7 @@
 from toolbox import load_data, process_waveform, plot_spectrogram
 from obspy import UTCDateTime
 
-### EXAMPLE 1: Plot 10 minutes of seismic and acoustic data from PS4A.
+#%% EXAMPLE 1: Plot 10 minutes of seismic and acoustic data from PS4A.
 ### Data are filtered in the same way (0.1 to 10 Hz) and the same window duration is used (2 s).
 
 # Define variables for functions
@@ -25,7 +25,7 @@ filter_band = (0.1,10)  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.1,10)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
 log = False  # logarithmic scale in spectrogram
-export_path = None  # show figure in iPython
+export_path = 'figs/'  # show figure in iPython
 
 # Load data (note that network, station, channel, location can be lists of equal length)
 stream = load_data(network, station, channel, location, starttime, endtime, pad=pad, local=local, data_dir=data_dir, client=client)
@@ -34,9 +34,10 @@ stream = load_data(network, station, channel, location, starttime, endtime, pad=
 stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=None, verbose=True)
 
 # Plot spectrogram for every trace in input stream
-plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, export_path=export_path)
+plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log,
+                 v_percent_lims=(20,95), export_path=export_path)
 
-### EXAMPLE 2: Plot 30 minutes of seismic data from PS1A.
+#%% EXAMPLE 2: Plot 30 minutes of seismic data from PS1A.
 ### Data are filtered in the same way (0.1 to 10 Hz) as above, but a longer window duration is used (6 s).
 
 # Define variables for functions

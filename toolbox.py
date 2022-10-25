@@ -151,17 +151,20 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
     if verbose:
         print('Processing trace/stream...')
     if remove_response:
-        stream.remove_response()
-        for tr in stream:
-            fs_resp = tr.stats.sampling_rate
-            pre_filt = [0.0005, 0.001, fs_resp/2-2, fs_resp/2]
-            tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=None)
+        stream.remove_sensitivity()
+        # for tr in stream:
+        #     fs_resp = tr.stats.sampling_rate
+        #     pre_filt = [0.0005, 0.001, fs_resp/2-2, fs_resp/2]
+        #     tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=None)
         if verbose:
             print('Response removed.')
+    #stream.detrend(type='linear')
+    #stream.taper(max_percentage=.02)
     if detrend:
         stream.detrend('demean')
         if verbose:
             print('Waveform demeaned.')
+
     if taper_length is not None and taper_percentage is None:
         stream.taper(max_percentage=None, max_length=taper_length/2)
         if verbose:
@@ -238,12 +241,18 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         # Craft figure
         fig, (ax1,ax2) = plt.subplots(2,1,figsize=(16,9),constrained_layout=True)
         if freq_lims is not None:
+            c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
+                                            sample_frequencies[0], sample_frequencies[-1]],
+                                           origin='lower', aspect='auto', interpolation=None, cmap=cmap)
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
-            spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
-            c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            #spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
+            #c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
         else:
             c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+        c.set_clim(np.percentile(spec_db,v_percent_lims[0]),
+                   np.percentile(spec_db,v_percent_lims[1]))
+        #c.set_clim(v_percent_lims[0], v_percent_lims[1])
         ax1.set_ylabel('Frequency (Hz)',fontsize=22)
         if log:
             ax1.set_yscale('log')
