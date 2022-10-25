@@ -6,6 +6,7 @@
 # Import all dependencies
 from toolbox import load_data, process_waveform, plot_spectrogram
 from obspy import UTCDateTime
+import colorcet as cc
 
 #%% EXAMPLE 1: Plot 10 minutes of seismic and acoustic data from PS4A.
 ### Data are filtered in the same way (0.1 to 10 Hz) and the same window duration is used (2 s).
@@ -25,6 +26,7 @@ filter_band = (0.1,10)  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.1,10)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
 log = False  # logarithmic scale in spectrogram
+cmap = cc.cm.rainbow  # colormap for spectrogram
 figsize = (16,9)  # figure size for output
 export_path = None  # show figure in iPython
 
@@ -35,7 +37,7 @@ stream = load_data(network, station, channel, location, starttime, endtime, pad=
 stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=None, verbose=True)
 
 # Plot spectrogram for every trace in input stream
-plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log,
+plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, cmap=cc.cm.rainbow,
                  v_percent_lims=(20,95), export_path=export_path)
 
 #%% EXAMPLE 2: Plot 30 minutes of seismic data from PS1A.
@@ -54,9 +56,10 @@ local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
 client = 'IRIS'  # FDSN client for data pull
 filter_band = (0.1,10)  # frequency band for bandpass filter
-window_duration = 6  # spectrogram window duration [s]
+window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.1,10)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
 log = False  # logarithmic scale in spectrogram
+cmap = cc.cm.rainbow  # colormap for spectrogram
 figsize = (32,9)  # figure size for output
 export_path = None  # show figure in iPython
 
@@ -67,4 +70,5 @@ stream = load_data(network, station, channel, location, starttime, endtime, pad=
 stream = process_waveform(stream, remove_response=True, detrend=True, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=True)
 
 # Plot spectrogram for every trace in input stream
-plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, cmap='jet', figsize=figsize, export_path=None)
+plot_spectrogram(stream, starttime, endtime, window_duration, freq_lims, log, cmap=cc.cm.rainbow,
+                 v_percent_lims=(20,95), figsize=figsize, export_path=None)
