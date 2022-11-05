@@ -233,7 +233,10 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
 
         # Prepare time ticks for spectrogram and waveform figure (Note that we divide the duration into 10 equal increments and 11 uniform ticks)
-        time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/10)
+        if ((endtime-starttime)%1800) == 0:
+            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/12)
+        else:
+            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/10)
         time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
         time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
 
@@ -245,13 +248,13 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
                                            origin='lower', aspect='auto', interpolation=None, cmap=cmap)
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
-            #spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
-            #c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
+            c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
         else:
             c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
-        c.set_clim(np.percentile(spec_db,v_percent_lims[0]),
-                   np.percentile(spec_db,v_percent_lims[1]))
-        #c.set_clim(v_percent_lims[0], v_percent_lims[1])
+        # c.set_clim(np.percentile(spec_db,v_percent_lims[0]),
+        #            np.percentile(spec_db,v_percent_lims[1]))
+        # #c.set_clim(v_percent_lims[0], v_percent_lims[1])
         ax1.set_ylabel('Frequency (Hz)',fontsize=22)
         if log:
             ax1.set_yscale('log')
@@ -266,10 +269,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log,v_pe
         cbar.set_label(colorbar_label, fontsize=18)
         cbar.ax.tick_params(labelsize=16)
         ax2.plot(trace.times('matplotlib'), trace.data * rescale_factor,'k-',linewidth=1)
-        if trace.stats.channel[1:] == 'DF':
-            ax2.set_ylabel('Pressure (Pa)', fontsize=22)
-        else:
-            ax2.set_ylabel(r'Velocity ($\mu$m/s)', fontsize=22)
+        ax2.set_ylabel(y_axis_label, fontsize=22)
         ax2.tick_params(axis='y',labelsize=18)
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
