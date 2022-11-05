@@ -6,8 +6,8 @@ dependencies:
   - ipython
   - numpy
   - obspy
-  - pip
   - pygmt
   - scikit-learn
-  - colorcet
-  
+  - colorcet  
+  - pip:
+      - git+https://github.com/uafgeotools/waveform_collection.git
