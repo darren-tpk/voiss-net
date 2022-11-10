@@ -14,7 +14,7 @@ cd tremor_ml
 2. Create environment and activate
 
 ```
-conda env create
+conda env create python=3.9
 conda activate tremor_ml
 ```
 
