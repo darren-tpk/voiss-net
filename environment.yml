@@ -8,6 +8,7 @@ dependencies:
   - obspy
   - pygmt
   - scikit-learn
-  - colorcet  
+  - colorcet
+  - libcomcat  
   - pip:
       - git+https://github.com/uafgeotools/waveform_collection.git
