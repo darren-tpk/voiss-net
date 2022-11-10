@@ -136,7 +136,7 @@ def load_data(network,station,channel,location,starttime,endtime,pad=None,local=
         # Raise error
         raise ValueError('Please provide an input client (e.g. "IRIS").')
 
-def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,taper_percentage=None,filter_band=(1,10),verbose=True):
+def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
 
     """
     Process waveform by removing response, detrending, tapering and filtering (in that order)
@@ -236,7 +236,8 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         if demean:
             # column_ht = np.shape(spec_db)[0]
             # ratio_vec = np.linspace(0,0.5,column_ht).reshape(column_ht,1)
-            spec_db = spec_db - np.mean(spec_db,1)[:, np.newaxis]*ratio_vec
+            # spec_db = spec_db - np.mean(spec_db,1)[:, np.newaxis]*ratio_vec
+            spec_db = spec_db - np.mean(spec_db, 1)[:, np.newaxis]
 
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
@@ -295,7 +296,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
             plt.close()
 
-def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,export_path=None):
+def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -344,33 +345,42 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         if demean:
             # column_ht = np.shape(spec_db)[0]
             # ratio_vec = np.linspace(0,0.5,column_ht).reshape(column_ht,1)
-            spec_db = spec_db - np.mean(spec_db,1)[:, np.newaxis]*ratio_vec
+            # spec_db = spec_db - np.mean(spec_db,1)[:, np.newaxis]*ratio_vec
+            spec_db = spec_db - np.mean(spec_db, 1)[:, np.newaxis]
 
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
+
+        # If earthquake times are provided, convert them from UTCDateTime to matplotlib dates
+        if earthquake_times:
+            earthquake_times_matplotlib = [eq.matplotlib_date for eq in earthquake_times]
+        else:
+            earthquake_times_matplotlib = []
 
         # Craft figure
         if freq_lims is not None:
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
             spec_db_plot = spec_db[np.where((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
-            c = axs[axs_index].imshow(spec_db,
+            axs[axs_index].imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
                                       vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            # c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db_plot,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            #ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db_plot,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
         else:
-            c = axs[axs_index].imshow(spec_db,
+            axs[axs_index].imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
                                       vmin=np.percentile(spec_db, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db, v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            # c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            #ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+        for earthquake_time_matplotlib in earthquake_times_matplotlib:
+            axs[axs_index].axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
         if log:
             axs[axs_index].set_yscale('log')
         if freq_lims is not None:
