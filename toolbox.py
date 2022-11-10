@@ -156,8 +156,7 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
         for tr in stream:
             fs_resp = tr.stats.sampling_rate
             pre_filt = [0.005, 0.01, fs_resp/2-2, fs_resp/2]
-            tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=60,
-                               plot=False)
+            tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=60, plot=False)
         if verbose:
             print('Response removed.')
     if detrend:
