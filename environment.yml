@@ -10,5 +10,6 @@ dependencies:
   - scikit-learn
   - colorcet
   - libcomcat  
+  - pip
   - pip:
       - git+https://github.com/uafgeotools/waveform_collection.git
