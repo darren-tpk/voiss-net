@@ -31,29 +31,40 @@ export_path = '/Volumes/NorthStar/to_label_seis/' # '/Users/darrentpk/Desktop/to
 total_hours = int(np.floor((endtime-starttime)/3600))
 
 # Commence loop
-for i in range(total_hours):
+i = 0
+while i < (total_hours-1):
 
-    # Define time bounds for current iteration
-    t1 = starttime + i*3600
-    t2 = starttime + (i+1)*3600
+    try:
 
-    # search for earthquakes
-    volc_lat = 55.417
-    volc_lon = -161.894
-    maxradiuskm = 275
-    earthquakes = search(starttime=t1.datetime,
-                         endtime=t2.datetime,
-                         latitude=volc_lat,
-                         longitude=volc_lon,
-                         maxradiuskm=maxradiuskm,
-                         reviewstatus='reviewed')
-    eq_times = [UTCDateTime(eq.time) for eq in earthquakes]
+        # Define time bounds for current iteration
+        t1 = starttime + i*3600
+        t2 = starttime + (i+1)*3600
 
-    # Load data using waveform_collection tool
-    stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel, starttime=t1-pad, endtime=t2+pad)
+        # search for earthquakes
+        volc_lat = 55.417
+        volc_lon = -161.894
+        maxradiuskm = 275
+        earthquakes = search(starttime=t1.datetime,
+                             endtime=t2.datetime,
+                             latitude=volc_lat,
+                             longitude=volc_lon,
+                             maxradiuskm=maxradiuskm,
+                             reviewstatus='reviewed')
+        eq_times = [UTCDateTime(eq.time) for eq in earthquakes]
 
-    # Process waveform
-    stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=True)
+        # Load data using waveform_collection tool
+        stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel, starttime=t1-pad, endtime=t2+pad)
 
-    # Plot all spectrograms on one figure
-    plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, export_path=export_path)
+        # Process waveform
+        stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=True)
+
+        # Plot all spectrograms on one figure
+        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, export_path=export_path)
+
+        i += 1
+
+    except:
+
+        # Sometimes response retrieval throws out an error (?)
+        print('some error happened for i = %d, trying again' % i)
+        pass
