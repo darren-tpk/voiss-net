@@ -6,6 +6,7 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, plot_spectrogram, plot_spectrogram_multi
 from obspy import UTCDateTime
 from libcomcat.search import search
+import warnings
 
 ### Define variables for functions
 source = 'IRIS'
@@ -25,7 +26,8 @@ freq_lims = (0.5,10)  # frequency limits for output spectrogram. If `None`, the 
 log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 v_percent_lims = (20,97.5)  # colorbar limits
-export_path = '/Volumes/NorthStar/to_label_seis/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_path = '/Users/darrentpk/Desktop/to_label_seis/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+verbose = False
 
 # Dissect time steps and loop
 total_hours = int(np.floor((endtime-starttime)/3600))
@@ -52,11 +54,15 @@ while i < (total_hours-1):
                              reviewstatus='reviewed')
         eq_times = [UTCDateTime(eq.time) for eq in earthquakes]
 
+        # Turn off warnings if non-verbose option is selected
+        if not verbose:
+            warnings.filterwarnings("ignore")
+
         # Load data using waveform_collection tool
-        stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel, starttime=t1-pad, endtime=t2+pad)
+        stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel, starttime=t1-pad, endtime=t2+pad, verbose=False)
 
         # Process waveform
-        stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=True)
+        stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=False)
 
         # Plot all spectrograms on one figure
         plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, export_path=export_path)
