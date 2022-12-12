@@ -185,7 +185,7 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
             print('Waveform bandpass filtered from %.2f Hz to %.2f Hz.' % (filter_band[0],filter_band[1]))
     return stream
 
-def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,figsize=(32,9),export_path=None):
+def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,figsize=(32,9),export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -197,6 +197,8 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
     :param log (bool): If `True`, plot spectrogram with logarithmic y-axis
     :param v_percent_lims (tuple): Tuple of length 2 storing the percentile values in the spectrogram matrix used as colorbar limits. Default is (20,100).
     :param cmap (str or :class:`matplotlib.colors.LinearSegmentedColormap`): Colormap for spectrogram plot. Default is colorcet.cm.rainbow.
+    :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
+    :param db_hist (bool): If `True`, plot a db histogram (spanning the plotted timespan) on the right side of the spectrogram across the sample frequencies
     :param figsize (tuple): Tuple of length 2 storing output figure size. Default is (32,9).
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     """
@@ -242,29 +244,63 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
 
+        # If earthquake times are provided, convert them from UTCDateTime to matplotlib dates
+        if earthquake_times:
+            earthquake_times_matplotlib = [eq.matplotlib_date for eq in earthquake_times]
+        else:
+            earthquake_times_matplotlib = []
+
         # Prepare time ticks for spectrogram and waveform figure (Note that we divide the duration into 10 equal increments and 11 uniform ticks)
         if ((endtime-starttime)%1800) == 0:
-            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/12)
+            denominator = 12
+            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/denominator)
         else:
-            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/10)
+            denominator = 10
+            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/denominator)
         time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
         time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
 
         # Craft figure
         fig, (ax1,ax2) = plt.subplots(2,1,figsize=figsize,constrained_layout=True)
+
+        # If frequency limits are defined
         if freq_lims is not None:
+            # Determine frequency limits and trim spec_db
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
-            spec_db_plot = spec_db[np.where((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
+            spec_db_plot = spec_db[np.flatnonzero((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],sample_frequencies[0], sample_frequencies[-1]],
                            vmin=np.percentile(spec_db_plot, v_percent_lims[0]), vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
                            origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            # c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db_plot,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
+            if db_hist:
+                spec_db_hist = np.sum(spec_db_plot,axis=1)
+                spec_db_hist = (spec_db_hist-np.min(spec_db_hist)) / (np.max(spec_db_hist)-np.min(spec_db_hist))
+                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
+                sample_frequencies_plot = sample_frequencies[np.flatnonzero((sample_frequencies>freq_min) & (sample_frequencies<freq_max))]
+                ax1.plot(hist_plotting_points, sample_frequencies_plot, 'k-', linewidth=10, alpha=0.6)
+                ax1.plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
+                         [sample_frequencies_plot[-1], sample_frequencies_plot[-1]], 'k-', linewidth=10, alpha=0.6)
+                ax1.plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies_plot[-1], 'k<', markersize=50)
+        # If no frequencies limits are given
         else:
+            # We go straight into plotting spec_db
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1], sample_frequencies[0],sample_frequencies[-1]],
                            vmin=np.percentile(spec_db, v_percent_lims[0]),  vmax=np.percentile(spec_db, v_percent_lims[1]),
                            origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            # c = ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
+            if db_hist:
+                spec_db_hist = np.sum(spec_db, axis=1)
+                spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
+                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
+                ax1.plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=10, alpha=0.6)
+                ax1.plot([trace_time_matplotlib[-1],trace_time_matplotlib[-1]-hist_plotting_range],
+                         [sample_frequencies[-1],sample_frequencies[-1]], 'k-', linewidth=10, alpha=0.6)
+                ax1.plot(trace_time_matplotlib[-1]-hist_plotting_range, sample_frequencies[-1], 'k<', markersize=50)
+        for earthquake_time_matplotlib in earthquake_times_matplotlib:
+            ax1.axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
         ax1.set_ylabel('Frequency (Hz)',fontsize=22)
         if log:
             ax1.set_yscale('log')
@@ -296,7 +332,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
             plt.close()
 
-def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,export_path=None):
+def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -351,6 +387,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
 
+        # Determine number of ticks smartly
+        if ((endtime - starttime) % 1800) == 0:
+            denominator = 12
+        else:
+            denominator = 10
+
         # If earthquake times are provided, convert them from UTCDateTime to matplotlib dates
         if earthquake_times:
             earthquake_times_matplotlib = [eq.matplotlib_date for eq in earthquake_times]
@@ -358,10 +400,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
             earthquake_times_matplotlib = []
 
         # Craft figure
+        # If frequency limits are defined
         if freq_lims is not None:
+            # Determine frequency limits and trim spec_db
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
-            spec_db_plot = spec_db[np.where((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
+            spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
             axs[axs_index].imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
@@ -369,8 +413,21 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                       vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            #ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db_plot,v_percent_lims[0]), vmax=np.percentile(spec_db_plot,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
+            if db_hist:
+                spec_db_hist = np.sum(spec_db_plot, axis=1)
+                spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
+                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
+                sample_frequencies_plot = sample_frequencies[
+                    np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max))]
+                axs[axs_index].plot(hist_plotting_points, sample_frequencies_plot, 'k-', linewidth=8, alpha=0.6)
+                axs[axs_index].plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
+                         [sample_frequencies_plot[-1], sample_frequencies_plot[-1]], 'k-', linewidth=8, alpha=0.6)
+                axs[axs_index].plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies_plot[-1], 'k<', markersize=30)
+        # If no frequencies limits are given
         else:
+            # We go straight into plotting spec_db
             axs[axs_index].imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
@@ -378,7 +435,16 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                       vmin=np.percentile(spec_db, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db, v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation=None, cmap=cmap)
-            #ax1.pcolormesh(trace_time_matplotlib, sample_frequencies, spec_db, vmin=np.percentile(spec_db,v_percent_lims[0]),vmax=np.percentile(spec_db,v_percent_lims[1]), cmap=cmap, shading='nearest', rasterized=True)
+            # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
+            if db_hist:
+                spec_db_hist = np.sum(spec_db, axis=1)
+                spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
+                hist_plotting_range = (1 / denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
+                axs[axs_index].plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=8, alpha=0.6)
+                axs[axs_index].plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
+                         [sample_frequencies[-1], sample_frequencies[-1]], 'k-', linewidth=8, alpha=0.6)
+                axs[axs_index].plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies[-1], 'k<', markersize=30)
         for earthquake_time_matplotlib in earthquake_times_matplotlib:
             axs[axs_index].axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
         if log:
@@ -389,10 +455,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         axs[axs_index].tick_params(axis='y', labelsize=18)
         axs[axs_index].set_ylabel(trace.id, fontsize=22, fontweight='bold')
-    if ((endtime - starttime) % 1800) == 0:
-        time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / 12)
-    else:
-        time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / 10)
+    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)

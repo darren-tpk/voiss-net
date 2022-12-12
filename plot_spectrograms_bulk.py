@@ -26,7 +26,7 @@ freq_lims = (0.5,10)  # frequency limits for output spectrogram. If `None`, the 
 log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 v_percent_lims = (20,97.5)  # colorbar limits
-export_path = '/Users/darrentpk/Desktop/to_label_seis/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_path = '/Users/darrentpk/Desktop/to_label_seis_with_hist/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
 verbose = False
 
 # Dissect time steps and loop
@@ -65,7 +65,7 @@ while i < (total_hours-1):
         stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=False)
 
         # Plot all spectrograms on one figure
-        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, export_path=export_path)
+        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, db_hist=True, export_path=export_path)
 
         i += 1
 
