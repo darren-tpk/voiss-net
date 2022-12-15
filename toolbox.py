@@ -344,6 +344,8 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     :param log (bool): If `True`, plot spectrogram with logarithmic y-axis
     :param v_percent_lims (tuple): Tuple of length 2 storing the percentile values in the spectrogram matrix used as colorbar limits. Default is (20,100).
     :param cmap (str or :class:`matplotlib.colors.LinearSegmentedColormap`): Colormap for spectrogram plot. Default is colorcet.cm.rainbow.
+    :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
+    :param db_hist (bool): If `True`, plot a db histogram (spanning the plotted timespan) on the right side of the spectrograms across the sample frequencies
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     """
 
@@ -471,3 +473,55 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         extent = Bbox([extent2._points[0], extent1._points[1]])
         fig.savefig(export_path + file_label + '_spec.png', bbox_inches=extent)
         plt.close()
+
+def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,log=False,demean=False):
+
+    """
+    Calculates and returns a 2D matrix storing the spectrogram values (of the input trace) in decibels
+    :param trace (:class:`~obspy.core.stream.Trace`): Input data
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for desired plot
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for desired plot
+    :param window_duration (float): Duration of spectrogram window [s]
+    :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
+    :param log (bool): If `True`, plot spectrogram with logarithmic y-axis
+    :return: numpy.ndarray: 2D spectrogram matrix storing power ratio values in decibels
+    :return: numpy.ndarray: 1D array storing segment times in (:class:`~obspy.core.utcdatetime.UTCDateTime`) format
+    """
+
+    # Check if input trace is infrasound (SEED channel name ends with 'DF'). Else, assume seismic.
+    if trace.stats.channel[1:] == 'DF':
+        # If infrasound, define corresponding reference values
+        REFERENCE_VALUE = 20 * 10 ** -6  # Pressure, in Pa
+    else:
+        # If seismic, define corresponding reference values
+        REFERENCE_VALUE = 1  # Velocity, in m/s
+
+    # Extract trace information for FFT
+    sampling_rate = trace.stats.sampling_rate
+    samples_per_segment = int(window_duration * sampling_rate)
+
+    # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
+    sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann',
+                                                          scaling='density', nperseg=samples_per_segment,
+                                                          noverlap=samples_per_segment * .9)
+
+    # Convert spectrogram matrix to decibels for plotting
+    spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE ** 2))
+
+    # If demeaning is desired, remove temporal mean from spectrogram
+    if demean:
+        spec_db = spec_db - np.mean(spec_db, 1)[:, np.newaxis]
+
+    # Craft figure
+    # If frequency limits are defined
+    if freq_lims is not None:
+        # Determine frequency limits and trim spec_db
+        freq_min = freq_lims[0]
+        freq_max = freq_lims[1]
+        spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
+
+    # Calculate UTC times corresponding to all segments
+    trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
+    utc_times = np.array([UTCDateTime(dates.num2date(mpl_time)) for mpl_time in trace_time_matplotlib])
+
+    return spec_db, utc_times
