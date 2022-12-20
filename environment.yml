@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.5
+  - python
   - ipython
   - numpy
   - obspy
@@ -12,8 +12,6 @@ dependencies:
   - colorcet
   - libcomcat  
   - tensorflow
-  - keras
-  - baml
   - pip
   - pip:
       - git+https://github.com/uafgeotools/waveform_collection.git
