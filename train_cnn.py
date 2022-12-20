@@ -1,31 +1,31 @@
 import numpy as np
+import glob
 import matplotlib.pyplot as plt
 import os
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from keras.models import Sequential
 import random
-from baml.sandbox.d_scripts.DataGenerator import DataGenerator
+from DataGenerator import DataGenerator
 from sklearn import metrics
 
 
 """ Define where the data are """
 
-project_dir = "/home/awitsil/python_modules/baml/sandbox/"
-spec_dir = os.path.join(project_dir, "d_data/PVV_npy/")
-spec_files = os.listdir(spec_dir)
+project_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml/'
+spec_dir = '/Users/darrentpk/Desktop/labeled_npy/'
+spec_paths = glob.glob(spec_dir + '*.npy')
 
 # shuffle the files
 random.seed(930)
-random.shuffle(spec_files)
-spec_paths = [os.path.join(spec_dir, i) for i in spec_files]
+random.shuffle(spec_paths)
 
 # grab class information from each file
-classes = [int(i.split("_")[-1][0]) for i in spec_files]
+classes = [int(i.split("_")[-1][0]) for i in spec_paths]
 unique_classes = np.unique(classes)
 
 # read in example file to get some information about the spectrograms
-eg_spec = np.load(os.path.join(spec_dir, spec_files[0]))
+eg_spec = np.load(spec_paths[0])
 
 # define parameters to generate the training, testing, validation data
 params = {
@@ -35,31 +35,26 @@ params = {
     "shuffle": True,
 }
 
-
 """ Partition into training, testing, and validation data """
 
-n_train_files = int(len(spec_files) * 0.6)
-n_test_files = int(len(spec_files) * 0.2)
-n_valid_files = int(len(spec_files) * 0.2)
+n_train_files = int(len(spec_paths) * 0.6)
+n_test_files = int(len(spec_paths) * 0.2)
+n_valid_files = int(len(spec_paths) * 0.2)
 
-train_files = spec_files[0:n_train_files]
-test_files = spec_files[n_train_files : (n_train_files + n_test_files)]
-valid_files = spec_files[(n_train_files + n_test_files) :]
-
-train_paths = [os.path.join(spec_dir, i) for i in train_files]
-test_paths = [os.path.join(spec_dir, i) for i in test_files]
-valid_paths = [os.path.join(spec_dir, i) for i in valid_files]
+train_paths = spec_paths[0:n_train_files]
+test_paths = spec_paths[n_train_files : (n_train_files + n_test_files)]
+valid_paths = spec_paths[(n_train_files + n_test_files) :]
 
 # create a dictionary holding labels for each path in the test and training data
-train_classes = [int(i.split("_")[-1][0]) for i in train_files]
+train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 train_labels = [np.where(i == unique_classes)[0][0] for i in train_classes]
 train_label_dict = dict(zip(train_paths, train_labels))
 
-test_classes = [int(i.split("_")[-1][0]) for i in test_files]
+test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
 test_labels = [np.where(i == unique_classes)[0][0] for i in test_classes]
 test_label_dict = dict(zip(test_paths, test_labels))
 
-valid_classes = [int(i.split("_")[-1][0]) for i in valid_files]
+valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
 valid_labels = [np.where(i == unique_classes)[0][0] for i in valid_classes]
 valid_label_dict = dict(zip(valid_paths, valid_labels))
 
