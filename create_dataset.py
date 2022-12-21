@@ -28,12 +28,12 @@ log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 
 # Create label dictionary
-label_dict = {'Broadband Tremor': 1,
-              'Harmonic Tremor': 2,
-              'Monochromatic Tremor': 3,
-              'Non-tremor Signal': 4,
-              'Explosion': 5,
-              'Noise': 6}
+label_dict = {'Broadband Tremor': 0,
+              'Harmonic Tremor': 1,
+              'Monochromatic Tremor': 2,
+              'Non-tremor Signal': 3,
+              'Explosion': 4,
+              'Noise': 5}
 
 # Parse json file from label studio
 f = open(json_filepath)
