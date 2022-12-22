@@ -5,6 +5,7 @@ import numpy as np
 import glob
 import matplotlib.pyplot as plt
 from keras import layers, models, losses
+from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 import random
 from DataGenerator import DataGenerator
@@ -88,55 +89,82 @@ model.add(layers.Dense(params["n_classes"], activation="softmax"))
 model.compile(optimizer="adam", loss=losses.categorical_crossentropy, metrics=["accuracy"])
 # Print out model summary
 model.summary()
-
 # Implement early stopping and checkpointing
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
 mc = ModelCheckpoint('best_model.h5', monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
-
-# fit model
+# Fit model
 history = model.fit(train_gen, validation_data=valid_gen, epochs=100, callbacks=[es, mc])
-# load the saved model
-saved_model = load_model('best_model.h5')
-# evaluate the model
-_, train_acc = saved_model.evaluate(trainX, trainy, verbose=0)
-_, test_acc = saved_model.evaluate(validX, validy, verbose=0)
-print('Train: %.3f, Test: %.3f' % (train_acc, test_acc))
 
-""" Fit the model to the data"""
-
-history = model.fit_generator(generator=train_gen, validation_data=valid_gen, epochs=100, callbacks=[es,mc])
-
-# make predictions on the validation data
-valid_params = params.copy()
-valid_params["batch_size"] = len(valid_labels)
-valid_params["shuffle"] = False
-valid_gen = DataGenerator(valid_paths, valid_label_dict, **valid_params)
-valid = model.predict(valid_gen)
-
-pred_labs = np.argmax(valid, axis=1)
-true_labs = np.array(list(valid_gen.labels.values()))
-
-
-""" Some Results """
-
-# loss and accuracy plots
+# Plot loss and accuracy curves
 plt.ion()
 fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-
 axs[0].plot(history.history["accuracy"], label="training")
-axs[0].plot(history.history["val_accuracy"], label="testing")
+axs[0].plot(history.history["val_accuracy"], label="validation")
 axs[0].set_ylabel("accuracy")
 axs[0].set_xlabel("epoch")
-
 axs[1].plot(history.history["loss"], label="training")
-axs[1].plot(history.history["val_loss"], label="testing")
+axs[1].plot(history.history["val_loss"], label="validation")
 axs[1].set_ylabel("loss")
 axs[1].set_xlabel("epoch")
-
 axs[0].legend()
 
-# confusion matrix
+# Create data generator for test data
+test_params = params.copy()
+test_params["batch_size"] = len(test_labels)
+test_params["shuffle"] = False
+test_gen = DataGenerator(test_paths, test_label_dict, **test_params)
+
+# Use saved model to make predictions
+saved_model = load_model('best_model.h5')
+test = saved_model.predict(test_gen)
+pred_labs = np.argmax(test, axis=1)
+true_labs = np.array(list(test_gen.labels.values()))
+
+# Confusion matrix
 confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
 cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
 plt.figure()
 cm_display.plot()
+
+# Print evaluation on test data
+acc = metrics.accuracy_score(true_labs, pred_labs)
+pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='weighted')
+print('Accuracy: %.3f' % acc)
+print('Precision: %.3f' % pre)
+print('Recall: %.3f' % rec)
+print('F1 Score: %.3f' % f1)
+
+# Now conduct post-mortem
+path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
+label_dict = {0: 'Broadband Tremor',
+              1: 'Harmonic Tremor',
+              2: 'Monochromatic Tremor',
+              3: 'Non-tremor Signal',
+              4: 'Explosion',
+              5: 'Noise'}
+
+variety = ['3','4']
+
+for predicted_label in variety:
+    for true_label in variety:
+        corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
+        N = 16
+        import colorcet as cc
+        fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
+        fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(predicted_label)], label_dict[int(true_label)], len(corresponding_filenames)))
+        for i in range(int(np.sqrt(N))):
+            for j in range(int(np.sqrt(N))):
+                filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
+                if filename_index > (len(corresponding_filenames) - 1):
+                    axs[i, j].set_xticks([])
+                    axs[i, j].set_yticks([])
+                    continue
+                else:
+                    spec_db = np.load(corresponding_filenames[filename_index])
+                    if np.sum(spec_db < -250) > 0:
+                        print(i, j)
+                    axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
+                                     origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
+                    axs[i, j].set_xticks([])
+                    axs[i, j].set_yticks([])
+        fig.show()
