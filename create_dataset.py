@@ -9,9 +9,9 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels.json'
+json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/labels_20221222.json'
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/labeled_npy/'
+output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -28,12 +28,12 @@ log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 
 # Create label dictionary
-label_dict = {'Broadband Tremor': 0,
-              'Harmonic Tremor': 1,
-              'Monochromatic Tremor': 2,
-              'Non-tremor Signal': 3,
-              'Explosion': 4,
-              'Noise': 5}
+label_dict = {'Broadband Tremor': 1,
+              'Harmonic Tremor': 2,
+              'Monochromatic Tremor': 3,
+              'Non-tremor Signal': 4,
+              'Explosion': 5,
+              'Noise': 6}
 
 # Parse json file from label studio
 f = open(json_filepath)
@@ -119,8 +119,16 @@ for labeled_image in labeled_images:
             sb2 = step_bounds[j + 1]
             spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in utc_times])
             spec_slice = spec_db[:, spec_slice_indices]
-            if np.shape(spec_slice) != (94,240):
+
+            # Enforce shape
+            if np.shape(spec_slice) != (94,time_step):
                 raise ValueError('THE SHAPE IS NOT RIGHT.')
+
+            # Skip matrices that have a spectrogram data gap
+            if np.sum(spec_slice.flatten() < -220) > 0:
+                continue
+
+            # Obtain corresponding time samples for spectrogram slice
             time_slice = utc_times[spec_slice_indices]
 
             # Check for overlaps and fill a vector with labels to decide final label
@@ -128,15 +136,15 @@ for labeled_image in labeled_images:
             for time_bound_station in time_bounds_station:
 
                 # Labeled time bound starts before slice and ends in slice
-                if sb1 < time_bound_station[2] < sb2:
+                if sb1 < time_bound_station[2] <= sb2:
                     label_indices[np.flatnonzero(time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
 
                 # Labeled time bound starts in slice and ends after slice
-                elif sb1 < time_bound_station[1] < sb2:
+                elif sb1 <= time_bound_station[1] < sb2:
                     label_indices[np.flatnonzero(time_slice > time_bound_station[1])] = label_dict[time_bound_station[3]]
 
                 # Labeled time bound starts in slice and ends in slice
-                elif sb1 > time_bound_station[1] and time_bound_station[2] > sb2:
+                elif sb1 >= time_bound_station[1] and time_bound_station[2] >= sb2:
                     label_indices[np.flatnonzero(time_bound_station[1] < time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
 
             # Count how many time samples correspond to each label
