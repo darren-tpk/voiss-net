@@ -1,5 +1,3 @@
-# %% PLOT SPECTROGRAM(S) BULK
-
 # Import all dependencies
 import numpy as np
 import glob
@@ -12,8 +10,17 @@ from DataGenerator import DataGenerator
 from sklearn import metrics
 
 # Define npy directory and filepath
-spec_dir = '/Users/darrentpk/Desktop/PVV_npy/'
-spec_paths = glob.glob(spec_dir + '*.npy')
+width_option = '4min'
+station_option = 'noPS4A'
+spec_dir = '/Users/darrentpk/Desktop/labeled_npy_' + width_option + '/'
+if station_option == 'all':
+    spec_paths = glob.glob(spec_dir + '*.npy')
+elif station_option == 'noPS4A':
+    spec_paths = glob.glob(spec_dir + '*.npy')
+    spec_paths = [p for p in spec_paths if 'PS4A' not in p]
+else:
+    spec_paths = glob.glob(spec_dir + station_option + '*.npy')
+model_name = width_option + '_' + station_option + '_model.h5'
 
 # Shuffle the files
 random.seed(930)
@@ -69,18 +76,20 @@ input_shape = [*eg_spec.shape, 1]
 model = models.Sequential()
 # Convolutional layer, 32 filters, 3x3 kernel, 1x1 stride, padded to retain shape
 model.add(layers.Conv2D(32, (3, 3), activation="relu", input_shape=input_shape, padding="same"))
-# Max pooling layer, 2x2 pool, 2x2 stride
-model.add(layers.MaxPooling2D((2, 2)))
+# Max pooling layer, 3x3 pool, 3x3 stride
+model.add(layers.MaxPooling2D((3, 3)))
 # Convolutional layer, 64 filters, 3x3 kernel, 1x1 stride, padded to retain shape
 model.add(layers.Conv2D(64, (3, 3), activation="relu", padding="same"))
-# Max pooling layer, 2x2 pool, 2x2 stride
-model.add(layers.MaxPooling2D((2, 2)))
+# Max pooling layer, 3x3 pool, 3x3 stride
+model.add(layers.MaxPooling2D((3, 3)))
 # Convolutional layer, 128 filters, 3x3 kernel, 1x1 stride, padded to retain shape
 model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
-# Max pooling layer, 2x2 pool, 2x2 stride
-model.add(layers.MaxPooling2D((2, 2)))
+# Max pooling layer, 3x3 pool, 3x3 stride
+model.add(layers.MaxPooling2D((3, 3)))
 # Flatten
 model.add(layers.Flatten())
+# Dense layer, 128 units
+model.add(layers.Dense(128, activation="relu"))
 # Dense layer, 64 units
 model.add(layers.Dense(64, activation="relu"))
 # Dense layer, 6 units, one per class
@@ -91,9 +100,9 @@ model.compile(optimizer="adam", loss=losses.categorical_crossentropy, metrics=["
 model.summary()
 # Implement early stopping and checkpointing
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
-mc = ModelCheckpoint('best_model.h5', monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
+mc = ModelCheckpoint(model_name, monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
 # Fit model
-history = model.fit(train_gen, validation_data=valid_gen, epochs=100, callbacks=[es, mc])
+history = model.fit(train_gen, validation_data=valid_gen, epochs=120, callbacks=[es, mc])
 
 # Plot loss and accuracy curves
 plt.ion()
@@ -107,6 +116,7 @@ axs[1].plot(history.history["val_loss"], label="validation")
 axs[1].set_ylabel("loss")
 axs[1].set_xlabel("epoch")
 axs[0].legend()
+fig.show()
 
 # Create data generator for test data
 test_params = params.copy()
@@ -115,7 +125,7 @@ test_params["shuffle"] = False
 test_gen = DataGenerator(test_paths, test_label_dict, **test_params)
 
 # Use saved model to make predictions
-saved_model = load_model('best_model.h5')
+saved_model = load_model(model_name)
 test = saved_model.predict(test_gen)
 pred_labs = np.argmax(test, axis=1)
 true_labs = np.array(list(test_gen.labels.values()))
@@ -125,10 +135,12 @@ confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
 cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
 plt.figure()
 cm_display.plot()
+plt.show()
 
 # Print evaluation on test data
 acc = metrics.accuracy_score(true_labs, pred_labs)
 pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='weighted')
+print(model_name)
 print('Accuracy: %.3f' % acc)
 print('Precision: %.3f' % pre)
 print('Recall: %.3f' % rec)
@@ -143,24 +155,25 @@ label_dict = {0: 'Broadband Tremor',
               4: 'Explosion',
               5: 'Noise'}
 
-variety = ['3','4']
+variety = ['5']
 
 for predicted_label in variety:
     for true_label in variety:
-        corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
         N = 16
+        corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
+        corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
         import colorcet as cc
         fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
-        fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(predicted_label)], label_dict[int(true_label)], len(corresponding_filenames)))
+        fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
         for i in range(int(np.sqrt(N))):
             for j in range(int(np.sqrt(N))):
                 filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
-                if filename_index > (len(corresponding_filenames) - 1):
+                if filename_index > (len(corresponding_filenames_chosen) - 1):
                     axs[i, j].set_xticks([])
                     axs[i, j].set_yticks([])
                     continue
                 else:
-                    spec_db = np.load(corresponding_filenames[filename_index])
+                    spec_db = np.load(corresponding_filenames_chosen[filename_index])
                     if np.sum(spec_db < -250) > 0:
                         print(i, j)
                     axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
