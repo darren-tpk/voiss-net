@@ -10,6 +10,7 @@ dependencies:
   - pygmt
   - scikit-learn
   - colorcet
+  - seaborn
   - libcomcat  
   - tensorflow
   - pip
