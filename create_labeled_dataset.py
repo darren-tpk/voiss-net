@@ -1,4 +1,4 @@
-# %% CREATE DATASET
+# %% CREATE LABELED DATASET
 
 # Import all dependencies
 import json
@@ -11,7 +11,7 @@ from toolbox import process_waveform, calculate_spectrogram
 # Define filepaths and variables for functions
 json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/labels_20221222.json'
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
+output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min_2/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -28,12 +28,12 @@ log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 
 # Create label dictionary
-label_dict = {'Broadband Tremor': 1,
-              'Harmonic Tremor': 2,
-              'Monochromatic Tremor': 3,
-              'Non-tremor Signal': 4,
-              'Explosion': 5,
-              'Noise': 6}
+label_dict = {'Broadband Tremor': 0,
+              'Harmonic Tremor': 1,
+              'Monochromatic Tremor': 2,
+              'Non-tremor Signal': 3,
+              'Explosion': 4,
+              'Noise': 5}
 
 # Parse json file from label studio
 f = open(json_filepath)
@@ -132,7 +132,7 @@ for labeled_image in labeled_images:
             time_slice = utc_times[spec_slice_indices]
 
             # Check for overlaps and fill a vector with labels to decide final label
-            label_indices = np.zeros(len(time_slice))
+            label_indices = np.ones(len(time_slice)) * -1
             for time_bound_station in time_bounds_station:
 
                 # Labeled time bound starts before slice and ends in slice
@@ -151,7 +151,7 @@ for labeled_image in labeled_images:
             labels_seen, label_counts = np.unique(label_indices, return_counts=True)
 
             # If it's all unlabeled, skip
-            if len(labels_seen) == 1 and 0 in labels_seen:
+            if len(labels_seen) == 1 and -1 in labels_seen:
                 continue
             # If we see the explosion label in >10% of the time samples, choose explosion
             elif label_dict['Explosion'] in labels_seen and label_counts[list(labels_seen).index(label_dict['Explosion'])] >= 0.1*len(label_indices):
@@ -160,7 +160,7 @@ for labeled_image in labeled_images:
             elif label_dict['Non-tremor Signal'] in labels_seen and label_counts[list(labels_seen).index(label_dict['Non-tremor Signal'])] >= 0.1 * len(label_indices):
                 final_label = 'Non-tremor Signal'
             # If we don't see either, and less than 50% of the time samples are meaningfully labeled, skip
-            elif np.max(label_counts) <= 0.5 * len(label_indices) or st.mode(label_indices) == 0:
+            elif np.max(label_counts) <= 0.5 * len(label_indices) or st.mode(label_indices) == -1:
                 continue
             # If we see a tremor or noise label in > 50% of the time samples, choose that label
             else:
