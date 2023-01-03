@@ -14,8 +14,8 @@ network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*HZ'
-starttime = UTCDateTime(2021, 7, 22, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2021, 8, 19, 17, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2021, 9, 13, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2021, 9, 14, 00, 00)  # end time for data pull and spectrogram plot
 pad = 60  # padding length [s]
 local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
@@ -26,7 +26,8 @@ freq_lims = (0.5,10)  # frequency limits for output spectrogram. If `None`, the 
 log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 v_percent_lims = (20,97.5)  # colorbar limits
-export_path = '/Users/darrentpk/Desktop/to_label_seis_with_hist/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_path = '/Users/darrentpk/Desktop/spectrograms_check/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_spec = False  # export spectrogram with no axis labels
 verbose = False
 
 # Dissect time steps and loop
@@ -65,7 +66,7 @@ while i < (total_hours-1):
         stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=False)
 
         # Plot all spectrograms on one figure
-        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, db_hist=True, export_path=export_path)
+        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, db_hist=True, export_path=export_path, export_spec=export_spec)
 
         i += 1
 
