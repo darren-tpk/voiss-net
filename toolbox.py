@@ -332,7 +332,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
             plt.close()
 
-def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,export_path=None):
+def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,export_path=None,export_spec=True):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -347,6 +347,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
     :param db_hist (bool): If `True`, plot a db histogram (spanning the plotted timespan) on the right side of the spectrograms across the sample frequencies
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :param export_spec (bool): If `True`, export spectrogram with trimmed-off axis labels (useful for labeling)
     """
 
     # Initialize figure based on length of input stream
@@ -468,11 +469,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + '_'.join([tr.id.split('.')[1] for tr in stream])
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight')
-        extent1 = axs[0].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        extent2 = axs[-1].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        extent = Bbox([extent2._points[0], extent1._points[1]])
-        fig.savefig(export_path + file_label + '_spec.png', bbox_inches=extent)
-        plt.close()
+        if export_spec:
+            extent1 = axs[0].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            extent2 = axs[-1].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            extent = Bbox([extent2._points[0], extent1._points[1]])
+            fig.savefig(export_path + file_label + '_spec.png', bbox_inches=extent)
+            plt.close()
 
 def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,log=False,demean=False):
 
