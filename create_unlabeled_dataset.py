@@ -9,8 +9,8 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2022, 7, 19, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2022, 12, 29, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2022, 12, 29, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2023, 1, 1, 00, 00)  # end time for data pull and spectrogram plot
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
 output_dir = '/Users/darrentpk/Desktop/all_npy/'
 source = 'IRIS'
@@ -31,11 +31,17 @@ demean = False  # remove the temporal mean of the plotted time span from the spe
 # Calculate number of days for loop
 num_days = int((endtime-starttime)/86400)
 
+# Find current files
+import glob
+current_files = glob.glob(output_dir + '*.npy')
+current_files = [c.split('/')[-1] for c in current_files]
+
 # Loop over days
 for i in range(num_days):
 
     t1 = starttime + (i*86400)
     t2 = t1 + 86400
+    print('Now at %s ...' % t1)
 
     # Load data using waveform_collection tool
     successfully_loaded = False
@@ -64,7 +70,7 @@ for i in range(num_days):
         spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, log=log, demean=demean)
 
         # Define array of time steps for spectrogram slicing
-        step_bounds = np.arange(t1, t2, time_step)
+        step_bounds = np.arange(t1, t2+time_step, time_step)
 
         # Loop over time steps
         for k in range(len(step_bounds) - 1):
@@ -85,10 +91,12 @@ for i in range(num_days):
                     raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 0:
+            if np.sum(spec_slice.flatten() < -220) > 50:
+                print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
             # Craft filename and save
             file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
                         sb2.strftime('%Y%m%d%H%M') + '.npy'
-            np.save(output_dir + file_name, spec_slice)
+            if file_name not in current_files:
+                np.save(output_dir + file_name, spec_slice)

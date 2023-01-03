@@ -55,6 +55,7 @@ for labeled_image in labeled_images:
 
     # If no annotations exist, skip
     if len(annotations) == 0:
+        print('No annotations on image')
         continue
     # Otherwise define original width and height of image in pixels and determine pixels indicating each station
     else:
@@ -109,7 +110,7 @@ for labeled_image in labeled_images:
         time_bounds_station = [tb for tb in time_bounds if tb[0] == stream_station]
 
         # Define array of time steps for spectrogram slicing
-        step_bounds = np.arange(t1, t2, time_step)
+        step_bounds = np.arange(t1, t2+time_step, time_step)
 
         # Loop over time steps
         for j in range(len(step_bounds) - 1):
@@ -121,11 +122,17 @@ for labeled_image in labeled_images:
             spec_slice = spec_db[:, spec_slice_indices]
 
             # Enforce shape
-            if np.shape(spec_slice) != (94,time_step):
-                raise ValueError('THE SHAPE IS NOT RIGHT.')
+            if np.shape(spec_slice) != (94, time_step):
+                # Try inclusive slicing time span (<= sb2)
+                spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
+                spec_slice = spec_db[:, spec_slice_indices]
+                # If it still doesn't fit our shape, raise error
+                if np.shape(spec_slice) != (94, time_step):
+                    raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 0:
+            if np.sum(spec_slice.flatten() < -220) > 50:
+                print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
             # Obtain corresponding time samples for spectrogram slice
