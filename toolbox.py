@@ -5,7 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import dates
 from matplotlib.transforms import Bbox
-from scipy.signal import spectrogram
+from scipy.signal import spectrogram, find_peaks
+from scipy.fft import rfft, rfftfreq
+from ordpy import complexity_entropy
+from geopy.distance import geodesic as GD
 import colorcet as cc
 
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
@@ -136,12 +139,13 @@ def load_data(network,station,channel,location,starttime,endtime,pad=None,local=
         # Raise error
         raise ValueError('Please provide an input client (e.g. "IRIS").')
 
-def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
+def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=True,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
 
     """
     Process waveform by removing response, detrending, tapering and filtering (in that order)
     :param stream (:class:`~obspy.core.stream.Stream`): Input data
     :param remove_response (bool): If `True`, remove response using metadata. If `False`, response is not removed
+    :param rr_output (str): Set to 'DISP', 'VEL', 'ACC', or 'DEF'. See obspy documentation for more details.
     :param detrend (bool): If `True`, demean input data. If `False`, data is not demeaned
     :param taper_length (float): Taper length in seconds [s]. This is usually set to be similar as the pad length when loading data. If both taper_length and taper_percentage are `None`, data is not tapered
     :param taper_percentage (float): Taper length in percentage [%], if desired. If both taper_length and taper_percentage are `None`, data is not tapered
@@ -156,7 +160,7 @@ def process_waveform(stream,remove_response=True,detrend=True,taper_length=None,
         for tr in stream:
             fs_resp = tr.stats.sampling_rate
             pre_filt = [0.005, 0.01, fs_resp/2-2, fs_resp/2]
-            tr.remove_response(pre_filt=pre_filt, output='VEL', water_level=60, plot=False)
+            tr.remove_response(pre_filt=pre_filt, output=rr_output, water_level=60, plot=False)
         if verbose:
             print('Response removed.')
     if detrend:
@@ -514,7 +518,6 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,log=
     if demean:
         spec_db = spec_db - np.mean(spec_db, 1)[:, np.newaxis]
 
-    # Craft figure
     # If frequency limits are defined
     if freq_lims is not None:
         # Determine frequency limits and trim spec_db
@@ -527,3 +530,137 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,log=
     utc_times = np.array([UTCDateTime(dates.num2date(mpl_time)) for mpl_time in trace_time_matplotlib])
 
     return spec_db, utc_times
+
+def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
+
+    """
+    :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
+    :param padded_length (float): length for which the trace is padded [s]
+    :param filter_band (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for bandpass filter ([Hz],[Hz])
+    :param window_length (float): window length for each metric to be computed, default is 240 [s]
+    :param vlatlon (tuple): Tuple of length 2 storing the latitude and longitude of the target volcano for reduced displacement computation
+    :param overlap (float): overlap for time stepping as each metric is computed. Ranges from 0 to 1. If set to 0, time step is equal to window_length.
+    :return: numpy.ndarray: 2D array of matplotlib dates, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of RSAM, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of Reduced Displacement, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of Central Frequency, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of Dominant Frequency, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of Standard Deviation of Top 30 Frequency Peaks, rows corresponding to traces in stream and columns corresponding to values.
+    """
+
+    # Remove response to obtain stream in displacement and velocity values
+    stream_disp = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='DISP', detrend=False,
+                                   taper_length=process_taper, taper_percentage=None, filter_band=filter_band, verbose=False)
+    stream_vel = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='VEL', detrend=False,
+                                  taper_length=process_taper, taper_percentage=None, filter_band=filter_band, verbose=False)
+
+    # Get actual desired starttime and endtime by considering pad length
+    starttime = stream_unprocessed[0].stats.starttime
+    endtime = stream_unprocessed[0].stats.endtime
+    if metric_taper:
+        starttime += metric_taper + window_length/2
+        endtime -= metric_taper + window_length/2
+    elif process_taper:
+        starttime += process_taper + window_length/2
+        endtime -= process_taper + window_length/2
+    else:
+        starttime += window_length/2
+        endtime -= window_length/2
+
+    # Determine time step
+    time_step = window_length * (1-overlap)
+
+    # Initialize all metrics
+    window_centers = np.arange(starttime, endtime+time_step, time_step)
+    metric_length = len(window_centers)
+    tmpl = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    rsam = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    dr = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    pe = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    fc = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    fd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    fsd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+
+    # Loop over time windows to calculate metrics
+    for i, window_center in enumerate(window_centers):
+
+        # Compute corresponding window end and slice stream
+        window_start = window_center - window_length/2
+        window_end = window_center + window_length/2
+        stream_disp_segment = stream_disp.copy().trim(window_start, window_end)
+        stream_vel_segment = stream_vel.copy().trim(window_start, window_end)
+
+        # Loop over each trace and do computation
+        for j in range(len(stream_disp_segment)):
+
+            # Get trace data
+            trace_disp_segment = stream_disp_segment[j].data
+            trace_vel_segment = stream_vel_segment[j].data
+
+            # Store matplotlib date for plotting
+            tmpl[j,i] = window_center.matplotlib_date
+
+            # Compute RSAM
+            rsam[j,i] = np.mean(np.abs(trace_disp_segment))
+
+            # Compute DR
+            rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
+            station_dist = GD((stream_disp_segment[j].stats.latitude, stream_disp_segment[j].stats.longitude), vlatlon).m
+            wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
+            dr[j, i] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+
+            # Compute permutation entropy
+            pe[j,i] = complexity_entropy(trace_vel_segment, dx=5)[0]
+
+            # Now execute FFT and trim
+            fsamp = rfftfreq(len(trace_vel_segment), 1 / stream_vel_segment[j].stats.sampling_rate)
+            fspec = np.abs(rfft(trace_vel_segment))[np.flatnonzero(fsamp>1)]
+            fsamp = fsamp[np.flatnonzero(fsamp>1)]
+
+            # Compute central frequency
+            fc[j,i] = np.sum(fspec * fsamp) / np.sum(fspec)
+
+            # Compute dominant frequency
+            fd[j,i] = fsamp[np.argmax(fspec)]
+
+            # Compute standard deviation of top 30 frequency peaks
+            fpeaks_index, _ = find_peaks(fspec)
+            fpeaks_top30 = np.sort(fspec[fpeaks_index])[-30:]
+            fsd[j,i] = np.std(fpeaks_top30)
+
+    return tmpl, rsam, dr, pe, fc, fd, fsd
+
+def compute_pavlof_rsam(stream_unprocessed):
+    """
+    Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
+    :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
+    :return: dr (list): List of reduced displacement values,
+    """
+    # Import geopy
+    from geopy.distance import geodesic as GD
+    # Define constants
+    R = 6372.7976  # km
+    drm = 3  # cm^2
+    seisvel = 1500  # m/s
+    dfrq = 2  # Hz
+    vlatlon = (55.4173,-161.8937)
+    # Initialize lists
+    disteqv = []
+    sensf = []
+    rmssta = []
+    # Compute
+    for i, tr in enumerate(stream_unprocessed):
+        slatlon = (tr.stats.latitude,tr.stats.longitude)
+        disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
+        sensf.append(tr.stats.response.instrument_sensitivity.value)
+        rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
+    rmsstav = np.array(rmssta)*2*np.pi*dfrq
+    levels_count = rmsstav * sensf
+    q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
+    dr = levels_count * q_effect
+    return dr
+
+
+
+
+
