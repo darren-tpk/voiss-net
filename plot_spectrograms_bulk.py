@@ -14,8 +14,8 @@ network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*HZ'
-starttime = UTCDateTime(2021, 9, 13, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2021, 9, 14, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2021, 7, 1, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2021, 7, 22, 00, 00)  # end time for data pull and spectrogram plot
 pad = 60  # padding length [s]
 local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
@@ -26,8 +26,8 @@ freq_lims = (0.5,10)  # frequency limits for output spectrogram. If `None`, the 
 log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 v_percent_lims = (20,97.5)  # colorbar limits
-export_path = '/Users/darrentpk/Desktop/spectrograms_check/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
-export_spec = False  # export spectrogram with no axis labels
+export_path = '/Users/darrentpk/Desktop/spectrograms_20210701_20210722/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_spec = True  # export spectrogram with no axis labels
 verbose = False
 
 # Dissect time steps and loop
