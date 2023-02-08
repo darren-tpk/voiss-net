@@ -3,10 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python
+  - python=3.8
   - ipython
   - numpy
   - obspy
+  - geopy
+  - ordpy
   - pygmt
   - scikit-learn
   - colorcet
