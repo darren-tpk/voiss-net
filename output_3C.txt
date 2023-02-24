@@ -1,0 +1,125 @@
+4min_PN7A_balanced_3C_model.h5
+Accuracy: 0.599
+Precision: 0.612
+Recall: 0.599
+F1 Score: 0.595
+4min_PS1A_balanced_3C_model.h5
+Accuracy: 0.490
+Precision: 0.465
+Recall: 0.490
+F1 Score: 0.456
+4min_PS4A_balanced_3C_model.h5
+Accuracy: 0.378
+Precision: 0.369
+Recall: 0.378
+F1 Score: 0.360
+4min_PV6A_balanced_3C_model.h5
+Accuracy: 0.595
+Precision: 0.585
+Recall: 0.595
+F1 Score: 0.565
+4min_PVV_balanced_3C_model.h5
+Accuracy: 0.200
+Precision: 0.133
+Recall: 0.200
+F1 Score: 0.160
+4min_all_balanced_3C_model.h5
+Accuracy: 0.632
+Precision: 0.632
+Recall: 0.632
+F1 Score: 0.625
+4min_noPS4A_balanced_3C_model.h5
+Accuracy: 0.664
+Precision: 0.669
+Recall: 0.664
+F1 Score: 0.651
+4min_PN7A_3C_model.h5
+Accuracy: 0.814
+Precision: 0.816
+Recall: 0.814
+F1 Score: 0.812
+4min_PS1A_3C_model.h5
+Accuracy: 0.826
+Precision: 0.806
+Recall: 0.826
+F1 Score: 0.812
+4min_PS4A_3C_model.h5
+Accuracy: 0.795
+Precision: 0.790
+Recall: 0.795
+F1 Score: 0.786
+4min_PV6A_3C_model.h5
+Accuracy: 0.825
+Precision: 0.822
+Recall: 0.825
+F1 Score: 0.816
+4min_PVV_3C_model.h5
+Accuracy: 0.868
+Precision: 0.872
+Recall: 0.868
+F1 Score: 0.862
+4min_all_3C_model.h5
+Accuracy: 0.842
+Precision: 0.838
+Recall: 0.842
+F1 Score: 0.836
+4min_noPS4A_3C_model.h5
+Accuracy: 0.846
+Precision: 0.844
+Recall: 0.846
+F1 Score: 0.842
+4min_PN7Aoversampled_3C_model.h5
+Accuracy: 0.919
+Precision: 0.917
+Recall: 0.919
+F1 Score: 0.917
+4min_PS1A_oversampled_3C_model.h5
+Accuracy: 0.942
+Precision: 0.943
+Recall: 0.942
+F1 Score: 0.942
+4min_PS4A_oversampled_3C_model.h5
+Accuracy: 0.914
+Precision: 0.912
+Recall: 0.914
+F1 Score: 0.913
+4min_PV6A_oversampled_3C_model.h5
+Accuracy: 0.943
+Precision: 0.945
+Recall: 0.943
+F1 Score: 0.942
+4min_PVV_oversampled_3C_model.h5
+Accuracy: 0.977
+Precision: 0.977
+Recall: 0.977
+F1 Score: 0.977
+4min_all_oversampled_3C_model.h5
+Accuracy: 0.932
+Precision: 0.934
+Recall: 0.932
+F1 Score: 0.931
+4min_PN7A_subsampled2_3C_model.h5
+Accuracy: 0.879
+Precision: 0.878
+Recall: 0.879
+F1 Score: 0.878
+4min_PS1A_subsampled2_3C_model.h5
+Accuracy: 0.882
+Precision: 0.883
+Recall: 0.882
+F1 Score: 0.882
+4min_PS4A_subsampled2_3C_model.h5
+Accuracy: 0.872
+Precision: 0.882
+Recall: 0.872
+F1 Score: 0.868
+4min_PV6A_subsampled2_3C_model.h5
+Accuracy: 0.902
+Precision: 0.905
+Recall: 0.902
+F1 Score: 0.901
+4min_all_subsampled2_3C_model.h5
+Accuracy: 0.892
+Precision: 0.893
+Recall: 0.892
+F1 Score: 0.890
