@@ -9,8 +9,8 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2022, 12, 29, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2023, 1, 1, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2021, 1, 1, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2021, 7, 1, 00, 00)  # end time for data pull and spectrogram plot
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
 output_dir = '/Users/darrentpk/Desktop/all_npy/'
 source = 'IRIS'
