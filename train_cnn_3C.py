@@ -15,11 +15,11 @@ balance_training = True
 balance_type = 'subsampled2'  # 'oversampled', 'undersampled', or 'subsampled[0,1,2,3,4,5]'
 random.seed(930)
 
-# Train station-specific model, station-generic model and station-generic without PS4A model
-for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
+# Define npy directory and filepath
+for station_option in ['PN7A','PS1A','PS4A','PV6A','all']:
 
     # Get list of spectrogram slice paths based on station option
-    spec_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
+    spec_dir = '/Users/darrentpk/Desktop/labeled_npy_4min_3C/'
     if station_option == 'all':
         spec_paths = glob.glob(spec_dir + '*.npy')
     elif station_option == 'noPS4A':
@@ -31,7 +31,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     # Balance the training set if desired
     if balance_training:
         # Get unique classes
-        train_class_keys = [path.split('_')[-1][0] for path in spec_paths]
+        train_class_keys = [path.split('_')[-2] for path in spec_paths]
         unique_train_class_keys = list(set(train_class_keys))
         # Balance dataset using desired strategy
         if balance_type == 'undersampled':
@@ -61,7 +61,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
             # Replace file path list
             spec_paths = spec_paths + spec_paths_oversamples
         elif balance_type[:-1] == 'subsampled':
-            # Count unique classes and establish maximum class
+            # Count unique classes and establish desired class count based on reference class
             train_class_keys_count = [train_class_keys.count(class_key) for class_key in unique_train_class_keys]
             train_class_count_desired = train_class_keys_count[unique_train_class_keys.index(balance_type[-1])]
             # Loop over unique classes
@@ -85,6 +85,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     model_type = '4min_' + station_option
     if balance_training:
         model_type = model_type + '_' + balance_type
+    model_type = model_type + '_3C'
     model_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/models/' + model_type + '_model.h5'
     curve_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_curve.png'
     confusion_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_confusion.png'
@@ -93,7 +94,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     random.shuffle(spec_paths)
 
     # Pull class information from each file
-    classes = [int(i.split("_")[-1][0]) for i in spec_paths]
+    classes = [int(i.split("_")[-2]) for i in spec_paths]
     unique_classes = np.unique(classes)
 
     # Read in example file to determine spectrogram shape
@@ -116,15 +117,15 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     test_paths = spec_paths[(n_train_files + n_valid_files):]
 
     # Create a dictionary holding labels for all filepaths in the training, testing, and validation data
-    train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
+    train_classes = [int(i.split("_")[-2]) for i in train_paths]
     train_labels = [np.where(i == unique_classes)[0][0] for i in train_classes]
     train_label_dict = dict(zip(train_paths, train_labels))
 
-    valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
+    valid_classes = [int(i.split("_")[-2]) for i in valid_paths]
     valid_labels = [np.where(i == unique_classes)[0][0] for i in valid_classes]
     valid_label_dict = dict(zip(valid_paths, valid_labels))
 
-    test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
+    test_classes = [int(i.split("_")[-2]) for i in test_paths]
     test_labels = [np.where(i == unique_classes)[0][0] for i in test_classes]
     test_label_dict = dict(zip(test_paths, test_labels))
 
@@ -136,7 +137,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     # Define the CNN
 
     # Add singular channel to conform with tensorflow input dimensions
-    input_shape = [*eg_spec.shape, 1]
+    input_shape = [*eg_spec.shape]
 
     # Build a sequential model
     model = models.Sequential()
@@ -183,7 +184,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     axs[1].set_xlabel("epoch")
     axs[0].legend()
     fig.suptitle(model_type, fontweight='bold')
-    fig.savefig('/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + curve_name)
+    fig.savefig(curve_name)
     fig.show()
 
     # Create data generator for test data
@@ -204,17 +205,18 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     plt.figure()
     cm_display.plot()
     plt.title(model_type,fontweight='bold')
-    plt.savefig('/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + confusion_name)
+    plt.savefig(confusion_name)
     plt.show()
 
     # Print evaluation on test data
     acc = metrics.accuracy_score(true_labs, pred_labs)
     pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='weighted')
-    metrics_chunk = model_name + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + ('Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
+    metrics_chunk = model_name + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + (
+                'Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
     print(metrics_chunk)
-    with open("output.txt", "a") as outfile:
+    with open("output_3C.txt", "a") as outfile:
         outfile.write(metrics_chunk + '\n')
-#
+
 # # Now conduct post-mortem
 # path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
 # label_dict = {0: 'Broadband Tremor',
