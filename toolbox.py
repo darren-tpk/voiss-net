@@ -336,7 +336,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             fig.savefig(export_path + file_label + 'spec.png',bbox_inches=extent)
             plt.close()
 
-def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,export_path=None,export_spec=True):
+def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,explosion_times=None,db_hist=False,export_path=None,export_spec=True):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -349,6 +349,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     :param v_percent_lims (tuple): Tuple of length 2 storing the percentile values in the spectrogram matrix used as colorbar limits. Default is (20,100).
     :param cmap (str or :class:`matplotlib.colors.LinearSegmentedColormap`): Colormap for spectrogram plot. Default is colorcet.cm.rainbow.
     :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
+    :param explosion_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing explosion detection times to be plotted as vertical dark red dashed lines.
     :param db_hist (bool): If `True`, plot a db histogram (spanning the plotted timespan) on the right side of the spectrograms across the sample frequencies
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param export_spec (bool): If `True`, export spectrogram with trimmed-off axis labels (useful for labeling)
@@ -406,6 +407,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         else:
             earthquake_times_matplotlib = []
 
+        # If explosion times are provided, convert them from UTCDateTime to matplotlib dates
+        if explosion_times:
+            explosion_times_matplotlib = [ex.matplotlib_date for ex in explosion_times]
+        else:
+            explosion_times_matplotlib = []
+
         # Craft figure
         # If frequency limits are defined
         if freq_lims is not None:
@@ -454,6 +461,8 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                 axs[axs_index].plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies[-1], 'k<', markersize=30)
         for earthquake_time_matplotlib in earthquake_times_matplotlib:
             axs[axs_index].axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
+        for explosion_time_matplotlib in explosion_times_matplotlib:
+            axs[axs_index].axvline(x=explosion_time_matplotlib, linestyle='--', color='darkred', linewidth=3, alpha=0.7)
         if log:
             axs[axs_index].set_yscale('log')
         if freq_lims is not None:
@@ -660,7 +669,46 @@ def compute_pavlof_rsam(stream_unprocessed):
     dr = levels_count * q_effect
     return dr
 
+def rotate_NE_to_RT(stream, source_coord):
 
+    # Import necessary packages
+    import pyproj
+    from math import atan2
+    from obspy import Stream
 
+    # Calculate incidence angle from source
+    geodesic = pyproj.Geod(ellps='WGS84')
+    source_azi, _, _ = geodesic.inv(stream[0].stats.longitude, stream[0].stats.latitude, source_coord[1], source_coord[0])
+
+    # Extract components observed in stream
+    all_comps = [tr.stats.channel[-1] for tr in stream]
+    if len(set(all_comps)) not in [2, 3]:
+        raise ValueError('The input stream does have a valid number of unique components. Either input a 2 (N,E) or 3 (N,E,Z) component stream.')
+    trace_E = stream[all_comps.index('E')]
+    trace_N = stream[all_comps.index('N')]
+    if len(all_comps) == 3:
+        trace_Z = stream[all_comps.index('Z')]
+
+    # Get amplitude and azimuth of horizontal motion
+    horiz_amp = np.linalg.norm(np.row_stack([trace_E.data, trace_N.data]), axis=0)
+    azi_diff = (-1*np.arctan2(trace_N.data, trace_E.data)) + np.pi/2 - (source_azi * np.pi/180)
+
+    # Now resolve to radial and tangential motion
+    data_T = horiz_amp * np.sin(azi_diff)
+    data_R = horiz_amp * np.cos(azi_diff) * -1  # take outward as positive
+
+    # Create traces
+    trace_T = trace_N.copy()
+    trace_T.stats.channel = trace_N.stats.channel[:-1] + 'T'
+    trace_T.data = data_T
+    trace_R = trace_E.copy()
+    trace_R.stats.channel = trace_E.stats.channel[:-1] + 'R'
+    trace_R.data = data_R
+
+    # Export stream
+    if len(all_comps) == 3:
+        return Stream([trace_Z, trace_T, trace_R])
+    else:
+        return Stream([trace_T, trace_R])
 
 
