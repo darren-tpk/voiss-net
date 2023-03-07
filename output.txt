@@ -128,3 +128,33 @@ Accuracy: 0.848
 Precision: 0.850
 Recall: 0.848
 F1 Score: 0.849
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_PN7A_subsampled2_model.h5
+Accuracy: 0.844
+Precision: 0.850
+Recall: 0.844
+F1 Score: 0.838
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_PS1A_subsampled2_model.h5
+Accuracy: 0.884
+Precision: 0.886
+Recall: 0.884
+F1 Score: 0.882
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_PS4A_subsampled2_model.h5
+Accuracy: 0.895
+Precision: 0.897
+Recall: 0.895
+F1 Score: 0.894
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_PV6A_subsampled2_model.h5
+Accuracy: 0.915
+Precision: 0.915
+Recall: 0.915
+F1 Score: 0.915
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_PVV_subsampled2_model.h5
+Accuracy: 0.911
+Precision: 0.911
+Recall: 0.911
+F1 Score: 0.910
+/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_subsampled2_model.h5
+Accuracy: 0.885
+Precision: 0.885
+Recall: 0.885
+F1 Score: 0.884
