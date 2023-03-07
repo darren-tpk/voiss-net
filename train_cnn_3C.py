@@ -166,10 +166,10 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','all']:
     # Print out model summary
     model.summary()
     # Implement early stopping and checkpointing
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
     mc = ModelCheckpoint(model_name, monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=120, callbacks=[es, mc])
+    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
 
     # Plot loss and accuracy curves
     plt.ion()

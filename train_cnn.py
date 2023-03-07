@@ -165,10 +165,10 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     # Print out model summary
     model.summary()
     # Implement early stopping and checkpointing
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
     mc = ModelCheckpoint(model_name, monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=120, callbacks=[es, mc])
+    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
 
     # Plot loss and accuracy curves
     plt.ion()
@@ -183,7 +183,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     axs[1].set_xlabel("epoch")
     axs[0].legend()
     fig.suptitle(model_type, fontweight='bold')
-    fig.savefig('/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + curve_name)
+    fig.savefig(curve_name)
     fig.show()
 
     # Create data generator for test data
@@ -204,7 +204,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     plt.figure()
     cm_display.plot()
     plt.title(model_type,fontweight='bold')
-    plt.savefig('/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + confusion_name)
+    plt.savefig(confusion_name)
     plt.show()
 
     # Print evaluation on test data
