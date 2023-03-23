@@ -79,7 +79,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
                     corresponding_undersamples = list(np.random.choice(corresponding_spec_path_list, train_class_count_desired))
                     spec_paths_subsamples = spec_paths_subsamples + corresponding_undersamples
             # Replace file path list
-            spec_paths = spec_paths + spec_paths_subsamples
+            spec_paths = spec_paths_subsamples
 
     # Define model name
     model_type = '4min_' + station_option
