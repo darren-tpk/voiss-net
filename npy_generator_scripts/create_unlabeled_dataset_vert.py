@@ -9,10 +9,10 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2021, 1, 1, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2021, 7, 1, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2023, 3, 21, 0, 0, 0)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2023, 3, 23, 0, 0, 0)  # end time for data pull and spectrogram plot
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/all_npy/'
+output_dir = '/Users/darrentpk/Desktop/pavlof_test_npy/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -25,7 +25,6 @@ client = 'IRIS'  # FDSN client for data pull
 filter_band = None  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.5, 10)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
-log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 
 # Calculate number of days for loop
@@ -67,7 +66,7 @@ for i in range(num_days):
         trace = stream[j]
 
         # Calculate spectrogram power matrix
-        spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, log=log, demean=demean)
+        spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, demean=demean)
 
         # Define array of time steps for spectrogram slicing
         step_bounds = np.arange(t1, t2+time_step, time_step)
