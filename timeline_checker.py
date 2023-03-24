@@ -9,6 +9,7 @@ station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*HZ'
 starttime = UTCDateTime(2021, 8, 6, 10, 0, 0)
+# starttime = UTCDateTime(2023, 3, 21, 13)
 endtime = starttime + 3*3600
 model_path = './models/4min_all_subsampled2_model.h5'
 npy_dir = None
