@@ -549,7 +549,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     Pulls data, then loads a trained model to predict the timeline of classes
     :param source (str): Which source to gather waveforms from (e.g. IRIS)
     :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
-    :param station (str): SEED station code [wildcards (``*``, ``?``) accepted]
+    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
     :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for
@@ -577,7 +577,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                               starttime=starttime - PAD, endtime=endtime + PAD, verbose=False)
     stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=PAD, verbose=False)
     stream_default_order = [tr.stats.station for tr in stream]
-    desired_index_order = [stream_default_order.index(stn) for stn in station.split(',')]
+    desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
 
     # If no existing npy file directory exists, create a temporary directory and populate it
