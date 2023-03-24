@@ -13,7 +13,7 @@ from keras.models import load_model
 from scipy import stats
 
 # Transfer model details
-balance_training = False
+balance_training = True
 balance_type = 'subsampled2'  # 'oversampled', 'undersampled', or 'subsampled[0,1,2,3,4,5]'
 
 # Define variables
@@ -46,7 +46,7 @@ params = {
     "shuffle": True,
 }
 if model_used == 'station-generic':
-    spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npy/*.npy')
+    spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_npy/*.npy')
     spec_placeholder_labels = [0 for i in spec_paths]
     spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
     spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
@@ -64,7 +64,7 @@ if model_used == 'station-generic':
 elif model_used == 'station-specific':
     indicators = []
     for station in stations:
-        spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npy/*' + station + '*.npy')
+        spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_npy/*' + station + '*.npy')
         spec_placeholder_labels = [0 for i in spec_paths]
         spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
         spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
