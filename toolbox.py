@@ -572,6 +572,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     infrasound = True if channel[-1] == 'F' else False
     REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
 
+    # Enforce the duration to be a multiple of the model's time step
+    if (endtime-starttime) % TIME_STEP != 0:
+        print('The desired analysis duration (endtime - starttime) is not a multiple of the inbuilt time step.')
+        endtime = endtime + ((endtime-starttime) % TIME_STEP)
+        print('Rounding up endtime to %s.' % str(endtime))
+
     # Load data, remove response, and re-order
     stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel,
                               starttime=starttime - PAD, endtime=endtime + PAD, verbose=False)
