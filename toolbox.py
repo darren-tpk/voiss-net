@@ -494,7 +494,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
             fig.savefig(export_path + file_label + '_spec.png', bbox_inches=extent)
             plt.close()
 
-def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,demean=False):
+def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,overlap=0.9,demean=False):
 
     """
     Calculates and returns a 2D matrix storing the spectrogram values (of the input trace) in decibels
@@ -503,6 +503,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,deme
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for desired plot
     :param window_duration (float): Duration of spectrogram window [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
+    :param overlap (float): Ratio of window to overlap when computing spectrogram (0 to 1)
     :return: numpy.ndarray: 2D spectrogram matrix storing power ratio values in decibels
     :return: numpy.ndarray: 1D array storing segment times in (:class:`~obspy.core.utcdatetime.UTCDateTime`) format
     """
@@ -522,9 +523,18 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,deme
     # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
     sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann',
                                                           scaling='density', nperseg=samples_per_segment,
-                                                          noverlap=samples_per_segment * .9)
+                                                          noverlap=samples_per_segment * overlap)
 
-    # Convert spectrogram matrix to decibels for plotting
+    # Calculate UTC times corresponding to all segments
+    trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
+    utc_times = np.array([UTCDateTime(dates.num2date(mpl_time)) for mpl_time in trace_time_matplotlib])
+
+    # Find desired indices and trim spectrogram output
+    desired_indices = np.flatnonzero([starttime <= t < endtime for t in utc_times])
+    spec = spec[:,desired_indices]
+    utc_times = utc_times[desired_indices]
+
+    # Convert spectrogram matrix to decibels
     spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE ** 2))
 
     # If demeaning is desired, remove temporal mean from spectrogram
@@ -537,10 +547,6 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,deme
         freq_min = freq_lims[0]
         freq_max = freq_lims[1]
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
-
-    # Calculate UTC times corresponding to all segments
-    trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
-    utc_times = np.array([UTCDateTime(dates.num2date(mpl_time)) for mpl_time in trace_time_matplotlib])
 
     return spec_db, utc_times
 def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,npy_dir=None,export_path=None):
@@ -905,8 +911,8 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
             # Store matplotlib date for plotting
             tmpl[j,i] = window_center.matplotlib_date
 
-            # Compute RSAM
-            rsam[j,i] = np.mean(np.abs(trace_disp_segment))
+            # # Compute RSAM
+            # rsam[j,i] = np.mean(np.abs(trace_disp_segment))
 
             # Compute DR
             rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
@@ -933,37 +939,7 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
             fpeaks_top30 = np.sort(fspec[fpeaks_index])[-30:]
             fsd[j,i] = np.std(fpeaks_top30)
 
-    return tmpl, rsam, dr, pe, fc, fd, fsd
-
-def compute_pavlof_rsam(stream_unprocessed):
-    """
-    Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
-    :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
-    :return: dr (list): List of reduced displacement values,
-    """
-    # Import geopy
-    from geopy.distance import geodesic as GD
-    # Define constants
-    R = 6372.7976  # km
-    drm = 3  # cm^2
-    seisvel = 1500  # m/s
-    dfrq = 2  # Hz
-    vlatlon = (55.4173,-161.8937)
-    # Initialize lists
-    disteqv = []
-    sensf = []
-    rmssta = []
-    # Compute
-    for i, tr in enumerate(stream_unprocessed):
-        slatlon = (tr.stats.latitude,tr.stats.longitude)
-        disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
-        sensf.append(tr.stats.response.instrument_sensitivity.value)
-        rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
-    rmsstav = np.array(rmssta)*2*np.pi*dfrq
-    levels_count = rmsstav * sensf
-    q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
-    dr = levels_count * q_effect
-    return dr
+    return tmpl, dr, pe, fc, fd, fsd
 
 def rotate_NE_to_RT(stream, source_coord):
 
@@ -1007,4 +983,32 @@ def rotate_NE_to_RT(stream, source_coord):
     else:
         return Stream([trace_T, trace_R])
 
-
+# def compute_pavlof_rsam(stream_unprocessed):
+#     """
+#     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
+#     :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
+#     :return: dr (list): List of reduced displacement values,
+#     """
+#     # Import geopy
+#     from geopy.distance import geodesic as GD
+#     # Define constants
+#     R = 6372.7976  # km
+#     drm = 3  # cm^2
+#     seisvel = 1500  # m/s
+#     dfrq = 2  # Hz
+#     vlatlon = (55.4173,-161.8937)
+#     # Initialize lists
+#     disteqv = []
+#     sensf = []
+#     rmssta = []
+#     # Compute
+#     for i, tr in enumerate(stream_unprocessed):
+#         slatlon = (tr.stats.latitude,tr.stats.longitude)
+#         disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
+#         sensf.append(tr.stats.response.instrument_sensitivity.value)
+#         rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
+#     rmsstav = np.array(rmssta)*2*np.pi*dfrq
+#     levels_count = rmsstav * sensf
+#     q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
+#     dr = levels_count * q_effect
+#     return dr
