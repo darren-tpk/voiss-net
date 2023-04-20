@@ -144,7 +144,7 @@ def load_data(network,station,channel,location,starttime,endtime,pad=None,local=
         # Raise error
         raise ValueError('Please provide an input client (e.g. "IRIS").')
 
-def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=True,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
+def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
 
     """
     Process waveform by removing response, detrending, tapering and filtering (in that order)
@@ -189,7 +189,7 @@ def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=True,ta
     else:
         raise ValueError('Either provide taper_length OR taper_percentage if tapering.')
     if filter_band is not None:
-        stream.filter('bandpass', freqmin=filter_band[0], freqmax=filter_band[1], zerophase=True)
+        stream.filter('bandpass', freqmin=filter_band[0], freqmax=filter_band[1], zerophase=False)
         if verbose:
             print('Waveform bandpass filtered from %.2f Hz to %.2f Hz.' % (filter_band[0],filter_band[1]))
     return stream
@@ -549,7 +549,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,npy_dir=None,export_path=None):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,annotate=False,export_path=None):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -564,7 +564,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             data request
     :param model_path (str): Path to model .h5 file
     :param npy_dir (str): Path to directory of numpy files
+    :param annotate (bool): If `True`, annotate probabilities to one decimal place in each cell
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
     """
 
     # Define fixed values
@@ -599,6 +601,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         if not os.path.exists('./npy_temporary'):
             os.mkdir('npy_temporary')
 
+        # Clear all existing files in npy_temporary
+        # Clear npy_temporary directory
+        for f in glob.glob('./npy_temporary/*.npy'):
+            os.remove(f)
+
         # Loop over stations that have data
         stream_stations = [tr.stats.station for tr in stream]
         for j, stream_station in enumerate(stream_stations):
@@ -626,9 +633,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     # Try inclusive slicing time span (<= sb2)
                     spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                     spec_slice = spec_db[:, spec_slice_indices]
-                    # If it still doesn't fit our shape, raise error
+                    # If it still doesn't fit our shape
                     if np.shape(spec_slice) != (94, TIME_STEP):
-                        raise ValueError('Spectrogram slicing produced an erroneous shape.')
+                        # Try double-inclusive slicing time span (sb1<= t <= sb2)
+                        spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
+                        spec_slice = spec_db[:, spec_slice_indices]
+                        # If it still doesn't fit our shape, raise error
+                        if np.shape(spec_slice) != (94, TIME_STEP):
+                            raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
                 # Skip matrices that have a spectrogram data gap
                 if np.sum(spec_slice.flatten() < -220) > 50:
@@ -659,34 +671,43 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     nclasses = saved_model.layers[-1].get_config()['units']
     nsubrows = len(station.split(','))
 
+    # Extract mean and variance from training
+    saved_meanvar = np.load(meanvar_path)
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+
     # Create data generator for input spec paths
     params = {
         "dim": (94, TIME_STEP),
-        "batch_size": 60,
+        "batch_size": len(spec_paths),
         "n_classes": nclasses,
-        "shuffle": True,
+        "shuffle": False,
     }
     spec_placeholder_labels = [0 for i in spec_paths]
     spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
+    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                             running_x_mean=running_x_mean, running_x_var=running_x_var)
 
     # Make predictions
     spec_predictions = saved_model.predict(spec_gen)
     predicted_labels = np.argmax(spec_predictions, axis=1)
+    predicted_probabilities = np.max(spec_predictions, axis=1)
     indicators = []
     for i, filepath in enumerate(spec_gen.list_ids):
         filename = filepath.split('/')[-1]
         chunks = filename.split('_')
-        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i]])
+        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i], predicted_probabilities[i]])
 
-    # Craft unlabeled matrix
+    # Craft plotting matrix and probability matrix
     matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP))
     matrix_height = nsubrows
     matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
+    matrix_prob = np.ones((matrix_height, matrix_length)) * nclasses
     for indicator in indicators:
         row_index = station.split(',').index(indicator[0])
         col_index = int((indicator[1] - starttime) / TIME_STEP)
         matrix_plot[row_index, col_index] = indicator[2]
+        matrix_prob[row_index, col_index] = indicator[3]
 
     # Add voting row
     na_label = nclasses  # this index is one higher than the number of classes
@@ -747,10 +768,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             [255, 255, 255]])
     # Concatenate voting row to plotting matrix
     matrix_plot = np.concatenate((matrix_plot, new_row))
+
     # Craft color map
     rgb_ratios = rgb_values / 255
     colors = np.concatenate((rgb_ratios, np.ones((np.shape(rgb_values)[0], 1))), axis=1)
     cmap = ListedColormap(colors)
+    pmap = ListedColormap(np.zeros(np.shape(colors)))  # transparent cmap for probabilities
 
     # Define colorbar keywords for plotting
     real_cbar_tick_interval = 2 * nclasses/(2*np.shape(rgb_values)[0])
@@ -762,7 +785,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 'aspect': 40}
 
     # Initialize figure and craft axes
-    figsize = (32, 4 * len(stream) + 5)
+    figsize = (32, 4 * len(stream) + 6)
     fig = plt.figure(figsize=figsize)
     gs_top = plt.GridSpec(len(stream)+1, 1, top=0.89)
     gs_base = plt.GridSpec(len(stream)+1, 1, hspace=0)
@@ -775,6 +798,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Plot prediction heatmap in top axis
     sns.heatmap(matrix_plot, cmap=cmap, cbar=False, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses, ax=ax1)
+    if annotate:
+        sns.heatmap(matrix_prob, cmap=pmap, cbar=False, annot=True, fmt='.1f', annot_kws={'fontsize':20}, ax=ax1)
     # for i in range(1,nhours):
     #     ax1.axvline(x=(i * (3600 / time_step)), linestyle='--', linewidth=3, color='k')
     ax1.set_xticks([])
@@ -788,6 +813,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     yticklabels = station.split(',').copy()
     yticklabels.append('VOTE')
     ax1.set_yticklabels(yticklabels, rotation=0, fontsize=24)
+    ax1.set_ylim([len(station.split(','))+2,0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(2)
     ax1.set_title('Station-based Voting', fontsize=30)
@@ -838,6 +864,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
     if export_path is None:
         fig.show()
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight')
@@ -847,23 +874,42 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
     """
     :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
     :param padded_length (float): length for which the trace is padded [s]
-    :param filter_band (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for bandpass filter ([Hz],[Hz])
+    :param filter_band (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for bandpass filter ([Hz],[Hz]). Note that reduced displacement uses its own filter band.
     :param window_length (float): window length for each metric to be computed, default is 240 [s]
     :param vlatlon (tuple): Tuple of length 2 storing the latitude and longitude of the target volcano for reduced displacement computation
     :param overlap (float): overlap for time stepping as each metric is computed. Ranges from 0 to 1. If set to 0, time step is equal to window_length.
     :return: numpy.ndarray: 2D array of matplotlib dates, rows corresponding to traces in stream and columns corresponding to values.
-    :return: numpy.ndarray: 2D array of RSAM, rows corresponding to traces in stream and columns corresponding to values.
-    :return: numpy.ndarray: 2D array of Reduced Displacement, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: If the input stream IS NOT infrasound, 2D array of Reduced Displacement, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: If the input stream IS infrasound, 2D array of Root-Mean-Square Pressure, rows corresponding to traces in stream and columns corresponding to values.
     :return: numpy.ndarray: 2D array of Central Frequency, rows corresponding to traces in stream and columns corresponding to values.
     :return: numpy.ndarray: 2D array of Dominant Frequency, rows corresponding to traces in stream and columns corresponding to values.
-    :return: numpy.ndarray: 2D array of Standard Deviation of Top 30 Frequency Peaks, rows corresponding to traces in stream and columns corresponding to values.
+    :return: numpy.ndarray: 2D array of Normalized Standard Deviation of the Top 30 Frequency Peaks, rows corresponding to traces in stream and columns corresponding to values.
     """
 
-    # Remove response to obtain stream in displacement and velocity values
-    stream_disp = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='DISP', detrend=False,
+    # Check for empty stream
+    if len(stream_unprocessed) == 0:
+        print('Input stream object is empty, returning empty arrays.')
+        tmpl = dr = pe = fc = fd = fsd = np.array([])
+        return tmpl, dr, pe, fc, fd, fsd
+
+    # Check if infrasound or seismic
+    all_comp = [tr.stats.channel[-1] for tr in stream_unprocessed]
+    if all_comp.count('F') == len(all_comp):
+        infrasound = True
+    elif all_comp.count('F') == 0:
+        infrasound = False
+    else:
+        raise ValueError('The input stream contains a mix of infrasound and non-infrasound traces.')
+
+    # Remove response to obtain stream in pressure or displacement and velocity values
+    if infrasound:
+        stream_processed = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='DEF', detrend=False,
                                    taper_length=process_taper, taper_percentage=None, filter_band=filter_band, verbose=False)
-    stream_vel = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='VEL', detrend=False,
-                                  taper_length=process_taper, taper_percentage=None, filter_band=filter_band, verbose=False)
+    else:
+        stream_disp = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='DISP', detrend=False,
+                                       taper_length=process_taper, taper_percentage=None, filter_band=(1, 5), verbose=False)
+        stream_processed = process_waveform(stream_unprocessed.copy(), remove_response=True, rr_output='VEL', detrend=False,
+                                      taper_length=process_taper, taper_percentage=None, filter_band=filter_band, verbose=False)
 
     # Get actual desired starttime and endtime by considering pad length
     starttime = stream_unprocessed[0].stats.starttime
@@ -885,8 +931,11 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
     window_centers = np.arange(starttime, endtime+time_step, time_step)
     metric_length = len(window_centers)
     tmpl = np.ones((len(stream_unprocessed), metric_length)) * np.nan
-    rsam = np.ones((len(stream_unprocessed), metric_length)) * np.nan
-    dr = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    # rsam = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    if infrasound:
+        rmsp = np.ones((len(stream_unprocessed), metric_length)) * np.nan
+    else:
+        dr = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     pe = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     fc = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     fd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
@@ -898,15 +947,17 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
         # Compute corresponding window end and slice stream
         window_start = window_center - window_length/2
         window_end = window_center + window_length/2
-        stream_disp_segment = stream_disp.copy().trim(window_start, window_end)
-        stream_vel_segment = stream_vel.copy().trim(window_start, window_end)
+        stream_processed_segment = stream_processed.copy().trim(window_start, window_end)
+        if not infrasound:
+            stream_disp_segment = stream_disp.copy().trim(window_start, window_end)
 
         # Loop over each trace and do computation
-        for j in range(len(stream_disp_segment)):
+        for j in range(len(stream_processed_segment)):
 
             # Get trace data
-            trace_disp_segment = stream_disp_segment[j].data
-            trace_vel_segment = stream_vel_segment[j].data
+            trace_processed_segment = stream_processed_segment[j].data
+            if not infrasound:
+                trace_disp_segment = stream_disp_segment[j].data
 
             # Store matplotlib date for plotting
             tmpl[j,i] = window_center.matplotlib_date
@@ -914,18 +965,22 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
             # # Compute RSAM
             # rsam[j,i] = np.mean(np.abs(trace_disp_segment))
 
-            # Compute DR
-            rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
-            station_dist = GD((stream_disp_segment[j].stats.latitude, stream_disp_segment[j].stats.longitude), vlatlon).m
-            wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
-            dr[j, i] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            # If infrasound, compute RMSP
+            if infrasound:
+                rmsp[j,i] = np.sqrt(np.mean(np.square(trace_processed_segment)))
+            # If seismic, compute DR
+            else:
+                rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
+                station_dist = GD((stream_disp_segment[j].stats.latitude, stream_disp_segment[j].stats.longitude), vlatlon).m
+                wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
+                dr[j, i] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
 
             # Compute permutation entropy
-            pe[j,i] = complexity_entropy(trace_vel_segment, dx=5)[0]
+            pe[j,i] = complexity_entropy(trace_processed_segment, dx=5)[0]
 
             # Now execute FFT and trim
-            fsamp = rfftfreq(len(trace_vel_segment), 1 / stream_vel_segment[j].stats.sampling_rate)
-            fspec = np.abs(rfft(trace_vel_segment))[np.flatnonzero(fsamp>1)]
+            fsamp = rfftfreq(len(trace_processed_segment), 1 / stream_processed_segment[j].stats.sampling_rate)
+            fspec = np.abs(rfft(trace_processed_segment))[np.flatnonzero(fsamp>1)]
             fsamp = fsamp[np.flatnonzero(fsamp>1)]
 
             # Compute central frequency
@@ -934,12 +989,15 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
             # Compute dominant frequency
             fd[j,i] = fsamp[np.argmax(fspec)]
 
-            # Compute standard deviation of top 30 frequency peaks
+            # Compute normalized standard deviation of top 30 frequency peaks
             fpeaks_index, _ = find_peaks(fspec)
             fpeaks_top30 = np.sort(fspec[fpeaks_index])[-30:]
-            fsd[j,i] = np.std(fpeaks_top30)
+            fsd[j,i] = np.std(fpeaks_top30) / np.mean(fspec)
 
-    return tmpl, dr, pe, fc, fd, fsd
+    if infrasound:
+        return tmpl, rmsp, pe, fc, fd, fsd
+    else:
+        return tmpl, dr, pe, fc, fd, fsd
 
 def rotate_NE_to_RT(stream, source_coord):
 
