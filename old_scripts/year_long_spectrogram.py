@@ -5,8 +5,8 @@ import colorcet as cc
 from obspy import UTCDateTime
 
 # Load data
-spec_db_all = np.load('/Users/darrentpk/Desktop/poster_media/spec_db_all.npy')
-trace_time_matplotlib = np.load('/Users/darrentpk/Desktop/poster_media/tt_mpl_all.npy')
+spec_db_all = np.load('/Users/darrentpk/Desktop/IAVCEI 2023/poster_media/spec_db_all.npy')
+trace_time_matplotlib = np.load('/Users/darrentpk/Desktop/IAVCEI 2023/poster_media/tt_mpl_all.npy')
 
 # Define variables
 freq_lims = (0.5,10)
@@ -46,7 +46,6 @@ ax1.set_yticks([0.5,5,10])
 ax1.set_yticklabels(['0.5','5','10'],fontsize=22)
 ax1.set_ylabel('PS1A.BHZ\nFrequency',fontsize=24)
 # ax1.set_title('AV.PS1A..BHZ', fontsize=24, fontweight='bold')
-fig.savefig('/Users/darrentpk/Desktop/year_spec.png', bbox_inches='tight', transparent=True)
-# fig.show()
-1+1
+# fig.savefig('/Users/darrentpk/Desktop/year_spec.png', bbox_inches='tight', transparent=True)
+fig.show()
 
