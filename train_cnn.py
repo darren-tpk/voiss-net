@@ -4,7 +4,7 @@ import glob
 import matplotlib.pyplot as plt
 from keras import layers, models, losses
 from keras.models import load_model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 import random
 from DataGenerator import DataGenerator
 from sklearn import metrics
@@ -16,10 +16,10 @@ balance_type = 'subsampled2'  # 'oversampled', 'undersampled', or 'subsampled[0,
 random.seed(930)
 
 # Train station-specific model, station-generic model and station-generic without PS4A model
-for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
+for station_option in ['PN7A','PS1A','sPS4A','PV6A','PVV','all']:
 
     # Get list of spectrogram slice paths based on station option
-    spec_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
+    spec_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/'
     if station_option == 'all':
         spec_paths = glob.glob(spec_dir + '*.npy')
     elif station_option == 'noPS4A':
@@ -86,6 +86,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     if balance_training:
         model_type = model_type + '_' + balance_type
     model_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/models/' + model_type + '_model.h5'
+    meanvar_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/models/' + model_type + '_meanvar.npy'
     curve_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_curve.png'
     confusion_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_confusion.png'
 
@@ -129,9 +130,15 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     test_label_dict = dict(zip(test_paths, test_labels))
 
     # Initialize the training and validation generators
-    # Only initialize the test generator after the model is trained
-    train_gen = DataGenerator(train_paths, train_label_dict, **params)
-    valid_gen = DataGenerator(valid_paths, valid_label_dict, **params)
+    train_gen = DataGenerator(train_paths, train_label_dict, **params, is_training=True)
+    valid_gen = DataGenerator(valid_paths, valid_label_dict, **params, is_training=False)
+
+    # Define a Callback class that allows the validation dataset to adopt the running
+    # training mean and variance for normalization
+    class ExtractMeanVar(Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            valid_gen.running_x_mean = train_gen.running_x_mean
+            valid_gen.running_x_var = train_gen.running_x_var
 
     # Define the CNN
 
@@ -164,11 +171,15 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     model.compile(optimizer="adam", loss=losses.categorical_crossentropy, metrics=["accuracy"])
     # Print out model summary
     model.summary()
-    # Implement early stopping and checkpointing
+    # Implement early stopping, checkpointing, and transference of mean and variance
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
     mc = ModelCheckpoint(model_name, monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
+    emv = ExtractMeanVar()
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
+    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+
+    # Save the final running mean and variance
+    np.save(meanvar_name, [train_gen.running_x_mean,train_gen.running_x_var])
 
     # Plot loss and accuracy curves
     plt.ion()
@@ -190,7 +201,8 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     test_params = params.copy()
     test_params["batch_size"] = len(test_labels)
     test_params["shuffle"] = False
-    test_gen = DataGenerator(test_paths, test_label_dict, **test_params)
+    test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                             running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
 
     # Use saved model to make predictions
     saved_model = load_model(model_name)
@@ -214,7 +226,7 @@ for station_option in ['PN7A','PS1A','PS4A','PV6A','PVV','all']:
     print(metrics_chunk)
     with open("output.txt", "a") as outfile:
         outfile.write(metrics_chunk + '\n')
-#
+
 # # Now conduct post-mortem
 # path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
 # label_dict = {0: 'Broadband Tremor',
