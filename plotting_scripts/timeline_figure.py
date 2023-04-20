@@ -43,19 +43,24 @@ params = {
     "dim": (94, 240),
     "batch_size": 100,
     "n_classes": nclasses,
-    "shuffle": True,
+    "shuffle": False,
 }
 if model_used == 'station-generic':
-    spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_npy/*.npy')
-    spec_placeholder_labels = [0 for i in spec_paths]
-    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
     if balance_training:
         saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all' + '_' + balance_type + '_model.h5')
+        saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all' + '_' + balance_type + '_meanvar.npy')
     else:
         saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_model.h5')
+        saved_meanvar = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_meanvar.npy')
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+    spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_npy/*.npy')
+    spec_placeholder_labels = [0 for i in spec_paths]
+    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                             running_x_mean=running_x_mean, running_x_var=running_x_var)
     spec_predictions = saved_model.predict(spec_gen)
-    predicted_labels = np.argmax(spec_predictions, axis=1)  # why are the lengths different?
+    predicted_labels = np.argmax(spec_predictions, axis=1)
     indicators = []
     for i, filepath in enumerate(spec_gen.list_ids):
         filename = filepath.split('/')[-1]
@@ -64,14 +69,19 @@ if model_used == 'station-generic':
 elif model_used == 'station-specific':
     indicators = []
     for station in stations:
-        spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_npy/*' + station + '*.npy')
-        spec_placeholder_labels = [0 for i in spec_paths]
-        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-        spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
         if balance_training:
             saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_' + balance_type + '_model.h5')
+            saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_' + balance_type + '_meanvar.npy')
         else:
             saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_model.h5')
+            saved_meanvar = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_meanvar.npy')
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+        spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_npy/*' + station + '*.npy')
+        spec_placeholder_labels = [0 for i in spec_paths]
+        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+        spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                                 running_x_mean=running_x_mean, running_x_var=running_x_var)
         spec_predictions = saved_model.predict(spec_gen)
         predicted_labels = np.argmax(spec_predictions, axis=1)  # why are the lengths different?
         for i, filepath in enumerate(spec_gen.list_ids):
@@ -91,7 +101,7 @@ for indicator in indicators:
 
 # Craft labeled matrix
 matrix_plot2 = np.ones((matrix_height, matrix_length)) * na_label
-labeled_spec_paths = glob.glob('/Users/darrentpk/Desktop/labeled_npy_4min/*.npy')
+labeled_spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/*.npy')
 indicators2 = []
 for i, filepath in enumerate(labeled_spec_paths):
     filename = filepath.split('/')[-1]
@@ -320,20 +330,20 @@ plt.show()
 
 # Plot AVO color code
 
-# fig, ax = plt.subplots(figsize=(32,0.5))
-# base_time = month_utcdatetimes[0]
-# tick_numbers = [(t-base_time)/86400 for t in month_utcdatetimes]
-# g2y_number = (UTCDateTime(2021,7,9)-base_time)/86400
-# y2o_number = (UTCDateTime(2021,8,5)-base_time)/86400
-# o2y_number = (UTCDateTime(2022,12,17)-base_time)/86400
-# y2e_number = (month_utcdatetimes[-1]-base_time)/86400
-# ax.axvspan(0, g2y_number, color='green')
-# ax.axvspan(g2y_number, y2o_number, color='yellow')
-# ax.axvspan(y2o_number, o2y_number, color='orange')
-# ax.axvspan(o2y_number, y2e_number, color='yellow')
-# ax.set_xlim([0,y2e_number])
-# ax.set_xticks(tick_numbers)
-# ax.set_xticklabels([])
-# ax.set_yticks([])
+fig, ax = plt.subplots(figsize=(32,0.5))
+base_time = month_utcdatetimes[0]
+tick_numbers = [(t-base_time)/86400 for t in month_utcdatetimes]
+g2y_number = (UTCDateTime(2021,7,9)-base_time)/86400
+y2o_number = (UTCDateTime(2021,8,5)-base_time)/86400
+o2y_number = (UTCDateTime(2022,12,17)-base_time)/86400
+y2e_number = (month_utcdatetimes[-1]-base_time)/86400
+ax.axvspan(0, g2y_number, color='green')
+ax.axvspan(g2y_number, y2o_number, color='yellow')
+ax.axvspan(y2o_number, o2y_number, color='orange')
+ax.axvspan(o2y_number, y2e_number, color='yellow')
+ax.set_xlim([0,y2e_number])
+ax.set_xticks(tick_numbers)
+ax.set_xticklabels([])
+ax.set_yticks([])
 # fig.savefig('/Users/darrentpk/Desktop/avo_color_code.png', transparent=True)
-# fig.show()
+fig.show()
