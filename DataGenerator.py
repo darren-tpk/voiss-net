@@ -43,6 +43,7 @@ class DataGenerator(keras.utils.Sequence):
 
         # generate data
         for i, id in enumerate(list_ids_temp):
+
             # store sample
             x[i, :] = np.load(id)
 
@@ -51,7 +52,7 @@ class DataGenerator(keras.utils.Sequence):
 
         # normalize the batch if it is training
         if self.is_training:
-            # x = (x - np.min(x)) / (np.max(x) - np.min(x))  # OLD APPROACH
+
             x_mean = np.mean(x, axis=0)
             x_var = np.var(x, axis=0)
 
@@ -61,6 +62,10 @@ class DataGenerator(keras.utils.Sequence):
             self.running_x_var = 0.9 * self.running_x_var + 0.1 * x_var
         else:
             x = (x - self.running_x_mean) / np.sqrt(self.running_x_var + 1e-5)
+
+        # min-max scale by individual image
+        for k in range(self.batch_size):
+            x[k, :] = (x[k, :] - np.min(x[k, :])) / (np.max(x[k, :]) - np.min(x[k, :]))
 
         return x, keras.utils.to_categorical(y, num_classes=self.n_classes)
 
