@@ -17,11 +17,11 @@ balance_training = True
 balance_type = 'subsampled2'  # 'oversampled', 'undersampled', or 'subsampled[0,1,2,3,4,5]'
 
 # Define variables
-model_used = 'station-specific'  # or 'station-generic'
+model_used = 'station-generic'  # or 'station-generic'
 if balance_training:
     tag = ''.join([str[0].upper() for str in model_used.split('-')]) + '_' + balance_type
 else:
-    tag = ''.join([str[0].upper() for str in model_used.split('-')]) + '_unbalanced'
+    tag = ''.join([str[0].upper() for str in model_used.split('-')])
 stations = ['PN7A', 'PS1A', 'PS4A', 'PV6A', 'PVV']  # ORDER MATTERS
 nsubrows = len(stations)
 month_list = ['Jan \'21', 'Feb \'21', 'Mar \'21', 'Apr \'21', 'May \'21', 'Jun \'21',

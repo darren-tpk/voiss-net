@@ -21,7 +21,7 @@ model_used = 'station-generic'  # or 'station-generic'
 if balance_training:
     tag = ''.join([str[0].upper() for str in model_used.split('-')]) + '_' + balance_type
 else:
-    tag = ''.join([str[0].upper() for str in model_used.split('-')]) + '_unbalanced'
+    tag = ''.join([str[0].upper() for str in model_used.split('-')])
 stations = ['PN7A', 'PS1A', 'PS4A', 'PV6A', 'PVV']  # ORDER MATTERS
 nsubrows = len(stations)
 month_list = ['Jan \'21', 'Feb \'21', 'Mar \'21', 'Apr \'21', 'May \'21', 'Jun \'21',
@@ -43,17 +43,22 @@ params = {
     "dim": (94, 240),
     "batch_size": 100,
     "n_classes": nclasses,
-    "shuffle": True,
+    "shuffle": False,
 }
 if model_used == 'station-generic':
-    spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_infra_npy/*.npy')
-    spec_placeholder_labels = [0 for i in spec_paths]
-    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
     if balance_training:
         saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_' + balance_type + '_model.h5')
+        saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_' + balance_type + '_meanvar.npy')
     else:
         saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_model.h5')
+        saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_meanvar.npy')
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+    spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_infra_npy/*.npy')
+    spec_placeholder_labels = [0 for i in spec_paths]
+    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                             running_x_mean=running_x_mean, running_x_var=running_x_var)
     spec_predictions = saved_model.predict(spec_gen)
     predicted_labels = np.argmax(spec_predictions, axis=1)  # why are the lengths different?
     indicators = []
@@ -64,14 +69,19 @@ if model_used == 'station-generic':
 elif model_used == 'station-specific':
     indicators = []
     for station in stations:
-        spec_paths = glob.glob('/Users/darrentpk/Desktop/pavlof_2021_2022_infra_npy/*' + station + '*.npy')
-        spec_placeholder_labels = [0 for i in spec_paths]
-        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-        spec_gen = DataGenerator(spec_paths, spec_label_dict, **params)
         if balance_training:
             saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_infra_' + balance_type + '_model.h5')
+            saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_infra_' + balance_type + '_meanvar.npy')
         else:
             saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_infra_model.h5')
+            saved_meanvar = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_' + station + '_infra_meanvar.npy')
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+        spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_infra_npy/' + station + '*.npy')
+        spec_placeholder_labels = [0 for i in spec_paths]
+        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+        spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                                 running_x_mean=running_x_mean, running_x_var=running_x_var)
         spec_predictions = saved_model.predict(spec_gen)
         predicted_labels = np.argmax(spec_predictions, axis=1)  # why are the lengths different?
         for i, filepath in enumerate(spec_gen.list_ids):
@@ -91,7 +101,7 @@ for indicator in indicators:
 
 # Craft labeled matrix
 matrix_plot2 = np.ones((matrix_height, matrix_length)) * na_label
-labeled_spec_paths = glob.glob('/Users/darrentpk/Desktop/labeled_npy_4min_infra/*.npy')
+labeled_spec_paths = glob.glob('/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/*.npy')
 indicators2 = []
 for i, filepath in enumerate(labeled_spec_paths):
     filename = filepath.split('/')[-1]
@@ -174,7 +184,7 @@ for i in range(nmonths):
             matrix_condensed[i, j] = na_label
         elif len(labels_seen) == 1:
             matrix_condensed[i,j] = labels_seen[0]
-        elif 1 in labels_seen and label_counts[np.argwhere(labels_seen==1)[0]]>1:
+        elif 1 in labels_seen and label_counts[np.argwhere(labels_seen==1)[0]] > 1:
             matrix_condensed[i, j] = 1
         elif 0 in labels_seen and label_counts[np.argwhere(labels_seen == 0)[0]] > 1:
             matrix_condensed[i,j] = 0

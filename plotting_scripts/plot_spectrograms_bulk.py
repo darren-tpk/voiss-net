@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from waveform_collection import gather_waveforms
 from toolbox import process_waveform, plot_spectrogram, plot_spectrogram_multi
-from obspy import UTCDateTime
+from obspy import UTCDateTime, Stream
 from libcomcat.search import search
 import warnings
 
@@ -14,9 +14,9 @@ source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
-channel = '*DF'
-starttime = UTCDateTime(2021, 7, 22, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2021, 9, 22, 00, 00)  # end time for data pull and spectrogram plot
+channel = '*HZ'
+starttime = UTCDateTime(2021, 12, 8, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2021, 12, 12, 00, 00)  # end time for data pull and spectrogram plot
 pad = 60  # padding length [s]
 local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
@@ -27,7 +27,7 @@ freq_lims = (0.5,10)  # frequency limits for output spectrogram. If `None`, the 
 log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
 v_percent_lims = (20,97.5)  # colorbar limits
-export_path = '/Users/darrentpk/Desktop/spectrograms_i_20210722_20210922/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
+export_path = '/Users/darrentpk/Desktop/spectrograms_test/' # '/Users/darrentpk/Desktop/to_label_seis/'   # show figure in iPython
 export_spec = True  # export spectrogram with no axis labels
 verbose = False
 
@@ -35,7 +35,7 @@ verbose = False
 total_hours = int(np.floor((endtime-starttime)/3600))
 
 # Commence loop
-i = 172
+i = 0
 while i < (total_hours-1):
 
     try:
@@ -73,6 +73,9 @@ while i < (total_hours-1):
 
         # Process waveform
         stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=False)
+        stream_default_order = [tr.stats.station for tr in stream]
+        desired_index_order = [stream_default_order.index(stn) for stn in station.split(',')]
+        stream = Stream([stream[i] for i in desired_index_order])
 
         # Plot all spectrograms on one figure
         plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, explosion_times=ex_times, db_hist=True, export_path=export_path, export_spec=export_spec)
