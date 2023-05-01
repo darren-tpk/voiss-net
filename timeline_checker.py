@@ -5,17 +5,19 @@ from toolbox import check_timeline
 # Define variables for timeline checker function
 source = 'IRIS'
 network = 'AV'
-station = 'PN7A,PS1A,PS4A,PV6A,PVV'
+station = 'CERB,CESW,CEPE,CETU,CEAP,CERA'
 location = ''
 channel = '*HZ'
+
 # starttime = UTCDateTime(2021, 9, 14, 16, 0, 0)
-starttime = UTCDateTime(2022, 12, 20, 0, 0, 0)
 # starttime = UTCDateTime(2023, 3, 21, 13)
-endtime = starttime + 24*3600
+# endtime = starttime + 3*3600
+starttime = UTCDateTime(2021, 7, 30, 8)
+endtime = starttime + 3*3600
 model_path = './models/4min_all_subsampled2_model.h5'
 meanvar_path = './models/4min_all_subsampled2_meanvar.npy'
 npy_dir = None
-annotate = False
+annotate = True
 export_path = None
 
 # Check timeline
@@ -27,7 +29,8 @@ predmat = check_timeline(source, network, station, channel, location, starttime,
 # endtime = starttime + 3*3600
 # channel = '*DF'
 # model_path = './models/4min_all_infra_subsampled0_model.h5'
+# meanvar_path = './models/4min_all_infra_subsampled0_meanvar.npy'
 #
 # # Check timeline
 # predmat = check_timeline(source, network, station, channel, location, starttime, endtime,
-#                          model_path, npy_dir=npy_dir, export_path=export_path)
+#                          model_path, meanvar_path, npy_dir=npy_dir, annotate=annotate, export_path=export_path)
