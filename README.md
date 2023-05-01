@@ -17,8 +17,3 @@ cd tremor_ml
 conda env create
 conda activate tremor_ml
 ```
-
-Example Script
--------
-
-See plot_spectrograms.py
