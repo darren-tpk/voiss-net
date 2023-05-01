@@ -2,52 +2,43 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/npy_generator_scripts/create_labeled_dataset_3C.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/npy_generator_scripts/create_unlabeled_dataset_3C.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/plotting_scripts/plot_metrics.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/plotting_scripts/timeline_checker_3C.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/plotting_scripts/timeline_figure_3C.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/train_cnn_3C.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/tremor_ml.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/tremor_ml.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_PN7A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_PS1A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_PS4A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_PV6A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_PVV_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/4min_all_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/create_labeled_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/npy_generator_scripts/create_labeled_dataset_vert.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/create_unlabeled_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/npy_generator_scripts/create_unlabeled_dataset_vert.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataGenerator.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataGenerator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/debugger.py" beforeDir="false" afterPath="$PROJECT_DIR$/debugger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_PN7A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_PS1A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_PS4A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_PV6A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_PVV_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/3min_all_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_PN7A_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_PN7A_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_PS1A_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_PS1A_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_PS4A_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_PS4A_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_PV6A_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_PV6A_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_PVV_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_PVV_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_all_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_all_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_noPS4A_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_noPS4A_model.h5" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_noPS4A_noimpulse_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_PN7A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_PS1A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_PS4A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_PV6A_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_PVV_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/5min_all_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot_spectrograms.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot_spectrograms_bulk.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms_bulk.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_checker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/timeline_figure.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_figure.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/toolbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/toolbox.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/4min_all_infra_subsampled0_confusion.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/4min_all_infra_subsampled0_confusion.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/4min_all_infra_subsampled0_curve.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/4min_all_infra_subsampled0_curve.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/4min_all_subsampled2_confusion.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/4min_all_subsampled2_confusion.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/4min_all_subsampled2_curve.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/4min_all_subsampled2_curve.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_SG_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_SG_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_SG_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_SG_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_SS_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_SS_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_SS_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_SS_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_SG_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_SG_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_SG_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_SG_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_SS_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_SS_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_SS_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_SS_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_infra_SG_subsampled0.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_infra_SG_subsampled0.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_condensed_infra_SG_subsampled0.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_condensed_infra_SG_subsampled0.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_SG_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_SG_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_SG_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_SG_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_SS_subsampled2.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_SS_subsampled2.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_SS_subsampled2.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_SS_subsampled2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_infra_SG_subsampled0.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_infra_SG_subsampled0.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_horiz_infra_SG_subsampled0.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_horiz_infra_SG_subsampled0.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_infra_SG_subsampled0.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_infra_SG_subsampled0.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/figures/timeline_infra_SG_subsampled0.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/timeline_infra_SG_subsampled0.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_infra_subsampled0_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_all_infra_subsampled0_model.h5" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_subsampled2_model.h5" beforeDir="false" afterPath="$PROJECT_DIR$/models/4min_all_subsampled2_model.h5" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_infrasound_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_infrasound_metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_seismic_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_seismic_metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms_bulk.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms_bulk.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_figure.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_figure.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_figure_historic.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_figure_historic.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_figure_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_figure_infra.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_cnn_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_infra.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,6 +54,10 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/debugger.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/toolbox.py" root0="SKIP_INSPECTION" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -83,12 +78,18 @@
     &quot;WebServerToolWindowPanel.toolwindow.show.date&quot;: &quot;false&quot;,
     &quot;WebServerToolWindowPanel.toolwindow.show.permissions&quot;: &quot;false&quot;,
     &quot;WebServerToolWindowPanel.toolwindow.show.size&quot;: &quot;false&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/darrentpk/Desktop/GitHub/tremor_ml/plotting_scripts&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/plotting_scripts" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/old_scripts" />
+      <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/models" />
       <recent name="$PROJECT_DIR$/plotting_scripts" />
       <recent name="$PROJECT_DIR$/npy_generator_scripts" />
@@ -114,7 +115,32 @@
       <workItem from="1676522563040" duration="1205000" />
       <workItem from="1676524012825" duration="36088000" />
       <workItem from="1676918793337" duration="44588000" />
-      <workItem from="1677280611933" duration="1057000" />
+      <workItem from="1677280611933" duration="4846000" />
+      <workItem from="1677527732551" duration="1966000" />
+      <workItem from="1677536668761" duration="17378000" />
+      <workItem from="1677904001284" duration="2929000" />
+      <workItem from="1678129144050" duration="80973000" />
+      <workItem from="1679344339405" duration="6150000" />
+      <workItem from="1679504760828" duration="3395000" />
+      <workItem from="1679531822654" duration="1121000" />
+      <workItem from="1679595084467" duration="763000" />
+      <workItem from="1679596624105" duration="15610000" />
+      <workItem from="1679696933487" duration="1008000" />
+      <workItem from="1679697951730" duration="1465000" />
+      <workItem from="1679713494379" duration="1030000" />
+      <workItem from="1679714531555" duration="7428000" />
+      <workItem from="1679721992245" duration="1249000" />
+      <workItem from="1679723251599" duration="1165000" />
+      <workItem from="1679724424738" duration="7559000" />
+      <workItem from="1679950080880" duration="63752000" />
+      <workItem from="1680801716338" duration="19796000" />
+      <workItem from="1681427605069" duration="363000" />
+      <workItem from="1681495772267" duration="55803000" />
+      <workItem from="1682026864552" duration="148000" />
+      <workItem from="1682104564735" duration="12441000" />
+      <workItem from="1682128176460" duration="15404000" />
+      <workItem from="1682557086024" duration="2801000" />
+      <workItem from="1682630526181" duration="836000" />
     </task>
     <servers />
   </component>
@@ -132,15 +158,8 @@
       </map>
     </option>
   </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/toolbox.py</url>
-          <line>491</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_figure_historic.coverage" NAME="timeline_figure_historic Coverage Results" MODIFIED="1678847261170" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_infra.coverage" NAME="timeline_checker_infra Coverage Results" MODIFIED="1679002569062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
   </component>
 </project>

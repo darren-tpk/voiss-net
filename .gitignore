@@ -1,0 +1,11 @@
+.DS_Store
+**.DS_Store
+.idea
+.idea/
+__pycache__/
+figures/
+labels/*.png
+metrics/PS1A_BHZ_metrics/
+metrics/PS4A_BDF_metrics/
+pavlof_rtm.csv
+output*.txt
