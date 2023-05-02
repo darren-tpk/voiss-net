@@ -8,7 +8,6 @@ dependencies:
   - numpy
   - obspy
   - geopy
-  - ordpy
   - pygmt
   - scikit-learn
   - colorcet
@@ -17,4 +16,5 @@ dependencies:
   - tensorflow
   - pip
   - pip:
+      - ordpy
       - git+https://github.com/uafgeotools/waveform_collection.git
