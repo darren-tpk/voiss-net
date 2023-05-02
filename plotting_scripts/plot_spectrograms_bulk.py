@@ -74,7 +74,7 @@ while i < (total_hours-1):
         # Process waveform
         stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, taper_percentage=None, filter_band=filter_band, verbose=False)
         stream_default_order = [tr.stats.station for tr in stream]
-        desired_index_order = [stream_default_order.index(stn) for stn in station.split(',')]
+        desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
         stream = Stream([stream[i] for i in desired_index_order])
 
         # Plot all spectrograms on one figure
