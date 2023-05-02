@@ -15,8 +15,8 @@ network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*HZ'
-starttime = UTCDateTime(2021, 12, 8, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2021, 12, 12, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2021, 1, 1, 0, 0)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2023, 1, 1, 0, 0)  # end time for data pull and spectrogram plot
 pad = 60  # padding length [s]
 local = False  # pull data from local
 data_dir = None  # local data directory if pulling data from local
@@ -36,7 +36,7 @@ total_hours = int(np.floor((endtime-starttime)/3600))
 
 # Commence loop
 i = 0
-while i < (total_hours-1):
+while i < (total_hours):
 
     try:
 
@@ -77,13 +77,20 @@ while i < (total_hours-1):
         desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
         stream = Stream([stream[i] for i in desired_index_order])
 
-        # Plot all spectrograms on one figure
-        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean, v_percent_lims=v_percent_lims, earthquake_times=eq_times, explosion_times=ex_times, db_hist=True, export_path=export_path, export_spec=export_spec)
-
-        i += 1
-
     except:
 
         # Sometimes response retrieval throws out an error (?)
-        print('some error happened for i = %d, trying again' % i)
+        print('A data pull error occurred for i = %d, trying again...' % i)
         pass
+
+    # Plot all spectrograms on one figure if stream is not empty
+    if len(stream) != 0:
+        plot_spectrogram_multi(stream, t1, t2, window_duration, freq_lims, log=log, demean=demean,
+                               v_percent_lims=v_percent_lims, earthquake_times=eq_times, explosion_times=ex_times,
+                               db_hist=True, export_path=export_path, export_spec=export_spec)
+        print('Spectrogram plotted.')
+    else:
+        print('Stream object is empty, skipping.')
+
+    # Move forward in loop
+    i += 1
