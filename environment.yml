@@ -16,5 +16,6 @@ dependencies:
   - tensorflow
   - pip
   - pip:
+      - label-studio
       - ordpy
       - git+https://github.com/uafgeotools/waveform_collection.git
