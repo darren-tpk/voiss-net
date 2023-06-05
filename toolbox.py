@@ -549,7 +549,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,annotate=False,export_path=None):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,spec_kwargs=None,annotate=False,export_path=None):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -564,17 +564,30 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             data request
     :param model_path (str): Path to model .h5 file
     :param npy_dir (str): Path to directory of numpy files
+    :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param annotate (bool): If `True`, annotate probabilities to one decimal place in each cell
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
     """
 
+    # Load model
+    saved_model = load_model(model_path)
+    nclasses = saved_model.layers[-1].get_config()['units']
+    nsubrows = len(station.split(','))
+
+    # Extract mean and variance from training
+    saved_meanvar = np.load(meanvar_path)
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+
     # Define fixed values
-    TIME_STEP = 4 * 60
-    PAD = 60
-    WINDOW_DURATION = 10
-    FREQ_LIMS = (0.5, 10)
-    V_PERCENT_LIMS = (20, 97.5)
+    SPEC_HEIGHT = saved_model.input.shape.as_list()[1]
+    TIME_STEP = saved_model.input.shape.as_list()[2]
+    spec_kwargs = {} if spec_kwargs is None else spec_kwargs
+    PAD = spec_kwargs['pad'] if  'pad' in spec_kwargs else 60
+    WINDOW_DURATION = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
+    FREQ_LIMS = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else (0.5, 10)
+    V_PERCENT_LIMS = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in spec_kwargs else (20, 97.5)
 
     # Determine if infrasound
     infrasound = True if channel[-1] == 'F' else False
@@ -629,17 +642,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 spec_slice = spec_db[:, spec_slice_indices]
 
                 # Enforce shape
-                if np.shape(spec_slice) != (94, TIME_STEP):
+                if np.shape(spec_slice) != (SPEC_HEIGHT, TIME_STEP):
                     # Try inclusive slicing time span (<= sb2)
                     spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                     spec_slice = spec_db[:, spec_slice_indices]
                     # If it still doesn't fit our shape
-                    if np.shape(spec_slice) != (94, TIME_STEP):
+                    if np.shape(spec_slice) != (SPEC_HEIGHT, TIME_STEP):
                         # Try double-inclusive slicing time span (sb1<= t <= sb2)
                         spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
                         spec_slice = spec_db[:, spec_slice_indices]
                         # If it still doesn't fit our shape, raise error
-                        if np.shape(spec_slice) != (94, TIME_STEP):
+                        if np.shape(spec_slice) != (SPEC_HEIGHT, TIME_STEP):
                             raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
                 # Skip matrices that have a spectrogram data gap
@@ -666,19 +679,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         if starttime <= utc < endtime and spec_station in station:
             spec_paths.append(spec_path)
 
-    # Load model
-    saved_model = load_model(model_path)
-    nclasses = saved_model.layers[-1].get_config()['units']
-    nsubrows = len(station.split(','))
-
-    # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
-
     # Create data generator for input spec paths
     params = {
-        "dim": (94, TIME_STEP),
+        "dim": (SPEC_HEIGHT, TIME_STEP),
         "batch_size": len(spec_paths),
         "n_classes": nclasses,
         "shuffle": False,
@@ -717,7 +720,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     if not infrasound:
         # Loop over columns and vote
         for j in range(np.shape(matrix_plot)[1]):
-            sub_col = matrix_plot[:, j]
+            sub_col = matrix_plot[:-1, j]
             labels_seen, label_counts = np.unique(sub_col, return_counts=True)
             if len(labels_seen) == 1 and na_label in labels_seen:
                 new_row[0, j] = na_label
@@ -727,7 +730,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 if na_label in labels_seen:
                     label_counts = np.delete(label_counts, labels_seen == na_label)
                     labels_seen = np.delete(labels_seen, labels_seen == na_label)
-                selected_label_index = np.argwhere(label_counts == np.amax(label_counts))[-1][0]
+                selected_label_index = np.argwhere(label_counts == np.amax(label_counts))[0][0]  # prioritize tremor
+                # selected_label_index = np.argwhere(label_counts == np.amax(label_counts))[-1][0]  # prioritize impulsive
                 new_row[0, j] = labels_seen[selected_label_index]
         # Craft corresponding rgb values
         rgb_values = np.array([
@@ -742,7 +746,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     else:
         # Loop over columns and vote
         for j in range(np.shape(matrix_plot)[1]):
-            sub_col = matrix_plot[:, j]
+            sub_col = matrix_plot[:-1, j]
             labels_seen, label_counts = np.unique(sub_col, return_counts=True)
             if len(labels_seen) == 1 and na_label in labels_seen:
                 new_row[0, j] = na_label
