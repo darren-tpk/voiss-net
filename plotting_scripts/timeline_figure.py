@@ -106,7 +106,7 @@ indicators2 = []
 for i, filepath in enumerate(labeled_spec_paths):
     filename = filepath.split('/')[-1]
     chunks = filename.split('_')
-    indicators2.append([chunks[0],UTCDateTime(chunks[1]),int(chunks[3][0])-1])
+    indicators2.append([chunks[0],UTCDateTime(chunks[1]),int(chunks[3][0])])
 for indicator2 in indicators2:
     utc = indicator2[1]
     row_index = nsubrows * month_list.index(utc.strftime('%b \'%y')) + stations.index(indicator2[0])
@@ -169,8 +169,8 @@ ax.set_xlabel('Date', fontsize=25)
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 ax.set_title('Timeline for Pavlof Seismic Tremor (2021-01-01 to 2022-12-31)', fontsize=30)
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline' + '_' + tag + '.pdf')
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline' + '_' + tag + '.png')
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline' + '_' + tag + '.pdf')
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline' + '_' + tag + '.png')
 plt.show()
 
 # Condense timeline figure using station-based voting
@@ -241,8 +241,8 @@ ax.set_xlabel('Date', fontsize=25)
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 ax.set_title('Timeline for Pavlof Seismic Tremor (2021/01/01 to 2022/12/31)', fontsize=30)
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed' + '_' + tag + '.png', transparent=True)
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed' + '_' + tag + '.pdf')
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed' + '_' + tag + '.png', transparent=True)
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed' + '_' + tag + '.pdf')
 plt.show()
 
 # Reshape timeline figure to get horizontal plot
@@ -324,8 +324,8 @@ ax.set_xticklabels([])
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 # ax.set_title('Timeline for Pavlof Seismic Tremor (2021-01-01 to 2022-12-31)', fontsize=30)
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz' + '_' + tag + '.pdf',bbox_inches = 'tight')
-plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz' + '_' + tag + '.png',bbox_inches = 'tight',transparent=True)
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz' + '_' + tag + '.pdf',bbox_inches = 'tight')
+# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz' + '_' + tag + '.png',bbox_inches = 'tight',transparent=True)
 plt.show()
 
 # Plot AVO color code
