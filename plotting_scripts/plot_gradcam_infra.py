@@ -10,8 +10,7 @@ from matplotlib import pyplot as plt
 import colorcet as cc
 
 # Plotting options
-station = 'PVV'
-random_sample = False  # If True, randomly pick one file from each class from npy directory
+random_sample = True  # If True, randomly pick one file from each class from npy directory
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
 
@@ -93,27 +92,25 @@ class GradCAM:
         return heatmap
 
 # Define dictionary of spectrogram labels
-label_dict = {0: 'Broadband Tremor',
-              1: 'Harmonic Tremor',
-              2: 'Monochromatic Tremor',
-              3: 'Non-tremor Signal',
-              4: 'Explosion',
-              5: 'Noise'}
+label_dict = {0: 'Infrasonic Tremor',
+              1: 'Explosion',
+              2: 'Wind Noise',
+              3: 'Electronic Noise',
+              4: 'Quiet'}
 
 # Define test path dictionary for 6 examples (1 for each unique class)
 if random_sample:
     test_paths = []
-    npy_directory = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '*_'
+    npy_directory = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/*_'
     for label_index in list(label_dict.keys()):
         file_set = glob.glob(npy_directory + str(label_index) + '.npy')
         test_paths.append(sample(file_set,1)[0])
 else:
-    test_paths = ['/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202107270832_202107270836_0.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202107280236_202107280240_1.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202108050736_202108050740_2.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202108231824_202108231828_3.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202109210436_202109210440_4.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202109022056_202109022100_5.npy']
+    test_paths = ['/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202108221900_202108221904_0.npy',
+                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PVV_202108111900_202108111904_1.npy',
+                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202109071700_202109071704_2.npy',
+                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy',
+                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PVV_202108240432_202108240436_4.npy']
 test_labels = [int(i.split("_")[-1][0]) for i in test_paths]
 test_label_dict = dict(zip(test_paths, test_labels))
 
@@ -127,8 +124,8 @@ test_params = {
 }
 
 # Load model
-saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_subsampled2_model.h5')
-saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_subsampled2_meanvar.npy')
+saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_subsampled0_model.h5')
+saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_infra_subsampled0_meanvar.npy')
 running_x_mean = saved_meanvar[0]
 running_x_var = saved_meanvar[1]
 
@@ -152,6 +149,9 @@ fig, axs = plt.subplots(3, 4, figsize=(8, 8))
 
 # Loop over the 6 test cases
 for index in range(len(test_paths)):
+
+    # Deduce station from test path
+    station = test_paths[index].split('/')[-1].split('_')[0]
 
     # Load spectrogram slice
     raw_spec = np.load(test_paths[index])
@@ -214,9 +214,13 @@ for index in range(len(test_paths)):
     axs.ravel()[2*index+1].set_xticks([])
     axs.ravel()[2*index+1].set_yticks([])
 
+# Remove last pair of panels
+axs.ravel()[10].axis('off')
+axs.ravel()[11].axis('off')
+
 # Adjust spacing
 plt.subplots_adjust(hspace=0.3)
 
 # Show figure
-fig.suptitle('GradCAM Examples for Seismic', fontsize=13, fontweight='bold')
+fig.suptitle('GradCAM Examples for Infrasound', fontsize=13, fontweight='bold')
 fig.show()
