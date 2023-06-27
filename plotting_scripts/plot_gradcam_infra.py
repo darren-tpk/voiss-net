@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 import colorcet as cc
 
 # Plotting options
-random_sample = True  # If True, randomly pick one file from each class from npy directory
+random_sample = False  # If True, randomly pick one file from each class from npy directory
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
 
@@ -95,8 +95,7 @@ class GradCAM:
 label_dict = {0: 'Infrasonic Tremor',
               1: 'Explosion',
               2: 'Wind Noise',
-              3: 'Electronic Noise',
-              4: 'Quiet'}
+              3: 'Electronic Noise'}
 
 # Define test path dictionary for 6 examples (1 for each unique class)
 if random_sample:
@@ -109,8 +108,7 @@ else:
     test_paths = ['/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202108221900_202108221904_0.npy',
                   '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PVV_202108111900_202108111904_1.npy',
                   '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202109071700_202109071704_2.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PVV_202108240432_202108240436_4.npy']
+                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy']
 test_labels = [int(i.split("_")[-1][0]) for i in test_paths]
 test_label_dict = dict(zip(test_paths, test_labels))
 
@@ -145,7 +143,7 @@ print('Predicted  :', pred_labs)
 ### Now plot GradCAM
 
 # Initialize multiplot
-fig, axs = plt.subplots(3, 4, figsize=(8, 8))
+fig, axs = plt.subplots(2, 4, figsize=(8, 5.5))
 
 # Loop over the 6 test cases
 for index in range(len(test_paths)):
@@ -213,10 +211,6 @@ for index in range(len(test_paths)):
             spine.set_linewidth(3)
     axs.ravel()[2*index+1].set_xticks([])
     axs.ravel()[2*index+1].set_yticks([])
-
-# Remove last pair of panels
-axs.ravel()[10].axis('off')
-axs.ravel()[11].axis('off')
 
 # Adjust spacing
 plt.subplots_adjust(hspace=0.3)
