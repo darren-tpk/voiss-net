@@ -9,18 +9,16 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2021, 1, 1, 00, 00)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2023, 1, 1, 00, 00)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2023, 1, 1, 00, 00)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2023, 3, 1, 00, 00)  # end time for data pull and spectrogram plot
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/pavlof_2021_2022_infra_npy/'
+output_dir = '/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_infra_npy/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*DF'
 pad = 60  # padding length [s]
-local = False  # pull data from local
-data_dir = None  # local data directory if pulling data from local
 client = 'IRIS'  # FDSN client for data pull
 filter_band = None  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
