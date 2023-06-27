@@ -29,7 +29,7 @@ month_list = ['Jan \'21', 'Feb \'21', 'Mar \'21', 'Apr \'21', 'May \'21', 'Jun \
               'Jan \'22', 'Feb \'22', 'Mar \'22', 'Apr \'22', 'May \'22', 'Jun \'22',
               'Jul \'22', 'Aug \'22', 'Sep \'22', 'Oct \'22', 'Nov \'22', 'Dec \'22']
 nmonths = len(month_list)
-nclasses = 5
+nclasses = 4
 na_label = nclasses
 time_step = 4 * 60  # s
 tick_days = [0, 7, 14, 28]
@@ -119,7 +119,6 @@ rgb_values = np.array([
     [235, 152,  52],
     [ 40,  40,  40],
     [ 15,  37,  60],
-    [100, 100, 100],
     [255, 255, 255]])
 rgb_ratios = rgb_values/255
 colors = np.concatenate((rgb_ratios, np.ones((np.shape(rgb_values)[0],1))), axis=1)
@@ -146,7 +145,6 @@ cbar.ax.set_yticklabels(['Infrasonic\nTremor',
                          'Explosion',
                          'Wind Noise',
                          'Electronic\nNoise',
-                         'Quiet',
                          'N/A'], fontsize=22)
 cbar.ax.invert_yaxis()
 for y in range(0,matrix_height,nsubrows):
@@ -167,8 +165,8 @@ ax.set_xlabel('Date', fontsize=25)
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 ax.set_title('Timeline for Pavlof Infrasonic Tremor (2021-01-01 to 2022-12-31)', fontsize=30)
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_infra' + '_' + tag + '.pdf')
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_infra' + '_' + tag + '.png')
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_infra' + '_' + tag + '.pdf')
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_infra' + '_' + tag + '.png')
 plt.show()
 
 # Condense timeline figure using station-based voting
@@ -228,7 +226,6 @@ cbar.ax.set_yticklabels(['Infrasonic\nTremor',
                          'Explosion',
                          'Wind Noise',
                          'Electronic\nNoise',
-                         'Quiet',
                          'N/A'], fontsize=22)
 cbar.ax.invert_yaxis()
 for y in range(0,nmonths):
@@ -247,8 +244,8 @@ ax.set_xlabel('Date', fontsize=25)
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 ax.set_title('Timeline for Pavlof Infrasonic Tremor (2021/01/01 to 2022/12/31)', fontsize=30)
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed_infra' + '_' + tag + '.png', transparent=True)
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed_infra' + '_' + tag + '.pdf')
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed_infra' + '_' + tag + '.png', transparent=True)
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_condensed_infra' + '_' + tag + '.pdf')
 plt.show()
 
 # Reshape timeline figure to get horizontal plot
