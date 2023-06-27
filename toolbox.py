@@ -280,7 +280,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             spec_db_plot = spec_db[np.flatnonzero((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],sample_frequencies[0], sample_frequencies[-1]],
                            vmin=np.percentile(spec_db_plot, v_percent_lims[0]), vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
-                           origin='lower', aspect='auto', interpolation=None, cmap=cmap)
+                           origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
                 spec_db_hist = np.sum(spec_db_plot,axis=1)
@@ -297,7 +297,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             # We go straight into plotting spec_db
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1], sample_frequencies[0],sample_frequencies[-1]],
                            vmin=np.percentile(spec_db, v_percent_lims[0]),  vmax=np.percentile(spec_db, v_percent_lims[1]),
-                           origin='lower', aspect='auto', interpolation=None, cmap=cmap)
+                           origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
                 spec_db_hist = np.sum(spec_db, axis=1)
@@ -431,7 +431,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                               sample_frequencies[-1]],
                                       vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
-                                      origin='lower', aspect='auto', interpolation=None, cmap=cmap)
+                                      origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
                 spec_db_hist = np.sum(spec_db_plot, axis=1)
@@ -453,7 +453,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                               sample_frequencies[-1]],
                                       vmin=np.percentile(spec_db, v_percent_lims[0]),
                                       vmax=np.percentile(spec_db, v_percent_lims[1]),
-                                      origin='lower', aspect='auto', interpolation=None, cmap=cmap)
+                                      origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
                 spec_db_hist = np.sum(spec_db, axis=1)
@@ -854,7 +854,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                           sample_frequencies[-1]],
                                   vmin=np.percentile(spec_db_plot, V_PERCENT_LIMS[0]),
                                   vmax=np.percentile(spec_db_plot, V_PERCENT_LIMS[1]),
-                                  origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
+                                  origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
         axs[axs_index].set_ylim([FREQ_LIMS[0], FREQ_LIMS[1]])
         axs[axs_index].set_yticks(range(2, FREQ_LIMS[1] + 1, 2))
         axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
