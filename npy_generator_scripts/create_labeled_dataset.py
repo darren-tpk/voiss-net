@@ -11,15 +11,13 @@ from toolbox import process_waveform, calculate_spectrogram
 # Define filepaths and variables for functions
 json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/labels_20230215.json'
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min_3/'
+output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 channel = '*HZ'
 pad = 60  # padding length [s]
-local = False  # pull data from local
-data_dir = None  # local data directory if pulling data from local
 client = 'IRIS'  # FDSN client for data pull
 filter_band = None  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
