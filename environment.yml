@@ -14,7 +14,7 @@ dependencies:
   - seaborn
   - libcomcat  
   - tensorflow
-  - cv2
+  - opencv
   - pip
   - pip:
       - label-studio
