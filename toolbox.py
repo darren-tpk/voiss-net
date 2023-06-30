@@ -768,7 +768,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             [235, 152, 52],
             [40, 40, 40],
             [15, 37, 60],
-            [100, 100, 100],
             [255, 255, 255]])
     # Concatenate voting row to plotting matrix
     matrix_plot = np.concatenate((matrix_plot, new_row))
