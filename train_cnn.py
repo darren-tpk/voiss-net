@@ -19,7 +19,9 @@ random.seed(930)
 station_option = 'all'
 
 # Get list of spectrogram slice paths based on station option
-spec_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/'
+spec_dir = '/Users/dfee/Documents/generalized_tremor/labeled_npy_4min/'
+repo_dir =  '/Users/dfee/repos/tremor_ml/'
+
 if station_option == 'all':
     spec_paths = glob.glob(spec_dir + '*.npy')
 else:
@@ -82,10 +84,10 @@ if balance_training:
 model_type = '4min_' + station_option
 if balance_training:
     model_type = model_type + '_' + balance_type
-model_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/models/' + model_type + '_model.h5'
-meanvar_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/models/' + model_type + '_meanvar.npy'
-curve_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_curve.png'
-confusion_name = '/Users/darrentpk/Desktop/GitHub/tremor_ml/figures/' + model_type + '_confusion.png'
+model_name = repo_dir + '/models/' + model_type + '_model.h5'
+meanvar_name = repo_dir + '/models/' + model_type + '_meanvar.npy'
+curve_name = repo_dir + '/figures/' + model_type + '_curve.png'
+confusion_name = repo_dir + '/figures/' + model_type + '_confusion.png'
 
 # Shuffle the files
 random.shuffle(spec_paths)
