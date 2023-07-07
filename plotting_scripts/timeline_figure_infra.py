@@ -27,7 +27,8 @@ nsubrows = len(stations)
 month_list = ['Jan \'21', 'Feb \'21', 'Mar \'21', 'Apr \'21', 'May \'21', 'Jun \'21',
               'Jul \'21', 'Aug \'21', 'Sep \'21', 'Oct \'21', 'Nov \'21', 'Dec \'21',
               'Jan \'22', 'Feb \'22', 'Mar \'22', 'Apr \'22', 'May \'22', 'Jun \'22',
-              'Jul \'22', 'Aug \'22', 'Sep \'22', 'Oct \'22', 'Nov \'22', 'Dec \'22']
+              'Jul \'22', 'Aug \'22', 'Sep \'22', 'Oct \'22', 'Nov \'22', 'Dec \'22',
+              'Jan \'23', 'Feb \'23']
 nmonths = len(month_list)
 nclasses = 4
 na_label = nclasses
@@ -60,7 +61,7 @@ if model_used == 'station-generic':
     spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
                              running_x_mean=running_x_mean, running_x_var=running_x_var)
     spec_predictions = saved_model.predict(spec_gen)
-    predicted_labels = np.argmax(spec_predictions, axis=1)  # why are the lengths different?
+    predicted_labels = np.argmax(spec_predictions, axis=1)
     indicators = []
     for i, filepath in enumerate(spec_gen.list_ids):
         filename = filepath.split('/')[-1]
@@ -251,7 +252,7 @@ plt.show()
 # Reshape timeline figure to get horizontal plot
 labeled_start_index_horiz = int((labeled_start - UTCDateTime(2021,1,1))/time_step)
 labeled_end_index_horiz = int((labeled_end - UTCDateTime(2021,1,1))/time_step)
-matrix_length = int((UTCDateTime(2023,1,1) - UTCDateTime(2021,1,1)) / time_step)
+matrix_length = int((UTCDateTime(2023,3,1) - UTCDateTime(2021,1,1)) / time_step)
 timeline_horiz = np.ones((nsubrows, matrix_length)) * na_label
 for indicator in indicators:
     utc = indicator[1]
@@ -327,6 +328,8 @@ for i in range(1,13):
     month_utcdatetime = UTCDateTime(2022,i,1)
     month_utcdatetimes.append(month_utcdatetime)
 month_utcdatetimes.append(UTCDateTime(2023,1,1))
+month_utcdatetimes.append(UTCDateTime(2023,2,1))
+month_utcdatetimes.append(UTCDateTime(2023,3,1))
 xticks_horiz = [int((t - UTCDateTime(2021,1,1))/time_step) for t in month_utcdatetimes]
 xticklabels_horiz = [t.strftime('%b \'%y') for t in month_utcdatetimes]
 ax.set_xticks(xticks_horiz)
@@ -335,26 +338,6 @@ ax.set_xticklabels([])
 ax.patch.set_edgecolor('black')
 ax.patch.set_linewidth(2)
 # ax.set_title('Timeline for Pavlof Seismic Tremor (2021-01-01 to 2022-12-31)', fontsize=30)
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz_infra' + '_' + tag + '.pdf',bbox_inches = 'tight')
-# plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz_infra' + '_' + tag + '.png',bbox_inches = 'tight',transparent=True)
-plt.show()
-
-# Plot AVO color code
-
-# fig, ax = plt.subplots(figsize=(32,0.5))
-# base_time = month_utcdatetimes[0]
-# tick_numbers = [(t-base_time)/86400 for t in month_utcdatetimes]
-# g2y_number = (UTCDateTime(2021,7,9)-base_time)/86400
-# y2o_number = (UTCDateTime(2021,8,5)-base_time)/86400
-# o2y_number = (UTCDateTime(2022,12,17)-base_time)/86400
-# y2e_number = (month_utcdatetimes[-1]-base_time)/86400
-# ax.axvspan(0, g2y_number, color='green')
-# ax.axvspan(g2y_number, y2o_number, color='yellow')
-# ax.axvspan(y2o_number, o2y_number, color='orange')
-# ax.axvspan(o2y_number, y2e_number, color='yellow')
-# ax.set_xlim([0,y2e_number])
-# ax.set_xticks(tick_numbers)
-# ax.set_xticklabels([])
-# ax.set_yticks([])
-# fig.savefig('/Users/darrentpk/Desktop/avo_color_code.png', transparent=True)
-# fig.show()
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz_infra' + '_' + tag + '.pdf',bbox_inches = 'tight')
+plt.savefig('/Users/darrentpk/Desktop/Github/tremor_ml/figures/timeline_horiz_infra' + '_' + tag + '.png',bbox_inches = 'tight',transparent=True)
+fig.show()
