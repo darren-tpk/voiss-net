@@ -4,6 +4,7 @@ import glob
 import cv2
 import tensorflow as tf
 from random import sample
+import sys
 from DataGenerator import DataGenerator
 from keras.models import load_model
 from matplotlib import pyplot as plt
@@ -15,7 +16,9 @@ random_sample = False  # If True, randomly pick one file from each class from np
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
 npy_dir = '/Users/darrentpk/Desktop/all_npys/'
-git_dir = '/Users/dfee/repos/tremor_ml'
+git_dir = '/Users/dfee/repos/tremor_ml/'
+
+sys.path.insert(0, git_dir)
 
 # Define GradCAM class
 class GradCAM:
