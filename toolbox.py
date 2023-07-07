@@ -159,6 +159,12 @@ def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,t
     :return: Stream (:class:`~obspy.core.stream.Stream`) data object
     """
 
+    # If the input is a trace and not a stream, convert it to a stream and activate flag to return a trace later
+    return_trace = False
+    if type(stream) == Trace:
+        stream = Stream([stream])
+        return_trace = True
+
     if verbose:
         print('Processing trace/stream...')
     if remove_response:
@@ -192,7 +198,11 @@ def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,t
         stream.filter('bandpass', freqmin=filter_band[0], freqmax=filter_band[1], zerophase=False)
         if verbose:
             print('Waveform bandpass filtered from %.2f Hz to %.2f Hz.' % (filter_band[0],filter_band[1]))
-    return stream
+
+    if return_trace:
+        return stream[0]
+    else:
+        return stream
 
 def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,figsize=(32,9),export_path=None):
 
@@ -499,8 +509,8 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
     """
     Calculates and returns a 2D matrix storing the spectrogram values (of the input trace) in decibels
     :param trace (:class:`~obspy.core.stream.Trace`): Input data
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for desired plot
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for desired plot
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for desired spectrogram
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for desired spectrogram
     :param window_duration (float): Duration of spectrogram window [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
     :param overlap (float): Ratio of window to overlap when computing spectrogram (0 to 1)
@@ -549,7 +559,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,spec_kwargs=None,annotate=False,export_path=None):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -584,7 +594,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     SPEC_HEIGHT = saved_model.input.shape.as_list()[1]
     TIME_STEP = saved_model.input.shape.as_list()[2]
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
-    PAD = spec_kwargs['pad'] if  'pad' in spec_kwargs else 60
+    PAD = spec_kwargs['pad'] if  'pad' in spec_kwargs else 240
     WINDOW_DURATION = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
     FREQ_LIMS = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else (0.5, 10)
     V_PERCENT_LIMS = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in spec_kwargs else (20, 97.5)
@@ -742,6 +752,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             [164, 98, 0],
             [40, 40, 40],
             [255, 255, 255]])
+        rgb_keys = ['Broadband\nTremor',
+                    'Harmonic\nTremor',
+                    'Monochromatic\nTremor',
+                    'Non-Tremor\nSignal',
+                    'Explosion',
+                    'Noise',
+                    'N/A']
     # Otherwise, use infrasound voting scheme
     else:
         # Loop over columns and vote
@@ -769,6 +786,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             [40, 40, 40],
             [15, 37, 60],
             [255, 255, 255]])
+        rgb_keys = ['Infrasonic\nTremor',
+                    'Explosion',
+                    'Wind\nNoise',
+                    'Electronic\nNoise',
+                    'N/A']
     # Concatenate voting row to plotting matrix
     matrix_plot = np.concatenate((matrix_plot, new_row))
 
@@ -788,13 +810,18 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 'aspect': 40}
 
     # Initialize figure and craft axes
-    figsize = (32, 4 * len(stream) + 6)
+    figsize = (fig_width, 4 * len(stream) + 6)
     fig = plt.figure(figsize=figsize)
-    gs_top = plt.GridSpec(len(stream)+1, 1, top=0.89)
-    gs_base = plt.GridSpec(len(stream)+1, 1, hspace=0)
-    ax1 = fig.add_subplot(gs_top[0, :])
-    ax2 = fig.add_subplot(gs_base[1, :])
-    other_axes = [fig.add_subplot(gs_base[i, :], sharex=ax2) for i in range(2, len(stream)+1)]
+    if class_cbar:
+        gs_top = plt.GridSpec(len(stream) + 1, 2, top=0.89, width_ratios=[35, 1], wspace=0.05)
+        gs_base = plt.GridSpec(len(stream) + 1, 2, hspace=0, width_ratios=[35, 1], wspace=0.05)
+        cbar_ax = fig.add_subplot(gs_top[:, 1])
+    else:
+        gs_top = plt.GridSpec(len(stream) + 1, 1, top=0.89)
+        gs_base = plt.GridSpec(len(stream) + 1, 1, hspace=0)
+    ax1 = fig.add_subplot(gs_top[0, 0])
+    ax2 = fig.add_subplot(gs_base[1, 0])
+    other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax2) for i in range(2, len(stream) + 1)]
     axs = [ax2] + other_axes
     for ax in axs[:-1]:
         plt.setp(ax.get_xticklabels(), visible=False)
@@ -802,12 +829,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Plot prediction heatmap in top axis
     sns.heatmap(matrix_plot, cmap=cmap, cbar=False, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses, ax=ax1)
     if annotate:
-        sns.heatmap(matrix_prob, cmap=pmap, cbar=False, annot=True, fmt='.1f', annot_kws={'fontsize':20}, ax=ax1)
-    # for i in range(1,nhours):
-    #     ax1.axvline(x=(i * (3600 / time_step)), linestyle='--', linewidth=3, color='k')
+        sns.heatmap(matrix_prob, cmap=pmap, cbar=False, annot=True, fmt='.1f', annot_kws={'fontsize': 20}, ax=ax1)
     ax1.set_xticks([])
-    # ax1.set_xticks(np.arange(0, matrix_length, 3600 / (time_step)))
-    # ax1.set_xticklabels([(starttime + 3600 * i).strftime('%y/%m/%d %H:%M') for i in range(nhours)], rotation=0)
     ax1.axhline(nsubrows, color='black')
     ax1.axhline(nsubrows + 1, color='black')
     ax1.axhspan(nsubrows, nsubrows + 1, facecolor='lightgray')
@@ -816,7 +839,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     yticklabels = station.split(',').copy()
     yticklabels.append('VOTE')
     ax1.set_yticklabels(yticklabels, rotation=0, fontsize=24)
-    ax1.set_ylim([len(station.split(','))+2,0])
+    ax1.set_ylim([len(station.split(',')) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(2)
     ax1.set_title('Station-based Voting', fontsize=30)
@@ -846,31 +869,49 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             denominator = 10
 
         # Determine frequency limits and trim spec_db
-        spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > FREQ_LIMS[0]) & (sample_frequencies < FREQ_LIMS[1])), :]
+        spec_db_plot = spec_db[
+                       np.flatnonzero((sample_frequencies > FREQ_LIMS[0]) & (sample_frequencies < FREQ_LIMS[1])), :]
         axs[axs_index].imshow(spec_db,
-                                  extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
-                                          sample_frequencies[0],
-                                          sample_frequencies[-1]],
-                                  vmin=np.percentile(spec_db_plot, V_PERCENT_LIMS[0]),
-                                  vmax=np.percentile(spec_db_plot, V_PERCENT_LIMS[1]),
-                                  origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+                              extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
+                                      sample_frequencies[0],
+                                      sample_frequencies[-1]],
+                              vmin=np.percentile(spec_db_plot, V_PERCENT_LIMS[0]),
+                              vmax=np.percentile(spec_db_plot, V_PERCENT_LIMS[1]),
+                              origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+
+        # Tidy figure axes
         axs[axs_index].set_ylim([FREQ_LIMS[0], FREQ_LIMS[1]])
         axs[axs_index].set_yticks(range(2, FREQ_LIMS[1] + 1, 2))
         axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         axs[axs_index].tick_params(axis='y', labelsize=22)
         axs[axs_index].set_ylabel(trace.id, fontsize=24, fontweight='bold')
+
+    # Configure shared x-axis ticks and labels
     time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
     axs[-1].set_xticklabels(time_tick_labels, fontsize=24, rotation=30)
     axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+
+    # Plot colorbar
+    if class_cbar:
+        for i, rgb_ratio in enumerate(rgb_ratios):
+            cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
+        cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
+        cbar_ax.set_yticklabels(rgb_keys, fontsize=26)
+        cbar_ax.yaxis.tick_right()
+        cbar_ax.set_ylim([0, len(rgb_ratios)])
+        cbar_ax.invert_yaxis()
+        cbar_ax.set_xticks([])
+
+    # Show figure or export
     if export_path is None:
         fig.show()
         return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
-        fig.savefig(export_path + file_label + '.png', bbox_inches='tight')
+        fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=True)
 
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
