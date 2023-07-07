@@ -4,6 +4,7 @@ import glob
 import cv2
 import tensorflow as tf
 from random import sample
+import sys
 from DataGenerator import DataGenerator
 from keras.models import load_model
 from matplotlib import pyplot as plt
@@ -14,6 +15,10 @@ station = 'PVV'
 random_sample = False  # If True, randomly pick one file from each class from npy directory
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
+npy_dir = '/Users/darrentpk/Desktop/all_npys/'
+git_dir = '/Users/dfee/repos/tremor_ml/'
+
+sys.path.insert(0, git_dir)
 
 # Define GradCAM class
 class GradCAM:
@@ -103,17 +108,17 @@ label_dict = {0: 'Broadband Tremor',
 # Define test path dictionary for 6 examples (1 for each unique class)
 if random_sample:
     test_paths = []
-    npy_directory = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '*_'
+    npy_directory = npy_dir + 'labeled_npy_4min/' + station + '*_'
     for label_index in list(label_dict.keys()):
         file_set = glob.glob(npy_directory + str(label_index) + '.npy')
         test_paths.append(sample(file_set,1)[0])
 else:
-    test_paths = ['/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202107270832_202107270836_0.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202107280236_202107280240_1.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202108050736_202108050740_2.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202108231824_202108231828_3.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202109210436_202109210440_4.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/' + station + '_202109022056_202109022100_5.npy']
+    test_paths = [npy_dir + 'labeled_npy_4min/' + station + '_202107270832_202107270836_0.npy',
+                  npy_dir + 'labeled_npy_4min/' + station + '_202107280236_202107280240_1.npy',
+                  npy_dir + 'labeled_npy_4min/' + station + '_202108050736_202108050740_2.npy',
+                  npy_dir + 'labeled_npy_4min/' + station + '_202108231824_202108231828_3.npy',
+                  npy_dir + 'labeled_npy_4min/' + station + '_202109210436_202109210440_4.npy',
+                  npy_dir + 'labeled_npy_4min/' + station + '_202109022056_202109022100_5.npy']
 test_labels = [int(i.split("_")[-1][0]) for i in test_paths]
 test_label_dict = dict(zip(test_paths, test_labels))
 
@@ -127,8 +132,8 @@ test_params = {
 }
 
 # Load model
-saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_subsampled2_model.h5')
-saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_subsampled2_meanvar.npy')
+saved_model = load_model(git_dir + 'models/4min_all_subsampled2_model.h5')
+saved_meanvar = np.load(git_dir + 'models/4min_all_subsampled2_meanvar.npy')
 running_x_mean = saved_meanvar[0]
 running_x_var = saved_meanvar[1]
 
