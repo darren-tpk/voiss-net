@@ -13,6 +13,7 @@ import colorcet as cc
 random_sample = False  # If True, randomly pick one file from each class from npy directory
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
+npy_dir = '/Users/darrentpk/Desktop/all_npys/'
 
 # Define GradCAM class
 class GradCAM:
@@ -100,15 +101,15 @@ label_dict = {0: 'Infrasonic Tremor',
 # Define test path dictionary for 6 examples (1 for each unique class)
 if random_sample:
     test_paths = []
-    npy_directory = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/*_'
+    npy_directory = npy_dir + 'labeled_npy_4min_infra/*_'
     for label_index in list(label_dict.keys()):
         file_set = glob.glob(npy_directory + str(label_index) + '.npy')
         test_paths.append(sample(file_set,1)[0])
 else:
-    test_paths = ['/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202108221900_202108221904_0.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PVV_202108111900_202108111904_1.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PS4A_202109071700_202109071704_2.npy',
-                  '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy']
+    test_paths = [npy_dir + 'labeled_npy_4min_infra/PS4A_202108221900_202108221904_0.npy',
+                  npy_dir + 'labeled_npy_4min_infra/PVV_202108111900_202108111904_1.npy',
+                  npy_dir + 'labeled_npy_4min_infra/PS4A_202109071700_202109071704_2.npy',
+                  npy_dir + 'labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy']
 test_labels = [int(i.split("_")[-1][0]) for i in test_paths]
 test_label_dict = dict(zip(test_paths, test_labels))
 
