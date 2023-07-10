@@ -107,7 +107,7 @@ if random_sample:
         test_paths.append(sample(file_set,1)[0])
 else:
     test_paths = [npy_dir + 'labeled_npy_4min_infra/PS4A_202108221900_202108221904_0.npy',
-                  npy_dir + 'labeled_npy_4min_infra/PVV_202108111900_202108111904_1.npy',
+                  npy_dir + 'labeled_npy_4min_infra/PVV_202108061132_202108061136_1.npy',
                   npy_dir + 'labeled_npy_4min_infra/PS4A_202109071700_202109071704_2.npy',
                   npy_dir + 'labeled_npy_4min_infra/PV6A_202108210800_202108210804_3.npy']
 test_labels = [int(i.split("_")[-1][0]) for i in test_paths]
