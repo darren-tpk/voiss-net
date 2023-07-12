@@ -559,7 +559,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -577,6 +577,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param annotate (bool): If `True`, annotate probabilities to one decimal place in each cell
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :param transparent (bool): If `True`, export with transparent background
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
     """
 
@@ -862,12 +863,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
 
-        # Determine number of ticks smartly
-        if ((endtime - starttime) % 1800) == 0:
-            denominator = 12
-        else:
-            denominator = 10
-
         # Determine frequency limits and trim spec_db
         spec_db_plot = spec_db[
                        np.flatnonzero((sample_frequencies > FREQ_LIMS[0]) & (sample_frequencies < FREQ_LIMS[1])), :]
@@ -887,12 +882,30 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[axs_index].set_ylabel(trace.id, fontsize=24, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
+    if (endtime-starttime) > (6*86400):
+        denominator = (endtime-starttime)/86400
+        fmt = '%m/%d'
+    elif (2*86400) < (endtime-starttime) < (6*86400):
+        denominator = 2*(endtime-starttime)/86400
+        fmt = '%m/%d %H'
+    elif (endtime-starttime) < (2*86400) and endtime.date != starttime.date:
+        fmt = '%m/%d %H:%M'
+        denominator = 12 if ((endtime-starttime)%1800==0) else 10
+    else:
+        fmt = '%H:%M'
+        denominator = 12 if ((endtime-starttime)%1800==0) else 10
+
     time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
+    time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
     axs[-1].set_xticklabels(time_tick_labels, fontsize=24, rotation=30)
-    axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+    if endtime.date == starttime.date:
+        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+    elif (endtime-starttime) < (2*86400):
+        axs[-1].set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+    else:
+        axs[-1].set_xlabel('UTC Time', fontsize=30)
 
     # Plot colorbar
     if class_cbar:
@@ -911,7 +924,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
-        fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=True)
+        fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
 
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
