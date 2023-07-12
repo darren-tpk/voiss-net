@@ -21,13 +21,16 @@ class_cbar = True
 spec_kwargs = None
 annotate = True
 export_path = None
+transparent = False
 
 # Check timeline for seismic
 predmat = check_timeline(source, network, station, seis_channel, location, starttime, endtime,
                          seis_model_path, seis_meanvar_path, npy_dir=npy_dir, fig_width=fig_width,
-                         spec_kwargs=spec_kwargs, class_cbar=class_cbar, annotate=annotate, export_path=export_path)
+                         spec_kwargs=spec_kwargs, class_cbar=class_cbar, annotate=annotate,
+                         export_path=export_path, transparent=transparent)
 
 # Check timeline for infrasound
 predmat = check_timeline(source, network, station, infra_channel, location, starttime, endtime,
                          infra_model_path, infra_meanvar_path, npy_dir=npy_dir, fig_width=fig_width,
-                         spec_kwargs=spec_kwargs, class_cbar=class_cbar, annotate=annotate, export_path=export_path)
+                         spec_kwargs=spec_kwargs, class_cbar=class_cbar, annotate=annotate,
+                         export_path=export_path, transparent=transparent)
