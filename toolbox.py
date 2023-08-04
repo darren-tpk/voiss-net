@@ -691,9 +691,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             spec_paths.append(spec_path)
 
     # Create data generator for input spec paths
+    if len(spec_paths) >= 1000:
+        batch_size = 1000
+    else:
+        batch_size = len(spec_paths)
     params = {
         "dim": (SPEC_HEIGHT, TIME_STEP),
-        "batch_size": len(spec_paths),
+        "batch_size": batch_size,
         "n_classes": nclasses,
         "shuffle": False,
     }
