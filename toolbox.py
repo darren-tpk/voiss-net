@@ -921,10 +921,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Show figure or export
     if export_path is None:
         fig.show()
+        print('Done!')
         return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
+        print('Done!')
 
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
