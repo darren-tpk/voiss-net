@@ -123,9 +123,13 @@ for labeled_image in labeled_images:
                 # Try inclusive slicing time span (<= sb2)
                 spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                 spec_slice = spec_db[:, spec_slice_indices]
-                # If it still doesn't fit our shape, raise error
+                # If it still doesn't fit our shape, try double inclusive time bounds
                 if np.shape(spec_slice) != (94, time_step):
-                    raise ValueError('THE SHAPE IS NOT RIGHT.')
+                    spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
+                    spec_slice = spec_db[:, spec_slice_indices]
+                    # Otherwise, raise error
+                    if np.shape(spec_slice) != (94, time_step):
+                        raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
             if np.sum(spec_slice.flatten() < -220) > 50:

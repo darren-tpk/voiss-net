@@ -9,8 +9,8 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2023, 1, 1, 0, 0, 0)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2023, 3, 1, 0, 0, 0)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2023, 7, 12, 0, 0, 0)  # start time for data pull and spectrogram plot
+endtime = UTCDateTime(2023, 7, 17, 0, 0, 0)  # end time for data pull and spectrogram plot
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
 output_dir = '/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_npy/'
 source = 'IRIS'
@@ -83,9 +83,13 @@ for i in range(num_days):
                 # Try inclusive slicing time span (<= sb2)
                 spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                 spec_slice = spec_db[:, spec_slice_indices]
-                # If it still doesn't fit our shape, raise error
+                # If it still doesn't fit our shape, try double inclusive time bounds
                 if np.shape(spec_slice) != (94, time_step):
-                    raise ValueError('THE SHAPE IS NOT RIGHT.')
+                    spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
+                    spec_slice = spec_db[:, spec_slice_indices]
+                    # Otherwise, raise error
+                    if np.shape(spec_slice) != (94, time_step):
+                        raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
             if np.sum(spec_slice.flatten() < -220) > 50:
