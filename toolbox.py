@@ -691,8 +691,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             spec_paths.append(spec_path)
 
     # Create data generator for input spec paths
-    if len(spec_paths) >= 1000:
-        batch_size = 1000
+    if len(spec_paths) >= 2048:
+        from functools import reduce
+        factors = np.array(reduce(list.__add__,
+                ([i, len(spec_paths)//i] for i in range(1, int(len(spec_paths)**0.5) + 1) if len(spec_paths) % i == 0)))
+        batch_size = np.max(factors[factors<2048])
     else:
         batch_size = len(spec_paths)
     params = {
