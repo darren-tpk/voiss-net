@@ -105,6 +105,8 @@ params = {
     "batch_size": 100,
     "n_classes": len(unique_classes),
     "shuffle": True,
+    "running_x_mean": np.mean(eg_spec),
+    "running_x_var": np.var(eg_spec),
 }
 
 # Partition into training, testing, and validation data
