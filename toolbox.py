@@ -935,6 +935,373 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
         print('Done!')
 
+def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
+
+    """
+    Pulls data, then loads a trained model to predict the timeline of classes
+    :param source (str): Which source to gather waveforms from (e.g. IRIS)
+    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
+    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
+    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
+    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for
+            data request
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for
+            data request
+    :param model_path (str): Path to model .h5 file
+    :param npy_dir (str): Path to directory of numpy files
+    :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
+    :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :param transparent (bool): If `True`, export with transparent background
+    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
+    """
+
+    # Load model
+    saved_model = load_model(model_path)
+    nclasses = saved_model.layers[-1].get_config()['units']
+    nsubrows = len(station.split(','))
+
+    # Extract mean and variance from training
+    saved_meanvar = np.load(meanvar_path)
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+
+    # Define fixed values
+    SPEC_HEIGHT = saved_model.input.shape.as_list()[1]
+    INTERVAL = saved_model.input.shape.as_list()[2]
+    TIME_STEP = int(np.round(INTERVAL / 4))
+    spec_kwargs = {} if spec_kwargs is None else spec_kwargs
+    PAD = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
+    WINDOW_DURATION = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
+    FREQ_LIMS = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else (0.5, 10)
+    V_PERCENT_LIMS = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in spec_kwargs else (20, 97.5)
+
+    # Determine if infrasound
+    infrasound = True if channel[-1] == 'F' else False
+    REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+
+    # Enforce the duration to be a multiple of the model's time step
+    if (endtime - starttime) % TIME_STEP != 0:
+        print('The desired analysis duration (endtime - starttime) is not a multiple of the inbuilt time step.')
+        endtime = endtime + ((endtime - starttime) % TIME_STEP)
+        print('Rounding up endtime to %s.' % str(endtime))
+
+    # Load data, remove response, and re-order
+    stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel,
+                              starttime=starttime - PAD, endtime=endtime + PAD, verbose=False)
+    stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=PAD, verbose=False)
+    stream_default_order = [tr.stats.station for tr in stream]
+    desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
+    stream = Stream([stream[i] for i in desired_index_order])
+
+    # If no existing npy file directory exists, create a temporary directory and populate it
+    if not npy_dir:
+
+        # Create a temporary directory if it does not exist
+        if not os.path.exists('./npy_temporary'):
+            os.mkdir('npy_temporary')
+
+        # Clear all existing files in npy_temporary
+        # Clear npy_temporary directory
+        for f in glob.glob('./npy_temporary/*.npy'):
+            os.remove(f)
+
+        # Loop over stations that have data
+        stream_stations = [tr.stats.station for tr in stream]
+        for j, stream_station in enumerate(stream_stations):
+
+            # Choose trace corresponding to station
+            trace = stream[j]
+
+            # Calculate spectrogram power matrix
+            spec_db, utc_times = calculate_spectrogram(trace, starttime, endtime, window_duration=WINDOW_DURATION,
+                                                       freq_lims=FREQ_LIMS)
+
+            # Define array of time steps for spectrogram slicing
+            step_bounds = np.arange(starttime + int(np.round(INTERVAL / 2)),
+                                    endtime - int(np.round(INTERVAL / 2)) + TIME_STEP, TIME_STEP)
+
+            # Loop over time steps
+            for k in range(len(step_bounds)):
+
+                # Slice spectrogram
+                sb1 = step_bounds[k] - int(np.round(INTERVAL / 2))
+                sb2 = step_bounds[k] + int(np.round(INTERVAL / 2))
+                spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in utc_times])
+                spec_slice = spec_db[:, spec_slice_indices]
+
+                # Enforce shape
+                if np.shape(spec_slice) != (SPEC_HEIGHT, INTERVAL):
+                    # Try inclusive slicing time span (<= sb2)
+                    spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
+                    spec_slice = spec_db[:, spec_slice_indices]
+                    # If it still doesn't fit our shape
+                    if np.shape(spec_slice) != (SPEC_HEIGHT, INTERVAL):
+                        # Try double-inclusive slicing time span (sb1<= t <= sb2)
+                        spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
+                        spec_slice = spec_db[:, spec_slice_indices]
+                        # If it still doesn't fit our shape, raise error
+                        if np.shape(spec_slice) != (SPEC_HEIGHT, INTERVAL):
+                            raise ValueError('Spectrogram slicing produced an erroneous shape.')
+
+                # Skip matrices that have a spectrogram data gap
+                if np.sum(spec_slice.flatten() < -220) > 50:
+                    continue
+
+                # Craft filename and save
+                file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
+                            sb2.strftime('%Y%m%d%H%M') + '.npy'
+                np.save('./npy_temporary/' + file_name, spec_slice)
+
+        # Get list of npy file paths
+        spec_paths_full = glob.glob('./npy_temporary/*.npy')
+
+    # If a pre-existing npy directory exists, get list of npy file paths
+    else:
+        spec_paths_full = glob.glob(npy_dir + '/*.npy')
+
+    # Filter spec paths by time
+    spec_paths = []
+    for spec_path in spec_paths_full:
+        utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
+        spec_station = spec_path.split('/')[-1].split('_')[0]
+        if starttime <= utc < endtime and spec_station in station:
+            spec_paths.append(spec_path)
+
+    # Create data generator for input spec paths
+    if len(spec_paths) >= 2048:
+        from functools import reduce
+
+        factors = np.array(reduce(list.__add__,
+                                  ([i, len(spec_paths) // i] for i in range(1, int(len(spec_paths) ** 0.5) + 1) if
+                                   len(spec_paths) % i == 0)))
+        batch_size = np.max(factors[factors < 2048])
+    else:
+        batch_size = len(spec_paths)
+    params = {
+        "dim": (SPEC_HEIGHT, INTERVAL),
+        "batch_size": batch_size,
+        "n_classes": nclasses,
+        "shuffle": False,
+    }
+    spec_placeholder_labels = [0 for i in spec_paths]
+    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                             running_x_mean=running_x_mean, running_x_var=running_x_var)
+
+    # Make predictions
+    spec_predictions = saved_model.predict(spec_gen)
+    predicted_labels = np.argmax(spec_predictions, axis=1)
+    indicators = []
+    for i, filepath in enumerate(spec_gen.list_ids):
+        filename = filepath.split('/')[-1]
+        chunks = filename.split('_')
+        indicators.append([chunks[0], UTCDateTime(chunks[1]) + int(np.round(INTERVAL / 2)),
+                           predicted_labels[i], spec_predictions[i, :]])
+
+    # Craft plotting matrix and probability matrix
+    matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP)) + 1
+    matrix_height = nsubrows
+    matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
+    matrix_probs = np.zeros((matrix_height, matrix_length, np.shape(spec_predictions)[1]))
+    for indicator in indicators:
+        row_index = station.split(',').index(indicator[0])
+        col_index = int((indicator[1] - starttime) / TIME_STEP)
+        matrix_plot[row_index, col_index] = indicator[2]
+        matrix_probs[row_index, col_index, :] = indicator[3]
+
+    # Add voting row
+    na_label = nclasses  # this index is one higher than the number of classes
+    new_row = np.ones((1, np.shape(matrix_plot)[1])) * na_label
+    matrix_plot = np.concatenate((matrix_plot, new_row))
+
+    # Sum different station probabilities and derive network max
+    matrix_probs_sum = np.sum(matrix_probs, axis=0)
+    voted_labels = np.argmax(matrix_probs_sum, axis=1)
+    voted_labels[:2] = na_label  # pad voting row
+    voted_labels[-2:] = na_label  # pad voting row
+    voted_probabilities = np.max(matrix_probs_sum, axis=1) / nsubrows  # normalize by number of stations
+    matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
+
+    # If dealing with seismic, use seismic voting scheme
+    if not infrasound:
+        # Craft corresponding rgb values
+        rgb_values = np.array([
+            [193, 39, 45],
+            [0, 129, 118],
+            [0, 0, 167],
+            [238, 204, 22],
+            [164, 98, 0],
+            [40, 40, 40],
+            [255, 255, 255]])
+        rgb_keys = ['Broadband\nTremor',
+                    'Harmonic\nTremor',
+                    'Monochromatic\nTremor',
+                    'Non-Tremor\nSignal',
+                    'Explosion',
+                    'Noise',
+                    'N/A']
+    else:
+        # Craft corresponding rgb values
+        rgb_values = np.array([
+            [103, 52, 235],
+            [235, 152, 52],
+            [40, 40, 40],
+            [15, 37, 60],
+            [255, 255, 255]])
+        rgb_keys = ['Infrasonic\nTremor',
+                    'Explosion',
+                    'Wind\nNoise',
+                    'Electronic\nNoise',
+                    'N/A']
+
+    # Craft color map
+    rgb_ratios = rgb_values / 255
+    colors = np.concatenate((rgb_ratios, np.ones((np.shape(rgb_values)[0], 1))), axis=1)
+    cmap = ListedColormap(colors)
+    pmap = ListedColormap(np.zeros(np.shape(colors)))  # transparent cmap for probabilities
+
+    # Define colorbar keywords for plotting
+    real_cbar_tick_interval = 2 * nclasses / (2 * np.shape(rgb_values)[0])
+    real_cbar_ticks = np.arange(real_cbar_tick_interval / 2, nclasses, real_cbar_tick_interval)
+    cbar_kws = {'ticks': real_cbar_ticks,
+                'drawedges': True,
+                'location': 'top',
+                'fraction': 0.15,
+                'aspect': 40}
+
+    # Initialize figure and craft axes
+    figsize = (fig_width, 4 * len(stream) + 8)
+    fig = plt.figure(figsize=figsize)
+    if class_cbar:
+        gs_top = plt.GridSpec(len(stream) + 2, 2, top=0.89, height_ratios=[1, 0.5, 1, 1, 1, 1, 1], width_ratios=[35, 1],
+                              wspace=0.05)
+        gs_middle = plt.GridSpec(len(stream) + 2, 2, top=0.4, height_ratios=[1, 0.5, 1, 1, 1, 1, 1],
+                                 width_ratios=[35, 1], wspace=0.05)
+        gs_base = plt.GridSpec(len(stream) + 2, 2, hspace=0, height_ratios=[1, 0.5, 1, 1, 1, 1, 1],
+                               width_ratios=[35, 1], wspace=0.05)
+        cbar_ax = fig.add_subplot(gs_top[:, 1])
+    else:
+        gs_top = plt.GridSpec(len(stream) + 2, 1, top=0.89, height_ratios=[1, 0.5, 1, 1, 1, 1, 1])
+        gs_middle = plt.GridSpec(len(stream) + 2, 1, top=0.4, height_ratios=[1, 0.5, 1, 1, 1, 1, 1])
+        gs_base = plt.GridSpec(len(stream) + 2, 1, hspace=0, height_ratios=[1, 0.5, 1, 1, 1, 1, 1])
+    ax1 = fig.add_subplot(gs_top[0, 0])
+    ax2 = fig.add_subplot(gs_top[1, 0])
+    ax3 = fig.add_subplot(gs_base[2, 0])
+    other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in range(3, len(stream) + 2)]
+    axs = [ax3] + other_axes
+    for ax in axs[:-1]:
+        plt.setp(ax.get_xticklabels(), visible=False)
+
+    # Plot prediction heatmap in top axis
+    sns.heatmap(matrix_plot, cmap=cmap, cbar=False, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses, ax=ax1)
+    ax1.set_xticks([])
+    ax1.axhline(nsubrows, color='black')
+    ax1.axhline(nsubrows + 1, color='black')
+    ax1.axhspan(nsubrows, nsubrows + 1, facecolor='lightgray')
+    yticks = np.concatenate((np.arange(0.5, nsubrows, 1), np.array([nsubrows + 1.5])))
+    ax1.set_yticks(yticks)
+    yticklabels = station.split(',').copy()
+    yticklabels.append('VOTE')
+    ax1.set_yticklabels(yticklabels, rotation=0, fontsize=24)
+    ax1.set_ylim([len(station.split(',')) + 2, 0])
+    ax1.patch.set_edgecolor('black')
+    ax1.patch.set_linewidth(2)
+    ax1.set_title('Station-based Voting', fontsize=30)
+
+    # Plot probabilities in middle axis
+    ax2.plot(voted_probabilities, color='k', linewidth=4)
+    ax2.fill_between(range(len(voted_probabilities)), voted_probabilities, where=voted_probabilities >= 0,
+                     interpolate=True, color='gray', alpha=0.5)
+    ax2.set_xlim([0, len(voted_probabilities)])
+    ax2.set_ylim([0, 1])
+    ax2.tick_params(axis='y', labelsize=22)
+    ax2.set_yticks([0, 0.5, 1])
+    ax2.set_ylabel('$P_{norm}$', fontsize=30)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+
+    # Loop over each trace in the stream and plot spectrograms on lower axes
+    for axs_index, trace in enumerate(stream):
+        # Extract trace information for FFT
+        sampling_rate = trace.stats.sampling_rate
+        samples_per_segment = int(WINDOW_DURATION * sampling_rate)
+
+        # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
+        sample_frequencies, segment_times, spec = spectrogram(trace.data, sampling_rate, window='hann',
+                                                              scaling='density', nperseg=samples_per_segment,
+                                                              noverlap=samples_per_segment * .9)
+
+        # Convert spectrogram matrix to decibels for plotting
+        spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE ** 2))
+
+        # Convert trace times to matplotlib dates
+        trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
+
+        # Determine frequency limits and trim spec_db
+        spec_db_plot = spec_db[
+                       np.flatnonzero((sample_frequencies > FREQ_LIMS[0]) & (sample_frequencies < FREQ_LIMS[1])), :]
+        axs[axs_index].imshow(spec_db,
+                              extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
+                                      sample_frequencies[0],
+                                      sample_frequencies[-1]],
+                              vmin=np.percentile(spec_db_plot, V_PERCENT_LIMS[0]),
+                              vmax=np.percentile(spec_db_plot, V_PERCENT_LIMS[1]),
+                              origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+
+        # Tidy figure axes
+        axs[axs_index].set_ylim([FREQ_LIMS[0], FREQ_LIMS[1]])
+        axs[axs_index].set_yticks(range(2, FREQ_LIMS[1] + 1, 2))
+        axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
+        axs[axs_index].tick_params(axis='y', labelsize=22)
+        axs[axs_index].set_ylabel(trace.id, fontsize=24, fontweight='bold')
+
+    # Configure shared x-axis ticks and labels
+    if (endtime - starttime) > (6 * 86400):
+        denominator = (endtime - starttime) / 86400
+        fmt = '%m/%d'
+    elif (2 * 86400) < (endtime - starttime) < (6 * 86400):
+        denominator = 2 * (endtime - starttime) / 86400
+        fmt = '%m/%d %H'
+    elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
+        fmt = '%m/%d %H:%M'
+        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
+    else:
+        fmt = '%H:%M'
+        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
+
+    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
+    time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
+    time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
+    axs[-1].set_xticks(time_tick_list_mpl)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=24, rotation=30)
+    if endtime.date == starttime.date:
+        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+    elif (endtime - starttime) < (2 * 86400):
+        axs[-1].set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+    else:
+        axs[-1].set_xlabel('UTC Time', fontsize=30)
+
+    # Plot colorbar
+    if class_cbar:
+        for i, rgb_ratio in enumerate(rgb_ratios):
+            cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
+        cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
+        cbar_ax.set_yticklabels(rgb_keys, fontsize=26)
+        cbar_ax.yaxis.tick_right()
+        cbar_ax.set_ylim([0, len(rgb_ratios)])
+        cbar_ax.invert_yaxis()
+        cbar_ax.set_xticks([])
+
+    # Show figure or export
+    if export_path is None:
+        fig.show()
+        print('Done!')
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+    else:
+        file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
+        fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
+        print('Done!')
+
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
     """
