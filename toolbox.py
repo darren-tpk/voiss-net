@@ -1174,11 +1174,13 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     figsize = (fig_width, 4 * len(stream) + 8)
     fig = plt.figure(figsize=figsize)
     if class_cbar:
-        gs_top = plt.GridSpec(len(stream) + 2, 2, top=0.89, height_ratios=[1, 0.5, 1, 1, 1, 1, 1], width_ratios=[35, 1],
+        height_ratios = np.ones(len(stream) + 2)
+        height_ratios[1] = 0.5
+        gs_top = plt.GridSpec(len(stream) + 2, 2, top=0.89, height_ratios=height_ratios, width_ratios=[35, 1],
                               wspace=0.05)
-        gs_middle = plt.GridSpec(len(stream) + 2, 2, top=0.4, height_ratios=[1, 0.5, 1, 1, 1, 1, 1],
+        gs_middle = plt.GridSpec(len(stream) + 2, 2, top=0.4, height_ratios=height_ratios,
                                  width_ratios=[35, 1], wspace=0.05)
-        gs_base = plt.GridSpec(len(stream) + 2, 2, hspace=0, height_ratios=[1, 0.5, 1, 1, 1, 1, 1],
+        gs_base = plt.GridSpec(len(stream) + 2, 2, hspace=0, height_ratios=height_ratios,
                                width_ratios=[35, 1], wspace=0.05)
         cbar_ax = fig.add_subplot(gs_top[:, 1])
     else:
