@@ -950,6 +950,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
             data request
     :param model_path (str): Path to model .h5 file
     :param npy_dir (str): Path to directory of numpy files
+    :param fig_width (float): Figure width [in]
+    :param font_s (float): Font size [points]
+    :param class_cbar (bool): Plot colorbar
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
