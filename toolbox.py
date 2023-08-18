@@ -935,7 +935,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
         print('Done!')
 
-def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
+def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -1205,11 +1205,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     ax1.set_yticks(yticks)
     yticklabels = station.split(',').copy()
     yticklabels.append('VOTE')
-    ax1.set_yticklabels(yticklabels, rotation=0, fontsize=24)
+    ax1.set_yticklabels(yticklabels, rotation=0, fontsize=font_s)
     ax1.set_ylim([len(station.split(',')) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(2)
-    ax1.set_title('Station-based Voting', fontsize=30)
+    ax1.set_title('Station-based Voting', fontsize=font_s+2)
 
     # Plot probabilities in middle axis
     ax2.plot(voted_probabilities, color='k', linewidth=4)
@@ -1217,9 +1217,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                      interpolate=True, color='gray', alpha=0.5)
     ax2.set_xlim([0, len(voted_probabilities)])
     ax2.set_ylim([0, 1])
-    ax2.tick_params(axis='y', labelsize=22)
+    ax2.tick_params(axis='y', labelsize=font_s)
     ax2.set_yticks([0, 0.5, 1])
-    ax2.set_ylabel('$P_{norm}$', fontsize=30)
+    ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
     plt.setp(ax2.get_xticklabels(), visible=False)
 
     # Loop over each trace in the stream and plot spectrograms on lower axes
@@ -1254,8 +1254,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         axs[axs_index].set_ylim([FREQ_LIMS[0], FREQ_LIMS[1]])
         axs[axs_index].set_yticks(range(2, FREQ_LIMS[1] + 1, 2))
         axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
-        axs[axs_index].tick_params(axis='y', labelsize=22)
-        axs[axs_index].set_ylabel(trace.id, fontsize=24, fontweight='bold')
+        axs[axs_index].tick_params(axis='y', labelsize=font_s)
+        axs[axs_index].set_ylabel(trace.id, fontsize=font_s, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
     if (endtime - starttime) > (6 * 86400):
@@ -1275,20 +1275,20 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=24, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
     if endtime.date == starttime.date:
-        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=font_s)
     elif (endtime - starttime) < (2 * 86400):
-        axs[-1].set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
+        axs[-1].set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=font_s)
     else:
-        axs[-1].set_xlabel('UTC Time', fontsize=30)
+        axs[-1].set_xlabel('UTC Time', fontsize=font_s)
 
     # Plot colorbar
     if class_cbar:
         for i, rgb_ratio in enumerate(rgb_ratios):
             cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
         cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
-        cbar_ax.set_yticklabels(rgb_keys, fontsize=26)
+        cbar_ax.set_yticklabels(rgb_keys, fontsize=font_s)
         cbar_ax.yaxis.tick_right()
         cbar_ax.set_ylim([0, len(rgb_ratios)])
         cbar_ax.invert_yaxis()
