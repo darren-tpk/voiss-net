@@ -11,11 +11,11 @@ from sklearn import metrics
 from itertools import compress
 
 # Get list of spectrogram slice paths based on station option
-spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min/'
+spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min_infra/'
 repo_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml'
 
 # Define model name
-model_type = '4min_all_augmented'
+model_type = '4min_all_augmented_infra'
 model_name = repo_dir + '/models/' + model_type + '_model.h5'
 meanvar_name = repo_dir + '/models/' + model_type + '_meanvar.npy'
 curve_name = repo_dir + '/figures/' + model_type + '_curve.png'
@@ -149,38 +149,34 @@ print(metrics_chunk)
 # with open("output.txt", "a") as outfile:
 #     outfile.write(metrics_chunk + '\n')
 
-# Now conduct post-mortem
-path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
-label_dict = {0: 'Broadband Tremor',
-              1: 'Harmonic Tremor',
-              2: 'Monochromatic Tremor',
-              3: 'Non-tremor Signal',
-              4: 'Explosion',
-              5: 'Noise'}
-
-variety = ['4']
-
-for predicted_label in variety:
-    for true_label in variety:
-        N = 16
-        corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
-        corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
-        import colorcet as cc
-        fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
-        fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
-        for i in range(int(np.sqrt(N))):
-            for j in range(int(np.sqrt(N))):
-                filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
-                if filename_index > (len(corresponding_filenames_chosen) - 1):
-                    axs[i, j].set_xticks([])
-                    axs[i, j].set_yticks([])
-                    continue
-                else:
-                    spec_db = np.load(corresponding_filenames_chosen[filename_index])
-                    if np.sum(spec_db < -250) > 0:
-                        print(i, j)
-                    axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
-                                     origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
-                    axs[i, j].set_xticks([])
-                    axs[i, j].set_yticks([])
-        fig.show()
+# # Now conduct post-mortem
+# path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
+# label_dict = {0: 'Infrasonic Tremor',
+#               1: 'Explosion',
+#               2: 'Wind Noise',
+#               3: 'Electronic Noise'}
+#
+# predicted_label = '2'
+# true_label = '1'
+# N = 16
+# corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
+# corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
+# import colorcet as cc
+# fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
+# fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
+# for i in range(int(np.sqrt(N))):
+#     for j in range(int(np.sqrt(N))):
+#         filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
+#         if filename_index > (len(corresponding_filenames_chosen) - 1):
+#             axs[i, j].set_xticks([])
+#             axs[i, j].set_yticks([])
+#             continue
+#         else:
+#             spec_db = np.load(corresponding_filenames_chosen[filename_index])
+#             if np.sum(spec_db < -250) > 0:
+#                 print(i, j)
+#             axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
+#                              origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
+#             axs[i, j].set_xticks([])
+#             axs[i, j].set_yticks([])
+# fig.show()
