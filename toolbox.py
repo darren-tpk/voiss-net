@@ -234,12 +234,14 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             # If infrasound, define corresponding axis labels and reference values
             y_axis_label = 'Pressure (Pa)'
             REFERENCE_VALUE = 20 * 10**-6  # Pressure, in Pa
+            SPEC_THRESH = 0  # Power value indicative of gap
             colorbar_label = f'Power (dB rel. [{REFERENCE_VALUE * 1e6:g} µPa]$^2$ Hz$^{{-1}}$)'
             rescale_factor = 1  # Plot waveform in Pa
         else:
             # If seismic, define corresponding axis labels and reference values
             y_axis_label = 'Velocity (µm s$^{-1}$)'
             REFERENCE_VALUE = 1  # Velocity, in m/s
+            SPEC_THRESH = -220  # Power value indicative of gap
             colorbar_label = f'Power (dB rel. {REFERENCE_VALUE:g} [m s$^{{-1}}$]$^2$ Hz$^{{-1}}$)'
             rescale_factor = 10**-6  # Plot waveform in micrometer/s
 
@@ -289,7 +291,8 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             freq_max = freq_lims[1]
             spec_db_plot = spec_db[np.flatnonzero((sample_frequencies>freq_min) & (sample_frequencies<freq_max)),:]
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],sample_frequencies[0], sample_frequencies[-1]],
-                           vmin=np.percentile(spec_db_plot, v_percent_lims[0]), vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
+                           vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
+                           vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
                            origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
@@ -306,7 +309,8 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         else:
             # We go straight into plotting spec_db
             c = ax1.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1], sample_frequencies[0],sample_frequencies[-1]],
-                           vmin=np.percentile(spec_db, v_percent_lims[0]),  vmax=np.percentile(spec_db, v_percent_lims[1]),
+                           vmin=np.percentile(spec_db[spec_db>SPEC_THRESH], v_percent_lims[0]),
+                           vmax=np.percentile(spec_db[spec_db>SPEC_THRESH], v_percent_lims[1]),
                            origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
@@ -382,10 +386,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         if trace.stats.channel[1:] == 'DF':
             # If infrasound, define corresponding reference values
             REFERENCE_VALUE = 20 * 10 ** -6  # Pressure, in Pa
+            SPEC_THRESH = 0  # Power value indicative of gap
             rescale_factor = 1  # Plot waveform in Pa
         else:
             # If seismic, define corresponding reference values
             REFERENCE_VALUE = 1  # Velocity, in m/s
+            SPEC_THRESH = -220  # Power value indicative of gap
             rescale_factor = 10 ** -6  # Plot waveform in micrometer/s
 
         # Extract trace information for FFT
@@ -439,8 +445,8 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
-                                      vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
-                                      vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
+                                      vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
+                                      vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
@@ -461,8 +467,8 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
-                                      vmin=np.percentile(spec_db, v_percent_lims[0]),
-                                      vmax=np.percentile(spec_db, v_percent_lims[1]),
+                                      vmin=np.percentile(spec_db[spec_db>SPEC_THRESH], v_percent_lims[0]),
+                                      vmax=np.percentile(spec_db[spec_db>SPEC_THRESH], v_percent_lims[1]),
                                       origin='lower', aspect='auto', interpolation='None', cmap=cmap)
             # If we want a db spectrogram across the plotted time span, compute and plot on the right side of the figure
             if db_hist:
@@ -603,6 +609,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Determine if infrasound
     infrasound = True if channel[-1] == 'F' else False
     REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+    SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
     if (endtime-starttime) % TIME_STEP != 0:
@@ -877,8 +884,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                               extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
-                              vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[1]),
                               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
@@ -985,6 +992,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     # Determine if infrasound
     infrasound = True if channel[-1] == 'F' else False
     REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+    SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
     if (endtime - starttime) % TIME_STEP != 0:
@@ -1277,10 +1285,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                       trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot, v_percent_lims[0]),
-                              vmax=np.percentile(spec_db_plot, v_percent_lims[1]),
-                              origin='lower', aspect='auto', interpolation='None',
-                              cmap=cc.cm.rainbow)
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[1]),
+                              origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
