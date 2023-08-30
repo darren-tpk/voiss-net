@@ -884,8 +884,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                               extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[0]),
-                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[1]),
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
                               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
@@ -1143,10 +1143,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
 
     # Sum different station probabilities and derive network max
     matrix_probs_sum = np.sum(matrix_probs, axis=0)
+    matrix_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
     voted_labels = np.argmax(matrix_probs_sum, axis=1)
     voted_labels[:2] = na_label  # pad voting row
     voted_labels[-2:] = na_label  # pad voting row
-    voted_probabilities = np.max(matrix_probs_sum, axis=1) / nsubrows  # normalize by number of stations
+    voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
     matrix_plot = np.concatenate((
         matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
@@ -1285,8 +1286,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                       trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[0]),
-                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], V_PERCENT_LIMS[1]),
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
                               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
