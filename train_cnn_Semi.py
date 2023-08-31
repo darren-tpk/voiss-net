@@ -2,7 +2,7 @@
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
-from keras import layers, models, losses
+from keras import layers, models, losses, optimizers
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 import random
@@ -156,16 +156,20 @@ model.add(layers.MaxPooling2D((3, 3)))
 model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
 # Max pooling layer, 3x3 pool, 3x3 stride
 model.add(layers.MaxPooling2D((3, 3)))
-# Flatten
+# Flatten and add 20% dropout to inputs
 model.add(layers.Flatten())
-# Dense layer, 128 units
+model.add(layers.Dropout(0.2))
+# Dense layer, 128 units with 50% dropout
 model.add(layers.Dense(128, activation="relu"))
-# Dense layer, 64 units
+model.add(layers.Dropout(0.5))
+# Dense layer, 64 units with 50% dropout
 model.add(layers.Dense(64, activation="relu"))
+model.add(layers.Dropout(0.5))
 # Dense layer, 6 units, one per class
 model.add(layers.Dense(params["n_classes"], activation="softmax"))
 # Compile model
-model.compile(optimizer="adam", loss=losses.categorical_crossentropy, metrics=["accuracy"])
+optimizer = optimizers.Adam(lr=0.0005)
+model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics=["accuracy"])
 # Print out model summary
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
