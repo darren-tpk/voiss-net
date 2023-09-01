@@ -1524,6 +1524,37 @@ def rotate_NE_to_RT(stream, source_coord):
     else:
         return Stream([trace_T, trace_R])
 
+def set_universal_seed(seed_value):
+    """
+    Reset seed for all applicable randomizers
+    :param seed_value  (int): desired randomization seed number
+    :return: None
+    """
+
+    # Import dependencies
+    import os
+    import random
+    import numpy as np
+    import tensorflow as tf
+    from keras import backend as K
+
+    # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
+    os.environ['PYTHONHASHSEED']=str(seed_value)
+
+    # 2. Set `python` built-in pseudo-random generator at a fixed value
+    random.seed(seed_value)
+
+    # 3. Set `numpy` pseudo-random generator at a fixed value
+    np.random.seed(seed_value)
+
+    # 4. Set the `tensorflow` pseudo-random generator at a fixed value
+    tf.compat.v1.set_random_seed(seed_value)
+
+    # 5. Configure a new global `tensorflow` session
+    session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+    sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
+    tf.compat.v1.keras.backend.set_session(sess)
+
 # def compute_pavlof_rsam(stream_unprocessed):
 #     """
 #     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
