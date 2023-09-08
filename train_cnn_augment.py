@@ -9,7 +9,7 @@ import random
 from DataGenerator import DataGenerator
 from sklearn import metrics
 from itertools import compress
-from toolbox import set_universal_seed
+from toolbox import set_universal_seed, augment_labeled_dataset
 import tensorflow as tf
 
 DISABLE_GPU = True 
@@ -30,24 +30,29 @@ else:
 # Set universal seed
 set_universal_seed(42)
 
-# Get list of spectrogram slice paths based on station option
-#spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min/'
-#repo_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml'
-spec_dir = '/data/generalized_tremor/augmented_npy_4min/'
+# Define npy and repo directories
+npy_dir = '/data/generalized_tremor/labeled_npy_4min/'
 repo_dir = '/home/dfee1/repos/tremor_ml'
+
+# Augmentation params
+omit_index = [0,3]  # do not include broadband tremor and non-tremor signal in count determination
+noise_index = 5  # use noise samples to augment
+testval_ratio = 0.2  # use 20% of sparse-est class count to pull test and validation sets
+noise_ratio = 0.35  # weight of noise sample added for augmentation
+
+# Configure train, validation and test paths and determine unique classes
+train_paths, valid_paths, test_paths = augment_labeled_dataset(npy_dir=npy_dir, omit_index=omit_index,
+                                                             noise_index=noise_index,testval_ratio=testval_ratio,
+                                                             noise_ratio=noise_ratio)
+train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
+unique_classes = np.unique(train_classes)
 
 # Define model name
 model_type = '4min_all_augmented'
-model_name = repo_dir + '/models/' + model_type + '_model.h5'
-meanvar_name = repo_dir + '/models/' + model_type + '_meanvar.npy'
-curve_name = repo_dir + '/figures/' + model_type + '_curve.png'
-confusion_name = repo_dir + '/figures/' + model_type + '_confusion.png'
-
-# Configure training list
-train_paths = glob.glob(spec_dir + '*.npy')
-random.shuffle(train_paths)
-train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
-unique_classes = np.unique(train_classes)
+model_name = repo_dir + 'models/' + model_type + '_model.h5'
+meanvar_name = repo_dir + 'models/' + model_type + '_meanvar.npy'
+curve_name = repo_dir + 'figures/' + model_type + '_curve.png'
+confusion_name = repo_dir + 'figures/' + model_type + '_confusion.png'
 
 # Read in example file to determine spectrogram shape
 eg_spec = np.load(train_paths[0])
@@ -62,10 +67,7 @@ params = {
 }
 
 # Configure test and validation lists
-valid_paths = glob.glob(spec_dir + 'validation/*.npy')
-random.shuffle(valid_paths)
 valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
-test_paths = glob.glob(spec_dir + 'test/*.npy')
 test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
 
 # Create a dictionary holding labels for all filepaths in the training, testing, and validation data
