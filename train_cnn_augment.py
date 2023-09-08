@@ -29,7 +29,7 @@ set_universal_seed(42)
 
 # Define npy and repo directories
 npy_dir = '/data/generalized_tremor/labeled_npy_4min/'
-repo_dir = '/home/dfee1/repos/tremor_ml'
+repo_dir = '/home/dfee1/repos/tremor_ml/'
 
 # Augmentation params
 omit_index = [0,3]  # do not include broadband tremor and non-tremor signal in count determination
