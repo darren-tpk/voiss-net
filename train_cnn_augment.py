@@ -1,14 +1,11 @@
 # Import all dependencies
 import numpy as np
-import glob
 import matplotlib.pyplot as plt
 from keras import layers, models, losses, optimizers
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
-import random
 from DataGenerator import DataGenerator
 from sklearn import metrics
-from itertools import compress
 from toolbox import set_universal_seed, augment_labeled_dataset
 import tensorflow as tf
 
