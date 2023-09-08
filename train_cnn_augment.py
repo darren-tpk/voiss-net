@@ -2,13 +2,17 @@
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
-from keras import layers, models, losses
+from keras import layers, models, losses, optimizers
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 import random
 from DataGenerator import DataGenerator
 from sklearn import metrics
 from itertools import compress
+from toolbox import set_universal_seed
+
+# Set universal seed
+set_universal_seed(42)
 
 # Get list of spectrogram slice paths based on station option
 spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min/'
@@ -23,6 +27,7 @@ confusion_name = repo_dir + '/figures/' + model_type + '_confusion.png'
 
 # Configure training list
 train_paths = glob.glob(spec_dir + '*.npy')
+random.shuffle(train_paths)
 train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
@@ -32,13 +37,15 @@ eg_spec = np.load(train_paths[0])
 # Define parameters to generate the training, testing, validation data
 params = {
     "dim": eg_spec.shape,
-    "batch_size": 100,
     "n_classes": len(unique_classes),
-    "shuffle": True
+    "shuffle": True,
+    "running_x_mean": np.mean(eg_spec),
+    "running_x_var": np.var(eg_spec)
 }
 
 # Configure test and validation lists
 valid_paths = glob.glob(spec_dir + 'validation/*.npy')
+random.shuffle(valid_paths)
 valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
 test_paths = glob.glob(spec_dir + 'test/*.npy')
 test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
@@ -52,8 +59,8 @@ test_labels = [np.where(i == unique_classes)[0][0] for i in test_classes]
 test_label_dict = dict(zip(test_paths, test_labels))
 
 # Initialize the training and validation generators
-train_gen = DataGenerator(train_paths, train_label_dict, **params, is_training=True)
-valid_gen = DataGenerator(valid_paths, valid_label_dict, **params, is_training=False)
+train_gen = DataGenerator(train_paths, train_label_dict, batch_size=100, **params, is_training=True)
+valid_gen = DataGenerator(valid_paths, valid_label_dict, batch_size=len(valid_paths), **params, is_training=False)
 
 # Define a Callback class that allows the validation dataset to adopt the running
 # training mean and variance for normalization
@@ -81,21 +88,25 @@ model.add(layers.MaxPooling2D((3, 3)))
 model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
 # Max pooling layer, 3x3 pool, 3x3 stride
 model.add(layers.MaxPooling2D((3, 3)))
-# Flatten
+# Flatten and add 20% dropout to inputs
 model.add(layers.Flatten())
-# Dense layer, 128 units
+# model.add(layers.Dropout(0.2))
+# Dense layer, 128 units with 50% dropout
 model.add(layers.Dense(128, activation="relu"))
-# Dense layer, 64 units
+# model.add(layers.Dropout(0.5))
+# Dense layer, 64 units with 50% dropout
 model.add(layers.Dense(64, activation="relu"))
+# model.add(layers.Dropout(0.5))
 # Dense layer, 6 units, one per class
 model.add(layers.Dense(params["n_classes"], activation="softmax"))
 # Compile model
-model.compile(optimizer="adam", loss=losses.categorical_crossentropy, metrics=["accuracy"])
+optimizer = optimizers.Adam(learning_rate=0.0005)
+model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics=["accuracy"])
 # Print out model summary
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
-mc = ModelCheckpoint(model_name, monitor='val_accuracy', mode='max', verbose=1, save_best_only=True)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
+mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', save_best_only=True)
 emv = ExtractMeanVar()
 # Fit model
 history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
@@ -120,9 +131,11 @@ fig.savefig(curve_name)
 fig.show()
 
 # Create data generator for test data
-test_params = params.copy()
-test_params["batch_size"] = len(test_labels)
-test_params["shuffle"] = False
+test_params = {
+    "dim": eg_spec.shape,
+    "batch_size": len(test_labels),
+    "n_classes": len(unique_classes),
+    "shuffle": False}
 test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
                          running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
 
@@ -149,38 +162,38 @@ print(metrics_chunk)
 # with open("output.txt", "a") as outfile:
 #     outfile.write(metrics_chunk + '\n')
 
-# Now conduct post-mortem
-path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
-label_dict = {0: 'Broadband Tremor',
-              1: 'Harmonic Tremor',
-              2: 'Monochromatic Tremor',
-              3: 'Non-tremor Signal',
-              4: 'Explosion',
-              5: 'Noise'}
-
-variety = ['4']
-
-for predicted_label in variety:
-    for true_label in variety:
-        N = 16
-        corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
-        corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
-        import colorcet as cc
-        fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
-        fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
-        for i in range(int(np.sqrt(N))):
-            for j in range(int(np.sqrt(N))):
-                filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
-                if filename_index > (len(corresponding_filenames_chosen) - 1):
-                    axs[i, j].set_xticks([])
-                    axs[i, j].set_yticks([])
-                    continue
-                else:
-                    spec_db = np.load(corresponding_filenames_chosen[filename_index])
-                    if np.sum(spec_db < -250) > 0:
-                        print(i, j)
-                    axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
-                                     origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
-                    axs[i, j].set_xticks([])
-                    axs[i, j].set_yticks([])
-        fig.show()
+# # Now conduct post-mortem
+# path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
+# label_dict = {0: 'Broadband Tremor',
+#               1: 'Harmonic Tremor',
+#               2: 'Monochromatic Tremor',
+#               3: 'Non-tremor Signal',
+#               4: 'Explosion',
+#               5: 'Noise'}
+#
+# variety = ['0','1','2','3','4','5']
+#
+# for predicted_label in variety:
+#     for true_label in variety:
+#         N = 9
+#         corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
+#         corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
+#         import colorcet as cc
+#         fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
+#         fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
+#         for i in range(int(np.sqrt(N))):
+#             for j in range(int(np.sqrt(N))):
+#                 filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
+#                 if filename_index > (len(corresponding_filenames_chosen) - 1):
+#                     axs[i, j].set_xticks([])
+#                     axs[i, j].set_yticks([])
+#                     continue
+#                 else:
+#                     spec_db = np.load(corresponding_filenames_chosen[filename_index])
+#                     if np.sum(spec_db < -250) > 0:
+#                         print(i, j)
+#                     axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
+#                                      origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
+#                     axs[i, j].set_xticks([])
+#                     axs[i, j].set_yticks([])
+#         fig.show()
