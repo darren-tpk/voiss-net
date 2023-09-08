@@ -10,13 +10,31 @@ from DataGenerator import DataGenerator
 from sklearn import metrics
 from itertools import compress
 from toolbox import set_universal_seed
+import tensorflow as tf
+
+DISABLE_GPU = True 
+
+if DISABLE_GPU:
+    try:
+        # Disable all GPUS
+        tf.config.set_visible_devices([], 'GPU')
+        visible_devices = tf.config.get_visible_devices()
+        for device in visible_devices:
+            assert device.device_type != 'GPU'
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
+else:
+    tf.keras.backend.set_floatx('float32')
 
 # Set universal seed
 set_universal_seed(42)
 
 # Get list of spectrogram slice paths based on station option
-spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min/'
-repo_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml'
+#spec_dir = '/Users/darrentpk/Desktop/all_npys/augmented_npy_4min/'
+#repo_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml'
+spec_dir = '/data/generalized_tremor/augmented_npy_4min/'
+repo_dir = '/home/dfee1/repos/tremor_ml'
 
 # Define model name
 model_type = '4min_all_augmented'
