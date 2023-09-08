@@ -565,6 +565,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
+
 def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
 
     """
@@ -1554,6 +1555,149 @@ def set_universal_seed(seed_value):
     session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
     sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
     tf.compat.v1.keras.backend.set_session(sess)
+def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_ratio,plot_example=False):
+
+    """
+    Use noise-adding augmentation strategy to generate lists of balanced train, validation and testfile paths.
+    :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
+    :param omit_index (list of int): class index to omit when calculating augmented number (extras will be discarded)
+    :param noise_index (int): class index pointing to the noise class. Files with this class index will be randomly sampled for augmentation.
+    :param testval_ratio (float): ratio of file counts set aside for the test set and validation set, each (note this will be calculated on the sparsest class count)
+    :param noise_ratio (float): ratio of noise used to generated augmented samples [augmented_image = (1-noise_ratio) * augment_image) + (noise_ratio * noise_image)]
+    :param plot_example (bool): if set to `True`, generate a plot showing examples of augmented images
+    :return: list: list of training set filepaths (combining both raw and augmented filepaths)
+    :return: list: list of validation set filepaths
+    :return: list: list of test set filepaths
+    """
+
+    # Import all dependencies
+    import os
+    import glob
+    import shutil
+    import random
+    import numpy as np
+
+    # Count the number of samples of each class
+    nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
+    class_paths = [glob.glob(npy_dir + '*_' + str(c) + '.npy') for c in range(nclasses)]
+    class_counts = np.array([len(paths) for paths in class_paths])
+    print('\nInitial class counts:')
+    print(''.join(['%d: %d\n' % (c,class_counts[c]) for c in range(nclasses)]))
+
+    # Determine number of samples set aside for validation set and test set (each)
+    testval_number = int(np.floor(np.min(class_counts)/(1/testval_ratio)))
+    print('Setting aside samples for validation and test set (%.1f%% of sparsest class count each)' % (testval_ratio*100))
+    print('%d samples kept for validation set (%d per class)' % (nclasses*testval_number,testval_number))
+    print('%d samples kept for test set (%d per class)' % (nclasses*testval_number,testval_number))
+
+    # Calculate augmented number
+    leftover_counts = class_counts - 2*testval_number
+    augmented_number = np.sum(leftover_counts[[i for i in range(nclasses) if i not in omit_index]]) / (nclasses-1)
+    augmented_number = int(np.min([augmented_number] + list(leftover_counts[omit_index])))
+    print('\nCalculating augmented number...')
+    print('Class index %s are omitted and class index %d will be used as noise samples...' % (str(','.join([str(i) for i in omit_index])),noise_index))
+    print('%d samples will be gathered for training set (%d per class)' % (nclasses*augmented_number,augmented_number))
+
+    # Determine test and validation sample list
+    test_list = []
+    val_list = []
+    keep_list = []
+    for c in range(nclasses):
+        test_list = test_list + list(np.random.choice(class_paths[c], testval_number, replace=False))
+        leftover_list = [filepath for filepath in class_paths[c] if filepath not in test_list]
+        val_list = val_list + list(np.random.choice(leftover_list, testval_number, replace=False))
+        leftover_list = [filepath for filepath in leftover_list if filepath not in val_list]
+        if c in omit_index:
+            keep_list = keep_list + list(np.random.choice(leftover_list, augmented_number, replace=False))
+        elif c == noise_index:
+            keep_list = keep_list + list(np.random.choice(leftover_list, augmented_number, replace=False))
+            noise_list = [filepath for filepath in leftover_list if filepath not in keep_list]
+        elif len(leftover_list) <= augmented_number:
+            keep_list = keep_list + leftover_list
+        else:
+            raise ValueError('A class has more samples than the augment number. Check class counts!')
+
+    # Commence augmentation
+    print('\nCreating nested augmented directory and commencing augmentation...')
+
+    # Create a temporary directory if it does not exist
+    if not os.path.exists(npy_dir + 'augmented/'):
+        os.mkdir(npy_dir + 'augmented/')
+
+    # Clear all existing files in augmented subfolder if any
+    for f in glob.glob(npy_dir + 'augmented/*.npy'):
+        os.remove(f)
+
+    # Randomly sample based on count difference
+    aug_list = []
+    for c in range(nclasses):
+        if c in omit_index or c == noise_index:
+            continue
+        else:
+            keep_sublist = [f for f in keep_list if int(f.split('_')[-1][0]) == c]
+            count_difference = augmented_number - len(keep_sublist)
+            aug_list = aug_list + list(np.random.choice(keep_sublist, count_difference, replace=True))
+
+    # Check if augment list and noise list have the same length
+    if len(aug_list) == len(noise_list):
+        print('Augmentation list and noise list match in length. Proceeding...\n')
+    else:
+        print('Augmentation list and noise list do NOT match in length. Noise list will be trimmed.')
+        noise_list = list(np.random.choice(noise_list, len(aug_list), replace=False))
+
+    # Shuffle and add noise to augment samples
+    print('Shuffling and adding noise samples to augment samples...')
+    random.shuffle(aug_list)
+    random.shuffle(noise_list)
+    for augment_sample, noise_sample in zip(aug_list,noise_list):
+
+        # Load both images and sum them using noise ratio
+        augment_image = np.load(augment_sample)
+        noise_image = np.load(noise_sample)
+        augmented_image = ((1-noise_ratio) * augment_image) + (noise_ratio * noise_image)
+
+        # Determine filepath by checking for uniqueness
+        n = 0
+        augmented_filepath = npy_dir + 'augmented/' + augment_sample.split('/')[-1][:-4] + 'aug' + str(n) + '.npy'
+        while os.path.isfile(augmented_filepath):
+            n += 1
+            augmented_filepath = npy_dir + 'augmented/' + augment_sample.split('/')[-1][:-4] + 'aug' + str(n) + '.npy'
+        # Save augmented image as a unique file
+        np.save(augmented_filepath, augmented_image)
+
+    # Compile train list
+    train_list = glob.glob(npy_dir + 'augmented/*.npy') + keep_list
+    print('Done!')
+
+    # Plot examples if desired
+    if plot_example:
+        import matplotlib.pyplot as plt
+        import colorcet as cc
+        indices = np.random.choice(range(len(aug_list)), nclasses)
+        fig, ax = plt.subplots(nclasses, 3, figsize=(nclasses*0.7, nclasses*2))
+        for i, n in enumerate(indices):
+            augment_image = np.load(aug_list[n])
+            noise_image = np.load(noise_list[n])
+            augmented_image = ((1 - noise_ratio) * augment_image) + (noise_ratio * noise_image)
+            ax[i,0].imshow(augment_image, vmin=np.percentile(augment_image, 20), vmax=np.percentile(augment_image, 97.5),
+                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+            ax[i,0].set_xticks([])
+            ax[i,0].set_yticks([])
+            ax[i,0].set_title('Class ' + str(aug_list[n].split('_')[-1][0]) + '', fontsize=10)
+            ax[i,1].imshow(noise_image, vmin=np.percentile(noise_image, 20), vmax=np.percentile(noise_image, 97.5),
+                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+            ax[i,1].set_xticks([])
+            ax[i,1].set_yticks([])
+            ax[i,1].set_title('Noise ' + str('%.2f' % noise_ratio), fontsize=10)
+            ax[i,2].imshow(augmented_image, vmin=np.percentile(augmented_image, 20),
+                         vmax=np.percentile(augmented_image, 97.5),
+                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+            ax[i,2].set_xticks([])
+            ax[i,2].set_yticks([])
+            ax[i,2].set_title('Augmented ', fontsize=10)
+        fig.show()
+
+    return train_list, val_list, test_list
 
 # def compute_pavlof_rsam(stream_unprocessed):
 #     """
