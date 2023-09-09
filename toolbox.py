@@ -1555,6 +1555,65 @@ def set_universal_seed(seed_value):
     session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
     sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
     tf.compat.v1.keras.backend.set_session(sess)
+
+def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None):
+    """
+    Split labeled filepaths using the given test/validation set ratio by class proportions
+    :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
+    :param testval_ratio (float): ratio of file counts set aside for the test set and validation set, each
+    :param stratified (bool): if `True`, testval_ratio will be applied to each class independently, otherwise the sparse-est class will be the reference
+    :param max_train_samples (int): if not `None`, impose a maximum sample count for the training set per class (to toss out excessive samples))
+    :return: list: list of training set filepaths
+    :return: list: list of validation set filepaths
+    :return: list: list of test set filepaths
+    """
+
+    # Import all dependencies
+    import glob
+    import random
+    import numpy as np
+
+    # Count the number of samples of each class
+    nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
+    class_paths = [glob.glob(npy_dir + '*_' + str(c) + '.npy') for c in range(nclasses)]
+    class_counts = np.array([len(paths) for paths in class_paths])
+    print('\nInitial class counts:')
+    print(''.join(['%d: %d\n' % (c, class_counts[c]) for c in range(nclasses)]))
+
+    # Determine number of samples set aside for validation set and test set (each)
+    print('Train-val-test split (%.1f-%.1f-%.1f) with stratified=%s and max_train_samples=%s:' % ((1-testval_ratio*2)*100,testval_ratio*100,testval_ratio*100,stratified,str(max_train_samples)))
+    if stratified:
+        testval_numbers = [int(n) for n in (np.floor(class_counts * testval_ratio))]
+    else:
+        testval_number = int(np.floor(np.min(class_counts)/(1/testval_ratio)))
+
+    # Return random sampled list
+    train_list = []
+    val_list = []
+    test_list = []
+    for c in range(nclasses):
+        if stratified:
+            testval_number = testval_numbers[c]
+        test_list = test_list + list(np.random.choice(class_paths[c], testval_number, replace=False))
+        leftover_list = [filepath for filepath in class_paths[c] if filepath not in test_list]
+        val_list = val_list + list(np.random.choice(leftover_list, testval_number, replace=False))
+        leftover_list = [filepath for filepath in leftover_list if filepath not in val_list]
+        if max_train_samples and len(leftover_list)>max_train_samples:
+            train_list = train_list + list(np.random.choice(leftover_list, max_train_samples, replace=False))
+            train_number = max_train_samples
+        else:
+            train_list = train_list + leftover_list
+            train_number = len(leftover_list)
+        print('%d: %d train, %d val, %d test' % (c, train_number, testval_number, testval_number))
+    print('Total: %d train, %d val, %d test' % (len(train_list),len(val_list),len(test_list)))
+
+    # Shuffle before returning for good measure
+    random.shuffle(train_list)
+    random.shuffle(val_list)
+    random.shuffle(test_list)
+
+    return train_list, val_list, test_list
+
 def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_ratio,plot_example=False):
 
     """
