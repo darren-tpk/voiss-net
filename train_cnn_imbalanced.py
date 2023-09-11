@@ -33,16 +33,17 @@ repo_dir = '/Users/darrentpk/Desktop/Github/tremor_ml/'
 
 # Configure train, validation and test paths and determine unique classes
 testval_ratio = 0.2
-# stratified = True
-# max_train_samples = 2464
-stratified = False
-max_train_samples = 3828
-train_paths, valid_paths, test_paths = split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None)
+stratified = True
+max_train_samples = 2464
+# stratified = False
+# max_train_samples = 3828
+train_paths, valid_paths, test_paths = split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=max_train_samples)
 train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_imbalanced_unstratified'
+model_type = '4min_all_imbalanced_stratified'
+# model_type = '4min_all_imbalanced_unstratified'
 model_name = repo_dir + 'models/' + model_type + '_model.h5'
 meanvar_name = repo_dir + 'models/' + model_type + '_meanvar.npy'
 curve_name = repo_dir + 'figures/' + model_type + '_curve.png'
