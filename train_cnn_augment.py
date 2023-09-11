@@ -164,22 +164,22 @@ test = saved_model.predict(test_gen)
 pred_labs = np.argmax(test, axis=1)
 true_labs = np.array([test_gen.labels[id] for id in test_gen.list_ids])
 
+# Print evaluation on test data
+acc = metrics.accuracy_score(true_labs, pred_labs)
+pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='macro')
+metrics_chunk = model_name + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + ('Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
+print(metrics_chunk)
+# with open("output.txt", "a") as outfile:
+#     outfile.write(metrics_chunk + '\n')
+
 # Confusion matrix
 confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
 cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
 plt.figure()
 cm_display.plot()
-plt.title(model_type,fontweight='bold')
+plt.title(model_type + '\nacc:%.3f, pre:%.3f, rec:%.3f, f1:%.3f' % (acc,pre,rec,f1),fontweight='bold')
 plt.savefig(confusion_name)
 plt.show()
-
-# Print evaluation on test data
-acc = metrics.accuracy_score(true_labs, pred_labs)
-pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='weighted')
-metrics_chunk = model_name + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + ('Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
-print(metrics_chunk)
-# with open("output.txt", "a") as outfile:
-#     outfile.write(metrics_chunk + '\n')
 
 # # Now conduct post-mortem
 # path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
