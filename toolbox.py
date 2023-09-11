@@ -1650,10 +1650,10 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
     print('%d samples kept for test set (%d per class)' % (nclasses*testval_number,testval_number))
 
     # Calculate augmented number
-    leftover_counts = class_counts - 2*testval_number
-    augmented_number = np.sum(leftover_counts[[i for i in range(nclasses) if i not in omit_index]]) / (nclasses-1)
-    augmented_number = int(np.min([augmented_number] + list(leftover_counts[omit_index])))
     print('\nCalculating augmented number...')
+    leftover_counts = class_counts - 2*testval_number
+    augmented_number = np.mean(leftover_counts[[i for i in range(nclasses) if i not in omit_index]])
+    augmented_number = int(np.min([augmented_number] + list(leftover_counts[omit_index])))
     print('Class index %s are omitted and class index %d will be used as noise samples...' % (str(','.join([str(i) for i in omit_index])),noise_index))
     print('%d samples will be gathered for training set (%d per class)' % (nclasses*augmented_number,augmented_number))
 
@@ -1674,7 +1674,7 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
         elif len(leftover_list) <= augmented_number:
             keep_list = keep_list + leftover_list
         else:
-            raise ValueError('A class has more samples than the augment number. Check class counts!')
+            raise ValueError('Class index %d has more samples than the augment number. Check class counts!' % c)
 
     # Commence augmentation
     print('\nCreating nested augmented directory and commencing augmentation...')
