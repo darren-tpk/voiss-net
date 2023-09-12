@@ -28,8 +28,8 @@ else:
 set_universal_seed(42)
 
 # Define npy and repo directories
-npy_dir = '/data/generalized_tremor/labeled_npy_4min/'
-repo_dir = '/home/dfee1/repos/tremor_ml/'
+npy_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/'
+repo_dir = '/Users/darrentpk/Desktop/Github/tremor_ml/'
 
 # Augmentation params
 omit_index = [0,3]  # do not include broadband tremor and non-tremor signal in count determination
@@ -45,7 +45,7 @@ train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_augmented'
+model_type = '4min_all_augmented_drop'
 model_name = repo_dir + 'models/' + model_type + '_model.h5'
 meanvar_name = repo_dir + 'models/' + model_type + '_meanvar.npy'
 curve_name = repo_dir + 'figures/' + model_type + '_curve.png'
@@ -107,13 +107,13 @@ model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
 model.add(layers.MaxPooling2D((3, 3)))
 # Flatten and add 20% dropout to inputs
 model.add(layers.Flatten())
-# model.add(layers.Dropout(0.2))
+model.add(layers.Dropout(0.2))
 # Dense layer, 128 units with 50% dropout
 model.add(layers.Dense(128, activation="relu"))
-# model.add(layers.Dropout(0.5))
+model.add(layers.Dropout(0.5))
 # Dense layer, 64 units with 50% dropout
 model.add(layers.Dense(64, activation="relu"))
-# model.add(layers.Dropout(0.5))
+model.add(layers.Dropout(0.5))
 # Dense layer, 6 units, one per class
 model.add(layers.Dense(params["n_classes"], activation="softmax"))
 # Compile model
