@@ -760,21 +760,40 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 # selected_label_index = np.argwhere(label_counts == np.amax(label_counts))[-1][0]  # prioritize impulsive
                 new_row[0, j] = labels_seen[selected_label_index]
         # Craft corresponding rgb values
-        rgb_values = np.array([
-            [193, 39, 45],
-            [0, 129, 118],
-            [0, 0, 167],
-            [238, 204, 22],
-            [164, 98, 0],
-            [40, 40, 40],
-            [255, 255, 255]])
-        rgb_keys = ['Broadband\nTremor',
-                    'Harmonic\nTremor',
-                    'Monochromatic\nTremor',
-                    'Non-Tremor\nSignal',
-                    'Explosion',
-                    'Noise',
-                    'N/A']
+        if nclasses == 6:
+            rgb_values = np.array([
+                [193, 39, 45],
+                [0, 129, 118],
+                [0, 0, 167],
+                [238, 204, 22],
+                [164, 98, 0],
+                [40, 40, 40],
+                [255, 255, 255]])
+            rgb_keys = ['Broadband\nTremor',
+                        'Harmonic\nTremor',
+                        'Monochromatic\nTremor',
+                        'Non-Tremor\nSignal',
+                        'Explosion',
+                        'Noise',
+                        'N/A']
+        elif nclasses == 7:
+            rgb_values = np.array([
+                [193, 39, 45],
+                [0, 129, 118],
+                [0, 0, 167],
+                [238, 204, 22],
+                [92, 21, 0],
+                [164, 98, 0],
+                [40, 40, 40],
+                [255, 255, 255]])
+            rgb_keys = ['Broadband\nTremor',
+                        'Harmonic\nTremor',
+                        'Monochromatic\nTremor',
+                        'Non-Tremor\nSignal',
+                        'Long\nPeriod',
+                        'Explosion',
+                        'Noise',
+                        'N/A']
     # Otherwise, use infrasound voting scheme
     else:
         # Loop over columns and vote
@@ -1155,21 +1174,40 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
         # Craft corresponding rgb values
-        rgb_values = np.array([
-            [193, 39, 45],
-            [0, 129, 118],
-            [0, 0, 167],
-            [238, 204, 22],
-            [164, 98, 0],
-            [40, 40, 40],
-            [255, 255, 255]])
-        rgb_keys = ['Broadband\nTremor',
-                    'Harmonic\nTremor',
-                    'Monochromatic\nTremor',
-                    'Non-Tremor\nSignal',
-                    'Explosion',
-                    'Noise',
-                    'N/A']
+        if nclasses == 6:
+            rgb_values = np.array([
+                [193, 39, 45],
+                [0, 129, 118],
+                [0, 0, 167],
+                [238, 204, 22],
+                [164, 98, 0],
+                [40, 40, 40],
+                [255, 255, 255]])
+            rgb_keys = ['Broadband\nTremor',
+                        'Harmonic\nTremor',
+                        'Monochromatic\nTremor',
+                        'Non-Tremor\nSignal',
+                        'Explosion',
+                        'Noise',
+                        'N/A']
+        elif nclasses == 7:
+            rgb_values = np.array([
+                [193, 39, 45],
+                [0, 129, 118],
+                [0, 0, 167],
+                [238, 204, 22],
+                [92, 21, 0],
+                [164, 98, 0],
+                [40, 40, 40],
+                [255, 255, 255]])
+            rgb_keys = ['Broadband\nTremor',
+                        'Harmonic\nTremor',
+                        'Monochromatic\nTremor',
+                        'Non-Tremor\nSignal',
+                        'Long\nPeriod',
+                        'Explosion',
+                        'Noise',
+                        'N/A']
     else:
         # Craft corresponding rgb values
         rgb_values = np.array([
@@ -1293,7 +1331,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
 
         # Tidy figure axes
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
-        axs[axs_index].set_yticks(range(2, freq_lims[1] + 1, 2))
+        axs[axs_index].set_yticks(range(2, freq_lims[1] + 1, int(freq_lims[1]/5)))
         axs[axs_index].set_xlim([starttime.matplotlib_date,
                                  endtime.matplotlib_date])
         axs[axs_index].tick_params(axis='y', labelsize=font_s)
