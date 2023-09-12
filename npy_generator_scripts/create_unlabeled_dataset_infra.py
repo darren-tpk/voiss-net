@@ -11,8 +11,9 @@ from toolbox import process_waveform, calculate_spectrogram
 # Define filepaths and variables for functions
 starttime = UTCDateTime(2023, 1, 1, 00, 00)  # start time for data pull and spectrogram plot
 endtime = UTCDateTime(2023, 3, 1, 00, 00)  # end time for data pull and spectrogram plot
-time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/all_npys/pavlof_2021_2022_infra_npy/'
+interval = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
+time_step = 60  # Take steps of 1 minute
+output_dir = '/Users/darrentpk/Desktop/all_npys/pavlof_2021_2023_infra_npy/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -36,8 +37,8 @@ current_files = [c.split('/')[-1] for c in current_files]
 # Loop over days
 for i in range(num_days):
 
-    t1 = starttime + (i*86400)
-    t2 = t1 + 86400
+    t1 = starttime + (i*86400) - (0.5*interval)
+    t2 = t1 + 86400 + (interval)
     print('Now at %s ...' % t1)
 
     # Load data using waveform_collection tool
@@ -67,33 +68,38 @@ for i in range(num_days):
         spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, demean=demean)
 
         # Define array of time steps for spectrogram slicing
-        step_bounds = np.arange(t1, t2+time_step, time_step)
+        step_bounds = np.arange(t1 + int(np.round(interval / 2)),
+                                t2 - int(np.round(interval / 2)) +
+                                time_step, time_step)
 
         # Loop over time steps
         for k in range(len(step_bounds) - 1):
 
             # Slice spectrogram
-            sb1 = step_bounds[k]
-            sb2 = step_bounds[k + 1]
+            sb1 = step_bounds[k] - int(np.round(interval / 2))
+            sb2 = step_bounds[k] + int(np.round(interval / 2))
             spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in utc_times])
             spec_slice = spec_db[:, spec_slice_indices]
 
             # Enforce shape
-            if np.shape(spec_slice) != (94, time_step):
+            if np.shape(spec_slice) != (94, interval):
                 # Try inclusive slicing time span (<= sb2)
-                spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
+                spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t
+                                                     in utc_times])
                 spec_slice = spec_db[:, spec_slice_indices]
-                # If it still doesn't fit our shape, try double inclusive time bounds
-                if np.shape(spec_slice) != (94, time_step):
-                    spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
+                # If it still doesn't fit our shape
+                if np.shape(spec_slice) != (94, interval):
+                    # Try double-inclusive slicing time span (sb1<= t <= sb2)
+                    spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2
+                                                         for t in utc_times])
                     spec_slice = spec_db[:, spec_slice_indices]
-                    # Otherwise, raise error
-                    if np.shape(spec_slice) != (94, time_step):
-                        raise ValueError('THE SHAPE IS NOT RIGHT.')
+                    # If it still doesn't fit our shape, raise error
+                    if np.shape(spec_slice) != (94, interval):
+                        raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
             # Skip matrices that have a spectrogram data gap
             if np.sum(spec_slice.flatten() < 0) > 50:
-                print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < 0))
+                print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
             # Craft filename and save
