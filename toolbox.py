@@ -1165,6 +1165,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     matrix_probs_sum = np.sum(matrix_probs, axis=0)
     matrix_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
     voted_labels = np.argmax(matrix_probs_sum, axis=1)
+    voted_labels[matrix_contributing_station_count==0] = na_label
     voted_labels[:2] = na_label  # pad voting row
     voted_labels[-2:] = na_label  # pad voting row
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
