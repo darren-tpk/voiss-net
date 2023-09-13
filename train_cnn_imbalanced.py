@@ -33,17 +33,17 @@ repo_dir = '/Users/darrentpk/Desktop/Github/tremor_ml/'
 
 # Configure train, validation and test paths and determine unique classes
 testval_ratio = 0.2
-stratified = True
-max_train_samples = 2464
-# stratified = False
-# max_train_samples = 3828
+# stratified = True
+# max_train_samples = 2464
+stratified = False
+max_train_samples = 3828
 train_paths, valid_paths, test_paths = split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=max_train_samples)
 train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_imbalanced_stratified'
-# model_type = '4min_all_imbalanced_unstratified'
+# model_type = '4min_all_imbalanced_stratified'
+model_type = '4min_all_imbalanced_unstratified_weighted2'
 model_name = repo_dir + 'models/' + model_type + '_model.h5'
 meanvar_name = repo_dir + 'models/' + model_type + '_meanvar.npy'
 curve_name = repo_dir + 'figures/' + model_type + '_curve.png'
@@ -85,6 +85,12 @@ class ExtractMeanVar(Callback):
         valid_gen.running_x_var = train_gen.running_x_var
 
 # Define the CNN
+class_weight = {0: 15990/(6*3828),
+                1: 15990/(6*406),
+                2: 15990/(6*3560),
+                3: 15990/(6*3828),
+                4: 15990/(6*540),
+                5: 15990/(6*3828)}
 
 # Add singular channel to conform with tensorflow input dimensions
 input_shape = [*eg_spec.shape, 1]
@@ -120,11 +126,11 @@ model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics
 # Print out model summary
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
 mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', save_best_only=True)
 emv = ExtractMeanVar()
 # Fit model
-history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv], class_weight=class_weight)
 
 # Save the final running mean and variance
 np.save(meanvar_name, [train_gen.running_x_mean,train_gen.running_x_var])
