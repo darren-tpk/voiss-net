@@ -1197,7 +1197,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                 [0, 129, 118],
                 [0, 0, 167],
                 [238, 204, 22],
-                [92, 21, 0],
+                [103, 72, 132],
                 [164, 98, 0],
                 [40, 40, 40],
                 [255, 255, 255]])
