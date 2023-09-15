@@ -17,7 +17,7 @@ fig_width = 38
 class_cbar = True
 spec_kwargs = {'freq_lims': (0.5,20)}
 annotate = True
-export_path = '/Users/darrentpk/Desktop/'
+export_path = None
 
 # Check timeline for seismic
 predmat = check_timeline2(source, network, station, channel, location, starttime, endtime,
