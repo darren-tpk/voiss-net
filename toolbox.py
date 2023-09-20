@@ -566,7 +566,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -581,11 +581,15 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             data request
     :param model_path (str): Path to model .h5 file
     :param npy_dir (str): Path to directory of numpy files
+    :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
+    :param fig_width (float): Figure width [in]
+    :param class_cbar (bool): If `True`, add a class colorbar
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param annotate (bool): If `True`, annotate probabilities to one decimal place in each cell
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
-    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
+    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
+    :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
 
     # Load model
@@ -723,10 +727,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Make predictions
     spec_predictions = saved_model.predict(spec_stack)
     predicted_labels = np.argmax(spec_predictions, axis=1)
+    predicted_probabilities = np.max(spec_predictions, axis=1)
     indicators = []
     for i, spec_id in enumerate(spec_ids):
         chunks = spec_id.split('_')
-        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i]])
+        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i], predicted_probabilities[i]])
 
     # Craft plotting matrix and probability matrix
     matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP))
@@ -829,6 +834,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     'N/A']
     # Concatenate voting row to plotting matrix
     matrix_plot = np.concatenate((matrix_plot, new_row))
+
+    # Return class and probability outputs if figure plotting is not desired
+    if not generate_fig:
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), matrix_prob
 
     # Craft color map
     rgb_ratios = rgb_values / 255
@@ -957,13 +966,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     if export_path is None:
         fig.show()
         print('Done!')
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), matrix_prob
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
         print('Done!')
 
-def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
+def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -972,19 +981,19 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
     :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for
-            data request
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for
-            data request
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .h5 file
     :param npy_dir (str): Path to directory of numpy files
+    :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
     :param font_s (float): Font size [points]
     :param class_cbar (bool): Plot colorbar
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
-    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if export_path==None)
+    :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
+    :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
 
     # Load model
@@ -1169,8 +1178,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     voted_labels[:2] = na_label  # pad voting row
     voted_labels[-2:] = na_label  # pad voting row
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
-    matrix_plot = np.concatenate((
-        matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
+    matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
+
+    # Return class and probability outputs if figure plotting is not desired
+    if not generate_fig:
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
 
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
@@ -1383,7 +1395,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     if export_path is None:
         fig.show()
         print('Done!')
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' +\
             endtime.strftime('%Y%m%d_%H%M') + '_' +\
