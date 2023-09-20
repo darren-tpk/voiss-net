@@ -127,7 +127,7 @@ model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
-mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', save_best_only=True)
+mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
 emv = ExtractMeanVar()
 # Fit model
 history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv], class_weight=class_weight)
