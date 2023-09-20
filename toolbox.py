@@ -1119,7 +1119,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         for spec_path in spec_paths_full:
             utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
             spec_station = spec_path.split('/')[-1].split('_')[0]
-            if starttime <= utc < endtime and spec_station in station:
+            if (starttime + int(np.round(interval / 2))) <= utc < (endtime - int(np.round(interval / 2))) and spec_station in station:
                 spec_paths.append(spec_path)
 
         # Create data generator for input spec paths
