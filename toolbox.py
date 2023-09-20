@@ -604,7 +604,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Define fixed values
     spec_height = saved_model.input.shape.as_list()[1]
-    TIME_STEP = saved_model.input.shape.as_list()[2]
+    time_step = saved_model.input.shape.as_list()[2]
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
     pad = spec_kwargs['pad'] if  'pad' in spec_kwargs else 240
     window_duration = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
@@ -617,9 +617,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
-    if (endtime-starttime) % TIME_STEP != 0:
+    if (endtime-starttime) % time_step != 0:
         print('The desired analysis duration (endtime - starttime) is not a multiple of the inbuilt time step.')
-        endtime = endtime + ((endtime-starttime) % TIME_STEP)
+        endtime = endtime + ((endtime-starttime) % time_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
@@ -648,7 +648,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             spec_db, utc_times = calculate_spectrogram(trace, starttime, endtime, window_duration=window_duration, freq_lims=freq_lims)
 
             # Define array of time steps for spectrogram slicing
-            step_bounds = np.arange(starttime, endtime + TIME_STEP, TIME_STEP)
+            step_bounds = np.arange(starttime, endtime + time_step, time_step)
 
             # Loop over time steps
             for k in range(len(step_bounds) - 1):
@@ -660,17 +660,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 spec_slice = spec_db[:, spec_slice_indices]
 
                 # Enforce shape
-                if np.shape(spec_slice) != (spec_height, TIME_STEP):
+                if np.shape(spec_slice) != (spec_height, time_step):
                     # Try inclusive slicing time span (<= sb2)
                     spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                     spec_slice = spec_db[:, spec_slice_indices]
                     # If it still doesn't fit our shape
-                    if np.shape(spec_slice) != (spec_height, TIME_STEP):
+                    if np.shape(spec_slice) != (spec_height, time_step):
                         # Try double-inclusive slicing time span (sb1<= t <= sb2)
                         spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
                         spec_slice = spec_db[:, spec_slice_indices]
                         # If it still doesn't fit our shape, raise error
-                        if np.shape(spec_slice) != (spec_height, TIME_STEP):
+                        if np.shape(spec_slice) != (spec_height, time_step):
                             raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
                 # Skip matrices that have a spectrogram data gap
@@ -713,7 +713,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         else:
             batch_size = len(spec_paths)
         params = {
-            "dim": (spec_height, interval),
+            "dim": (spec_height, time_step),
             "batch_size": batch_size,
             "n_classes": nclasses,
             "shuffle": False,
@@ -734,13 +734,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i], predicted_probabilities[i]])
 
     # Craft plotting matrix and probability matrix
-    matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP))
+    matrix_length = int(np.ceil((endtime - starttime) / time_step))
     matrix_height = nsubrows
     matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
     matrix_prob = np.ones((matrix_height, matrix_length)) * nclasses
     for indicator in indicators:
         row_index = station.split(',').index(indicator[0])
-        col_index = int((indicator[1] - starttime) / TIME_STEP)
+        col_index = int((indicator[1] - starttime) / time_step)
         matrix_plot[row_index, col_index] = indicator[2]
         matrix_prob[row_index, col_index] = indicator[3]
 
@@ -788,7 +788,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 [0, 129, 118],
                 [0, 0, 167],
                 [238, 204, 22],
-                [92, 21, 0],
+                [103, 72, 132],
                 [164, 98, 0],
                 [40, 40, 40],
                 [255, 255, 255]])
