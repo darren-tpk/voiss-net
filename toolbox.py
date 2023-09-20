@@ -629,14 +629,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # If no existing npy file directory exists, create a temporary directory and populate it
     if not npy_dir:
 
-        # Create a temporary directory if it does not exist
-        if not os.path.exists('./npy_temporary'):
-            os.mkdir('npy_temporary')
-
-        # Clear all existing files in npy_temporary
-        # Clear npy_temporary directory
-        for f in glob.glob('./npy_temporary/*.npy'):
-            os.remove(f)
+        # Initialize spectrogram slice and id stack
+        spec_stack = []
+        spec_ids = []
 
         # Loop over stations that have data
         stream_stations = [tr.stats.station for tr in stream]
@@ -678,54 +673,60 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 if np.sum(spec_slice.flatten() < -220) > 50:
                     continue
 
-                # Craft filename and save
-                file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
-                            sb2.strftime('%Y%m%d%H%M') + '.npy'
-                np.save('./npy_temporary/' + file_name, spec_slice)
+                # Stack spectrogram slices to be used as model input
+                spec_stack.append(spec_slice)
+                spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
 
-        # Get list of npy file paths
-        spec_paths_full = glob.glob('./npy_temporary/*.npy')
+        # Standardize and min-max scale
+        spec_stack = np.array(spec_stack)
+        spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+        spec_stack = (spec_stack - np.min(spec_stack, axis=(1,2))[:,np.newaxis,np.newaxis]) / \
+                     (np.max(spec_stack, axis=(1,2)) - np.min(spec_stack, axis=(1,2)))[:,np.newaxis,np.newaxis]
 
     # If a pre-existing npy directory exists, get list of npy file paths
     else:
-        spec_paths_full = glob.glob(npy_dir + '/*.npy')
+        if npy_dir[-1] == '/':
+            spec_paths_full = glob.glob(npy_dir + '*.npy')
+        else:
+            spec_paths_full = glob.glob(npy_dir + '/*.npy')
 
-    # Filter spec paths by time
-    spec_paths = []
-    for spec_path in spec_paths_full:
-        utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
-        spec_station = spec_path.split('/')[-1].split('_')[0]
-        if starttime <= utc < endtime and spec_station in station:
-            spec_paths.append(spec_path)
+        # Filter spec paths by time
+        spec_paths = []
+        for spec_path in spec_paths_full:
+            utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
+            spec_station = spec_path.split('/')[-1].split('_')[0]
+            if starttime <= utc < endtime and spec_station in station:
+                spec_paths.append(spec_path)
 
-    # Create data generator for input spec paths
-    if len(spec_paths) >= 2048:
-        from functools import reduce
-        factors = np.array(reduce(list.__add__,
-                ([i, len(spec_paths)//i] for i in range(1, int(len(spec_paths)**0.5) + 1) if len(spec_paths) % i == 0)))
-        batch_size = np.max(factors[factors<2048])
-    else:
-        batch_size = len(spec_paths)
-    params = {
-        "dim": (spec_height, TIME_STEP),
-        "batch_size": batch_size,
-        "n_classes": nclasses,
-        "shuffle": False,
-    }
-    spec_placeholder_labels = [0 for i in spec_paths]
-    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
-                             running_x_mean=running_x_mean, running_x_var=running_x_var)
+        # Create data generator for input spec paths
+        if len(spec_paths) >= 2048:
+            from functools import reduce
+            factors = np.array(reduce(list.__add__,
+                                      ([i, len(spec_paths) // i] for i in
+                                       range(1, int(len(spec_paths) ** 0.5) + 1) if
+                                       len(spec_paths) % i == 0)))
+            batch_size = np.max(factors[factors < 2048])
+        else:
+            batch_size = len(spec_paths)
+        params = {
+            "dim": (spec_height, interval),
+            "batch_size": batch_size,
+            "n_classes": nclasses,
+            "shuffle": False,
+        }
+        spec_placeholder_labels = [0 for i in spec_paths]
+        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+        spec_stack = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                                 running_x_mean=running_x_mean, running_x_var=running_x_var)
+        spec_ids = [spec_path.split('/')[-1].split('.')[0] for spec_path in spec_paths]
 
     # Make predictions
-    spec_predictions = saved_model.predict(spec_gen)
+    spec_predictions = saved_model.predict(spec_stack)
     predicted_labels = np.argmax(spec_predictions, axis=1)
-    predicted_probabilities = np.max(spec_predictions, axis=1)
     indicators = []
-    for i, filepath in enumerate(spec_gen.list_ids):
-        filename = filepath.split('/')[-1]
-        chunks = filename.split('_')
-        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i], predicted_probabilities[i]])
+    for i, spec_id in enumerate(spec_ids):
+        chunks = spec_id.split('_')
+        indicators.append([chunks[0], UTCDateTime(chunks[1]), predicted_labels[i]])
 
     # Craft plotting matrix and probability matrix
     matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP))
@@ -999,7 +1000,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     # Define fixed values
     spec_height = saved_model.input.shape.as_list()[1]
     interval = saved_model.input.shape.as_list()[2]
-    TIME_STEP = int(np.round(interval / 4))
+    time_step = int(np.round(interval / 4))
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
     pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
     window_duration = spec_kwargs['window_duration'] if 'window_duration' in\
@@ -1015,10 +1016,10 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
-    if (endtime - starttime) % TIME_STEP != 0:
+    if (endtime - starttime) % time_step != 0:
         print('The desired analysis duration (endtime - starttime) is not a\
               multiple of the inbuilt time step.')
-        endtime = endtime + ((endtime - starttime) % TIME_STEP)
+        endtime = endtime + ((endtime - starttime) % time_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
@@ -1055,7 +1056,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
             # Define array of time steps for spectrogram slicing
             step_bounds = np.arange(starttime + int(np.round(interval / 2)),
                                     endtime - int(np.round(interval / 2)) +
-                                    TIME_STEP, TIME_STEP)
+                                    time_step, time_step)
 
             # Loop over time steps
             for k in range(len(step_bounds)):
@@ -1144,13 +1145,13 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                            predicted_labels[i], spec_predictions[i, :]])
 
     # Craft plotting matrix and probability matrix
-    matrix_length = int(np.ceil((endtime - starttime) / TIME_STEP)) + 1
+    matrix_length = int(np.ceil((endtime - starttime) / time_step)) + 1
     matrix_height = nsubrows
     matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
     matrix_probs = np.zeros((matrix_height, matrix_length, np.shape(spec_predictions)[1]))
     for indicator in indicators:
         row_index = station.split(',').index(indicator[0])
-        col_index = int((indicator[1] - starttime) / TIME_STEP)
+        col_index = int((indicator[1] - starttime) / time_step)
         matrix_plot[row_index, col_index] = indicator[2]
         matrix_probs[row_index, col_index, :] = indicator[3]
 
