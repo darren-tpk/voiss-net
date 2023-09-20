@@ -1155,6 +1155,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         matrix_probs[row_index, col_index, :] = indicator[3]
 
     # Add voting row
+    np.seterr(divide='ignore', invalid='ignore')  # Mute division by zero error
     na_label = nclasses  # this index is one higher than the number of classes
     new_row = np.ones((1, np.shape(matrix_plot)[1])) * na_label
     matrix_plot = np.concatenate((matrix_plot, new_row))
