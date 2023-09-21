@@ -25,15 +25,15 @@ export_path = None
 transparent = None
 
 # # Check timeline for seismic
-predmat = check_timeline2(source, network, station, seis_channel, location, starttime, endtime,
-                          seis_model_path, seis_meanvar_path, npy_dir=npy_dir, generate_fig=generate_fig,
-                          fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
-                          export_path=export_path, transparent=transparent)
+class_mat, prob_mat = check_timeline2(source, network, station, seis_channel, location, starttime, endtime,
+                                      seis_model_path, seis_meanvar_path, npy_dir=npy_dir, generate_fig=generate_fig,
+                                      fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
+                                      export_path=export_path, transparent=transparent)
 
 # Check timeline for infrasound
 starttime = UTCDateTime(2021, 8, 6, 10)
 endtime = starttime + 3*3600
-predmat = check_timeline2(source, network, station, infra_channel, location, starttime, endtime,
-                          infra_model_path, infra_meanvar_path, npy_dir=npy_dir, generate_fig=generate_fig,
-                          fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
-                          export_path=export_path, transparent=transparent)
+class_mat, prob_mat = check_timeline2(source, network, station, infra_channel, location, starttime, endtime,
+                                      infra_model_path, infra_meanvar_path, npy_dir=npy_dir, generate_fig=generate_fig,
+                                      fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
+                                      export_path=export_path, transparent=transparent)
