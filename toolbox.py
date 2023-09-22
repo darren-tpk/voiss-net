@@ -1254,9 +1254,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     # Initialize figure and craft axes
     figsize = (fig_width, 4 * len(stream) + 8)
     fig = plt.figure(figsize=figsize)
+    height_ratios = np.ones(len(stream) + 2)
+    height_ratios[1] = 0.5
     if class_cbar:
-        height_ratios = np.ones(len(stream) + 2)
-        height_ratios[1] = 0.5
         gs_top = plt.GridSpec(len(stream) + 2, 2, top=0.89,
                               height_ratios=height_ratios, width_ratios=[35, 1],
                               wspace=0.05)
@@ -1266,9 +1266,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         cbar_ax = fig.add_subplot(gs_top[:, 1])
     else:
         gs_top = plt.GridSpec(len(stream) + 2, 1, top=0.89,
-                              height_ratios=[1, 0.5, 1, 1, 1, 1, 1])
+                              height_ratios=height_ratios)
         gs_base = plt.GridSpec(len(stream) + 2, 1, hspace=0,
-                               height_ratios=[1, 0.5, 1, 1, 1, 1, 1])
+                               height_ratios=height_ratios)
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
     ax3 = fig.add_subplot(gs_base[2, 0])
@@ -1467,16 +1467,15 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
     TICK_DAYS = [0, 7, 14, 28]
 
     # Create data generator for input spec paths
-    batch_size = 2048
-    # if len(spec_paths) > 2048:
-    #     from functools import reduce
-    #     factors = np.array(reduce(list.__add__,
-    #                               ([i, len(spec_paths) // i] for i in
-    #                                range(1, int(len(spec_paths) ** 0.5) + 1) if
-    #                                len(spec_paths) % i == 0)))
-    #     batch_size = np.max(factors[factors <= 2048])
-    # else:
-    #     batch_size = len(spec_paths)
+    if len(spec_paths) > 2048:
+        from functools import reduce
+        factors = np.array(reduce(list.__add__,
+                                  ([i, len(spec_paths) // i] for i in
+                                   range(1, int(len(spec_paths) ** 0.5) + 1) if
+                                   len(spec_paths) % i == 0)))
+        batch_size = np.max(factors[factors <= 2048])
+    else:
+        batch_size = len(spec_paths)
 
     params = {
         "dim": (saved_model.input_shape[1], saved_model.input_shape[2]),
@@ -1693,7 +1692,7 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
     ax.set_xlabel('Date', fontsize=25)
     ax.patch.set_edgecolor('black')
     ax.patch.set_linewidth(2)
-    ax.set_title('Timeline for Pavlof Seismic Tremor (2021/01/01 to 2022/12/31)', fontsize=30)
+    ax.set_title(plot_title, fontsize=30)
     if export_path:
         plt.savefig(export_path[:-4] + '_condensed' + export_path[-4:], bbox_inches='tight', transparent=transparent)
     else:
