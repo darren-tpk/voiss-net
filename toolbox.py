@@ -566,7 +566,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,annotate=False,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -583,6 +583,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param npy_dir (str): Path to directory of numpy files
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
+    :param font_s (float): Font size [points]
     :param class_cbar (bool): If `True`, add a class colorbar
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param annotate (bool): If `True`, annotate probabilities to one decimal place in each cell
@@ -630,6 +631,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
 
+    # If stream sampling rate is not an integer, fix
+    for tr in stream:
+        if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+            tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
+
     # If no existing npy file directory exists, create a temporary directory and populate it
     if not npy_dir:
 
@@ -649,6 +655,21 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
             # Define array of time steps for spectrogram slicing
             step_bounds = np.arange(starttime, endtime + time_step, time_step)
+
+            # Attempt shortcut if dimensions are fit well
+            if np.shape(spec_db)[1] % time_step == 0:
+                try:
+                    spec_slices = [spec_db[:, t:(t + time_step)] for t in
+                                   range(0, spec_db.shape[-1], time_step)]
+                    spec_tags = [stream_station + '_' + \
+                                 step_bound.strftime('%Y%m%d%H%M') + '_' + \
+                                 (step_bound+ time_step).strftime('%Y%m%d%H%M') \
+                                 for step_bound in step_bounds[:-1]]
+                    spec_stack += spec_slices
+                    spec_ids += spec_tags
+                    continue
+                except:
+                    pass
 
             # Loop over time steps
             for k in range(len(step_bounds) - 1):
@@ -883,11 +904,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_yticks(yticks)
     yticklabels = station.split(',').copy()
     yticklabels.append('VOTE')
-    ax1.set_yticklabels(yticklabels, rotation=0, fontsize=24)
+    ax1.set_yticklabels(yticklabels, rotation=0, fontsize=font_s)
     ax1.set_ylim([len(station.split(',')) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(2)
-    ax1.set_title('Station-based Voting', fontsize=30)
+    ax1.set_title('Station-based Voting', fontsize=font_s+2)
 
     # Loop over each trace in the stream and plot spectrograms on lower axes
     for axs_index, trace in enumerate(stream):
@@ -922,8 +943,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
         axs[axs_index].set_yticks(range(2, freq_lims[1] + 1, 2))
         axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
-        axs[axs_index].tick_params(axis='y', labelsize=22)
-        axs[axs_index].set_ylabel(trace.id, fontsize=24, fontweight='bold')
+        axs[axs_index].tick_params(axis='y', labelsize=font_s)
+        axs[axs_index].set_ylabel(trace.id, fontsize=font_s, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
     if (endtime-starttime) > (6*86400):
@@ -943,13 +964,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=24, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
     if endtime.date == starttime.date:
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
     elif (endtime-starttime) < (2*86400):
         axs[-1].set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=30)
     else:
-        axs[-1].set_xlabel('UTC Time', fontsize=30)
+        axs[-1].set_xlabel('UTC Time', fontsize=font_s)
 
     # Plot colorbar
     if class_cbar:
@@ -971,6 +992,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
         print('Done!')
+        return np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :])), matrix_prob
 
 def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
 
@@ -1043,6 +1065,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                            station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
 
+    # If stream sampling rate is not an integer, fix
+    for tr in stream:
+        if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+            tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
+
     # If no existing npy file directory exists, create a temporary directory and populate it
     if not npy_dir:
 
@@ -1067,7 +1094,22 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                     endtime - int(np.round(interval / 2)) +
                                     time_step, time_step)
 
-            # Loop over time steps
+            # Attempt shortcut if dimensions are fit well
+            if np.shape(spec_db)[1] % time_step == 0:
+                try:
+                    spec_slices = [spec_db[:, t:(t + interval)] for t in
+                                   range(0, spec_db.shape[-1] - interval + time_step, time_step)]
+                    spec_tags = [stream_station + '_' + \
+                                 (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M') + '_' + \
+                                 (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M') \
+                                 for step_bound in step_bounds]
+                    spec_stack += spec_slices
+                    spec_ids += spec_tags
+                    continue
+                except:
+                    pass
+
+            # Otherwise, loop over time steps
             for k in range(len(step_bounds)):
 
                 # Slice spectrogram
@@ -1104,8 +1146,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         # Standardize and min-max scale
         spec_stack = np.array(spec_stack)
         spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
-        spec_stack = (spec_stack - np.min(spec_stack, axis=(1,2))[:,np.newaxis,np.newaxis]) / \
-                     (np.max(spec_stack, axis=(1,2)) - np.min(spec_stack, axis=(1,2)))[:,np.newaxis,np.newaxis]
+        spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
+                     (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
 
     # If a pre-existing npy directory exists, get list of npy file paths
     else:
@@ -1403,6 +1445,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',
                     transparent=transparent)
         print('Done!')
+        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
 
 def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,npy_dir,plot_title,export_path=None,transparent=False,plot_labels=False,labels_kwargs=None):
     """
@@ -1904,7 +1947,7 @@ def set_universal_seed(seed_value):
 def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None):
     """
     Split labeled filepaths using the given test/validation set ratio by class proportions
-    :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
+    :param npy_dir (str): directory to retrieve raw labeled files
     :param testval_ratio (float): ratio of file counts set aside for the test set and validation set, each
     :param stratified (bool): if `True`, testval_ratio will be applied to each class independently, otherwise the sparse-est class will be the reference
     :param max_train_samples (int): if not `None`, impose a maximum sample count for the training set per class (to toss out excessive samples))
@@ -2078,7 +2121,7 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
         import matplotlib.pyplot as plt
         import colorcet as cc
         indices = np.random.choice(range(len(aug_list)), nclasses)
-        fig, ax = plt.subplots(nclasses, 3, figsize=(nclasses*0.7, nclasses*2))
+        fig, ax = plt.subplots(nclasses, 3, figsize=(.42, nclasses*2))
         for i, n in enumerate(indices):
             augment_image = np.load(aug_list[n])
             noise_image = np.load(noise_list[n])
