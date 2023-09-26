@@ -1339,9 +1339,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     ax1.set_title('Station-based Voting', fontsize=font_s+2)
 
     # Plot probabilities in middle axis
-    ax2.plot(voted_probabilities, color='k', linewidth=2)
-    ax2.fill_between(range(len(voted_probabilities)),
-                     voted_probabilities, where=voted_probabilities >= 0,
+    prob_xvec = np.arange(0.5, len(voted_probabilities)+0.5, 1)
+    ax2.plot(prob_xvec,voted_probabilities, color='k', linewidth=2)
+    ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     ax2.set_xlim([0, len(voted_probabilities)])
     ax2.set_ylim([0, 1])
