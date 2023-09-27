@@ -614,8 +614,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Determine if infrasound
     infrasound = True if channel[-1] == 'F' else False
-    REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
-    SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
+    reference_value = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+    spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
     if (endtime-starttime) % time_step != 0:
@@ -694,16 +694,18 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                         if np.shape(spec_slice) != (spec_height, time_step):
                             raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
-                # Skip matrices that have a spectrogram data gap
-                if np.sum(spec_slice.flatten() < -220) > 50:
-                    continue
-
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
                 spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
 
-        # Standardize and min-max scale
+        # Remove spectrograms with data gap
         spec_stack = np.array(spec_stack)
+        spec_ids = np.array(spec_ids)
+        keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+        spec_stack = spec_stack[keep_index]
+        spec_ids = spec_ids[keep_index]
+
+        # Standardize and min-max scale
         spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
         spec_stack = (spec_stack - np.min(spec_stack, axis=(1,2))[:,np.newaxis,np.newaxis]) / \
                      (np.max(spec_stack, axis=(1,2)) - np.min(spec_stack, axis=(1,2)))[:,np.newaxis,np.newaxis]
@@ -923,7 +925,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                                               noverlap=samples_per_segment * .9)
 
         # Convert spectrogram matrix to decibels for plotting
-        spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE ** 2))
+        spec_db = 10 * np.log10(abs(spec) / (reference_value ** 2))
 
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
@@ -935,8 +937,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                               extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
-                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[1]),
                               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
@@ -1043,8 +1045,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
 
     # Determine if infrasound
     infrasound = True if channel[-1] == 'F' else False
-    REFERENCE_VALUE = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
-    SPEC_THRESH = 0 if infrasound else -220  # Power value indicative of gap
+    reference_value = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+    spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
     if (endtime - starttime) % time_step != 0:
@@ -1135,16 +1137,18 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                         if np.shape(spec_slice) != (spec_height, interval):
                             raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
-                # Skip matrices that have a spectrogram data gap
-                if np.sum(spec_slice.flatten() < -220) > 50:
-                    continue
-
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
                 spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
 
-        # Standardize and min-max scale
+        # Remove spectrograms with data gap
         spec_stack = np.array(spec_stack)
+        spec_ids = np.array(spec_ids)
+        keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+        spec_stack = spec_stack[keep_index]
+        spec_ids = spec_ids[keep_index]
+
+        # Standardize and min-max scale
         spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
         spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
                      (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
@@ -1365,7 +1369,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                                               noverlap=samples_per_segment * .9)
 
         # Convert spectrogram matrix to decibels for plotting
-        spec_db = 10 * np.log10(abs(spec) / (REFERENCE_VALUE ** 2))
+        spec_db = 10 * np.log10(abs(spec) / (reference_value ** 2))
 
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date +\
@@ -1380,8 +1384,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                       trace_time_matplotlib[-1],
                                       sample_frequencies[0],
                                       sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[0]),
-                              vmax=np.percentile(spec_db_plot[spec_db_plot>SPEC_THRESH], v_percent_lims[1]),
+                              vmin=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[0]),
+                              vmax=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[1]),
                               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
         # Tidy figure axes
