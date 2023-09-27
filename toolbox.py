@@ -949,12 +949,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[axs_index].set_ylabel(trace.id, fontsize=font_s, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
-    if (endtime-starttime) > (6*86400):
+    if (endtime-starttime) >= (6*86400):
         denominator = (endtime-starttime)/86400
-        fmt = '%m/%d'
+        fmt = '%m/%d %H:%M'
     elif (2*86400) < (endtime-starttime) < (6*86400):
         denominator = 2*(endtime-starttime)/86400
-        fmt = '%m/%d %H'
+        fmt = '%m/%d %H:%M'
     elif (endtime-starttime) < (2*86400) and endtime.date != starttime.date:
         fmt = '%m/%d %H:%M'
         denominator = 12 if ((endtime-starttime)%1800==0) else 10
@@ -1397,12 +1397,12 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         axs[axs_index].set_ylabel(trace.id, fontsize=font_s, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
-    if (endtime - starttime) > (6 * 86400):
+    if (endtime - starttime) >= (6 * 86400):
         denominator = (endtime - starttime) / 86400
-        fmt = '%m/%d'
+        fmt = '%m/%d %H:%M'
     elif (2 * 86400) < (endtime - starttime) < (6 * 86400):
         denominator = 2 * (endtime - starttime) / 86400
-        fmt = '%m/%d %H'
+        fmt = '%m/%d %H:%M'
     elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
         fmt = '%m/%d %H:%M'
         denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
