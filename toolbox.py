@@ -1,4 +1,5 @@
 # Import dependencies
+import time
 import os
 import glob
 import colorcet as cc
@@ -624,9 +625,26 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
-    stream = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel,
-                              starttime=starttime - pad, endtime=endtime + pad, verbose=False)
-    stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad, verbose=False)
+    # Load data, remove response, and re-order
+    successfully_loaded = False
+    load_starttime = time.time()
+    while not successfully_loaded:
+        try:
+            stream = gather_waveforms(source=source, network=network, station=station,
+                                      location=location, channel=channel,
+                                      starttime=starttime - pad, endtime=endtime + pad,
+                                      verbose=False)
+            stream = process_waveform(stream, remove_response=True, detrend=False,
+                                      taper_length=pad, verbose=False)
+            successfully_loaded = True
+        except:
+            print('Data pull failed, trying again in 10 seconds...')
+            time.sleep(10)
+            load_currenttime = time.time()
+            if load_currenttime-load_starttime < 60:
+                pass
+            else:
+                raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime),str(endtime)))
     stream_default_order = [tr.stats.station for tr in stream]
     desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
@@ -1056,12 +1074,25 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
-    stream = gather_waveforms(source=source, network=network, station=station,
-                              location=location, channel=channel,
-                              starttime=starttime - pad, endtime=endtime + pad,
-                              verbose=False)
-    stream = process_waveform(stream, remove_response=True, detrend=False,
-                              taper_length=pad, verbose=False)
+    successfully_loaded = False
+    load_starttime = time.time()
+    while not successfully_loaded:
+        try:
+            stream = gather_waveforms(source=source, network=network, station=station,
+                                      location=location, channel=channel,
+                                      starttime=starttime - pad, endtime=endtime + pad,
+                                      verbose=False)
+            stream = process_waveform(stream, remove_response=True, detrend=False,
+                                      taper_length=pad, verbose=False)
+            successfully_loaded = True
+        except:
+            print('Data pull failed, trying again in 10 seconds...')
+            time.sleep(10)
+            load_currenttime = time.time()
+            if load_currenttime-load_starttime < 60:
+                pass
+            else:
+                raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime),str(endtime)))
     stream_default_order = [tr.stats.station for tr in stream]
     desired_index_order = [stream_default_order.index(stn) for stn in
                            station.split(',') if stn in stream_default_order]
