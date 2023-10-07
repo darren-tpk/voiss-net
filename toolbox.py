@@ -716,17 +716,31 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 spec_stack.append(spec_slice)
                 spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
 
-        # Remove spectrograms with data gap
+        # Convert spectrogram slices to an array
         spec_stack = np.array(spec_stack)
         spec_ids = np.array(spec_ids)
-        keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
-        spec_stack = spec_stack[keep_index]
-        spec_ids = spec_ids[keep_index]
 
-        # Standardize and min-max scale
-        spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
-        spec_stack = (spec_stack - np.min(spec_stack, axis=(1,2))[:,np.newaxis,np.newaxis]) / \
-                     (np.max(spec_stack, axis=(1,2)) - np.min(spec_stack, axis=(1,2)))[:,np.newaxis,np.newaxis]
+        # If there are spectrogram slices
+        if len(spec_stack) != 0:
+            # Remove spectrograms with data gap
+            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+            spec_stack = spec_stack[keep_index]
+            spec_ids = spec_ids[keep_index]
+
+            # Standardize and min-max scale
+            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+            spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
+                         (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
+
+        # Otherwise, return empty class and probability matrix or raise Exception
+        else:
+            if not generate_fig:
+                matrix_length = int(np.ceil((endtime - starttime) / time_step)) + 1
+                class_mat = np.ones((nsubrows + 1, matrix_length)) * 6
+                prob_mat = np.vstack((np.zeros((nsubrows + 1, matrix_length)), np.ones((1, matrix_length)) * np.nan))
+                return class_mat, prob_mat
+            else:
+                raise Exception('No data available for desired timeline!')
 
     # If a pre-existing npy directory exists, get list of npy file paths
     else:
@@ -878,7 +892,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Return class and probability outputs if figure plotting is not desired
     if not generate_fig:
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), matrix_prob
+        class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+        prob_mat = matrix_prob
+        return class_mat, prob_mat
 
     # Craft color map
     rgb_ratios = rgb_values / 255
@@ -1004,15 +1020,16 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         cbar_ax.set_xticks([])
 
     # Show figure or export
+    class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+    prob_mat = matrix_prob
     if export_path is None:
         fig.show()
         print('Done!')
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), matrix_prob
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + model_path.split('/')[-1].split('.')[0]
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',  transparent=transparent)
         print('Done!')
-        return np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :])), matrix_prob
+    return class_mat, prob_mat
 
 def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
 
@@ -1172,17 +1189,31 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                 spec_stack.append(spec_slice)
                 spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
 
-        # Remove spectrograms with data gap
+        # Convert spectrogram slices to an array
         spec_stack = np.array(spec_stack)
         spec_ids = np.array(spec_ids)
-        keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
-        spec_stack = spec_stack[keep_index]
-        spec_ids = spec_ids[keep_index]
 
-        # Standardize and min-max scale
-        spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
-        spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
-                     (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
+        # If there are spectrogram slices
+        if len(spec_stack) != 0:
+            # Remove spectrograms with data gap
+            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+            spec_stack = spec_stack[keep_index]
+            spec_ids = spec_ids[keep_index]
+
+            # Standardize and min-max scale
+            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+            spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
+                         (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
+
+        # Otherwise, return empty class and probability matrix or raise Exception
+        else:
+            if not generate_fig:
+                matrix_length = int(np.ceil((endtime - starttime) / time_step)) + 1
+                class_mat = np.ones((nsubrows + 1, matrix_length)) * 6
+                prob_mat = np.vstack((np.zeros((nsubrows + 1, matrix_length)), np.ones((1, matrix_length)) * np.nan))
+                return class_mat, prob_mat
+            else:
+                raise Exception('No data available for desired timeline!')
 
     # If a pre-existing npy directory exists, get list of npy file paths
     else:
@@ -1259,7 +1290,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
 
     # Return class and probability outputs if figure plotting is not desired
     if not generate_fig:
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
+        class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
+        prob_mat = np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
+        return class_mat, prob_mat
 
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
@@ -1469,10 +1502,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         cbar_ax.set_xticks([])
 
     # Show figure or export
+    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
+    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if export_path is None:
         fig.show()
         print('Done!')
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' +\
             endtime.strftime('%Y%m%d_%H%M') + '_' +\
@@ -1480,7 +1514,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight',
                     transparent=transparent)
         print('Done!')
-        return np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:])), np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
+    return class_mat, prob_mat
 
 def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,npy_dir,plot_title,export_path=None,transparent=False,plot_labels=False,labels_kwargs=None):
     """
