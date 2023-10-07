@@ -621,7 +621,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Enforce the duration to be a multiple of the model's time step
     if (endtime-starttime) % time_step != 0:
         print('The desired analysis duration (endtime - starttime) is not a multiple of the inbuilt time step.')
-        endtime = endtime + ((endtime-starttime) % time_step)
+        endtime = endtime + (time_step - (endtime-starttime) % time_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
@@ -1088,7 +1088,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     if (endtime - starttime) % time_step != 0:
         print('The desired analysis duration (endtime - starttime) is not a\
               multiple of the inbuilt time step.')
-        endtime = endtime + ((endtime - starttime) % time_step)
+        endtime = endtime + (time_step - (endtime - starttime) % time_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load data, remove response, and re-order
