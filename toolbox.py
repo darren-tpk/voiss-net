@@ -649,6 +649,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     desired_index_order = [stream_default_order.index(stn) for stn in station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
 
+    # If stream sampling rate is not an integer, fix
+    for tr in stream:
+        if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+            tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
+
     # If no existing npy file directory exists, create a temporary directory and populate it
     if not npy_dir:
 
@@ -1110,6 +1115,11 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     desired_index_order = [stream_default_order.index(stn) for stn in
                            station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
+
+    # If stream sampling rate is not an integer, fix
+    for tr in stream:
+        if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+            tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
 
     # If no existing npy file directory exists, create a temporary directory and populate it
     if not npy_dir:
