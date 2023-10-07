@@ -1043,6 +1043,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .h5 file
+    :param meanvar_path (str): path to model's meanvar .npy file
     :param npy_dir (str): Path to directory of numpy files
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
