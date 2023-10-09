@@ -1803,11 +1803,13 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     stations = list(np.unique([i[0] for i in indicators]))
     nsubrows = len(stations)
     month_list = []
-    month_utcdate = starttime
-    while month_utcdate < endtime:
+    month_utcdate = UTCDateTime(starttime.year,starttime.month,1)
+    while month_utcdate <= endtime:
         month_list.append(month_utcdate.strftime('%b \'%y'))
-        month_utcdate += 31 * 86400
-        month_utcdate = UTCDateTime(month_utcdate.year, month_utcdate.month, 1)
+        if month_utcdate.month+1 <= 12:
+            month_utcdate += UTCDateTime(month_utcdate.year,month_utcdate.month+1,1) - month_utcdate
+        else:
+            month_utcdate += UTCDateTime(month_utcdate.year+1, 1, 1) - month_utcdate
     nmonths = len(month_list)
 
     # Load model to determine number of classes
