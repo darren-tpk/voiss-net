@@ -1708,9 +1708,16 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                                        predicted_labels[i], spec_predictions[i, :]])
 
                 # Save as pickle for each step
-                if export_path:
-                    with open(export_path + 'indicators.pkl', 'wb') as f:
+                if export_path is None:
+                    with open('./indicators.pkl', 'wb') as f:
                         pickle.dump(indicators, f)
+                else:
+                    if export_path[-4:] != '.pkl':
+                        with open(export_path + '.pkl', 'wb') as f:
+                            pickle.dump(indicators, f)
+                    else:
+                        with open(export_path, 'wb') as f:
+                            pickle.dump(indicators, f)
 
             # If not, continue to next time step
             else:
