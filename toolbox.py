@@ -711,7 +711,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                         spec_slice = spec_db[:, spec_slice_indices]
                         # If it still doesn't fit our shape, raise error
                         if np.shape(spec_slice) != (spec_height, time_step):
-                            raise ValueError('Spectrogram slicing produced an erroneous shape.')
+                            print('Spectrogram slicing produced an erroneous shape, skipping.')
+                            continue
 
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
@@ -1185,7 +1186,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                         spec_slice = spec_db[:, spec_slice_indices]
                         # If it still doesn't fit our shape, raise error
                         if np.shape(spec_slice) != (spec_height, interval):
-                            raise ValueError('Spectrogram slicing produced an erroneous shape.')
+                            print('Spectrogram slicing produced an erroneous shape, skipping.')
+                            continue
 
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
@@ -1674,7 +1676,8 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                             spec_slice = spec_db[:, spec_slice_indices]
                             # If it still doesn't fit our shape, raise error
                             if np.shape(spec_slice) != (spec_height, interval):
-                                raise ValueError('Spectrogram slicing produced an erroneous shape.')
+                                print('Spectrogram slicing produced an erroneous shape, skipping.')
+                                continue
 
                     # Stack spectrogram slices to be used as model input
                     spec_stack.append(spec_slice)
