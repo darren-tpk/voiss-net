@@ -2,6 +2,7 @@
 import time
 import os
 import glob
+import pickle
 import colorcet as cc
 import seaborn as sns
 import numpy as np
@@ -1517,16 +1518,270 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         print('Done!')
     return class_mat, prob_mat
 
-def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,npy_dir,plot_title,export_path=None,transparent=False,plot_labels=False,labels_kwargs=None):
+def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,spec_kwargs=None,export_path=None):
+
+    """
+    Pulls data or leverage npy directory to generate list of timeline indicators
+    :param source (str): Which source to gather waveforms from (e.g. IRIS)
+    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
+    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
+    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
+    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
+    :param model_path (str): Path to model .h5 file
+    :param meanvar_path (str): path to model's meanvar .npy file
+    :param npy_dir (str): Path to directory of numpy files
+    :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
+    :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
+    """
+
+    # Enforce the duration to be a multiple of 14400s (4 hours) as we process timelines by 4 hour time steps
+    if (endtime - starttime) % 14400 != 0:
+        print('The desired analysis duration (endtime - starttime) is not a multiple of 14400s (4 hours).')
+        endtime = endtime + (14400 - (endtime - starttime) % 14400)
+        print('Rounding up endtime to %s.' % str(endtime))
+
+    # Load model
+    saved_model = load_model(model_path)
+    spec_height = saved_model.input.shape.as_list()[1]
+    interval = saved_model.input.shape.as_list()[2]
+    nclasses = saved_model.layers[-1].get_config()['units']
+    nsubrows = len(station.split(','))
+
+    # Extract mean and variance from training
+    saved_meanvar = np.load(meanvar_path)
+    running_x_mean = saved_meanvar[0]
+    running_x_var = saved_meanvar[1]
+
+    # If data pulls are required
+    if not npy_dir:
+
+        # Define fixed values
+        time_step = int(np.round(interval / 4))
+        spec_kwargs = {} if spec_kwargs is None else spec_kwargs
+        pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
+        window_duration = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
+        freq_lims = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else (0.5, 10)
+
+        # Determine if infrasound
+        infrasound = True if channel[-1] == 'F' else False
+        spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
+
+        # Split analysis duration into 4h-long chunks and start timer
+        num4h = (endtime - starttime) / 14400
+        process_tstart = time.time()
+
+        # Initialize master indicator list
+        indicators = []
+
+        # Loop over days and run checker
+        for n in range(int(num4h)):
+
+            # Determine start and end time of current step
+            t1 = starttime + n*14400 - 2*60
+            t2 = starttime + (n+1)*14400 + 2*60
+            print('Now at %s, time elapsed: %.2f hours' %
+                  ((t1+2*60).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
+
+            # Load data, remove response, and re-order
+            successfully_loaded = False
+            load_starttime = time.time()
+            while not successfully_loaded:
+                try:
+                    stream = gather_waveforms(source=source, network=network, station=station,
+                                              location=location, channel=channel,
+                                              starttime=t1 - pad, endtime=t2 + pad,
+                                              verbose=False)
+                    stream = process_waveform(stream, remove_response=True, detrend=False,
+                                              taper_length=pad, verbose=False)
+                    successfully_loaded = True
+                except:
+                    print('Data pull failed, trying again in 10 seconds...')
+                    time.sleep(10)
+                    load_currenttime = time.time()
+                    if load_currenttime-load_starttime < 60:
+                        pass
+                    else:
+                        raise Exception('Data pull timeout for t1=%s, t2=%s' % (str(t1),str(t2)))
+            stream_default_order = [tr.stats.station for tr in stream]
+            desired_index_order = [stream_default_order.index(stn) for stn in
+                                   station.split(',') if stn in stream_default_order]
+            stream = Stream([stream[i] for i in desired_index_order])
+
+            # If stream sampling rate is not an integer, fix
+            for tr in stream:
+                if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+                    tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
+
+            # Initialize spectrogram slice and id stack
+            spec_stack = []
+            spec_ids = []
+
+            # Loop over stations that have data
+            stream_stations = [tr.stats.station for tr in stream]
+            for j, stream_station in enumerate(stream_stations):
+
+                # Choose trace corresponding to station
+                trace = stream[j]
+
+                # Calculate spectrogram power matrix
+                spec_db, utc_times = calculate_spectrogram(trace, t1, t2,
+                                                           window_duration=window_duration,
+                                                           freq_lims=freq_lims)
+
+                # Define array of time steps for spectrogram slicing
+                step_bounds = np.arange(t1 + int(np.round(interval / 2)),
+                                        t2 - int(np.round(interval / 2)) +
+                                        time_step, time_step)
+
+                # Attempt shortcut if dimensions are fit well
+                if np.shape(spec_db)[1] % time_step == 0:
+                    try:
+                        spec_slices = [spec_db[:, t:(t + interval)] for t in
+                                       range(0, spec_db.shape[-1] - interval + time_step, time_step)]
+                        spec_tags = [stream_station + '_' + \
+                                     (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M') + '_' + \
+                                     (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M') \
+                                     for step_bound in step_bounds]
+                        spec_stack += spec_slices
+                        spec_ids += spec_tags
+                        continue
+                    except:
+                        pass
+
+                # Otherwise, loop over time steps
+                for k in range(len(step_bounds)):
+
+                    # Slice spectrogram
+                    sb1 = step_bounds[k] - int(np.round(interval / 2))
+                    sb2 = step_bounds[k] + int(np.round(interval / 2))
+                    spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in
+                                                         utc_times])
+                    spec_slice = spec_db[:, spec_slice_indices]
+
+                    # Enforce shape
+                    if np.shape(spec_slice) != (spec_height, interval):
+                        # Try inclusive slicing time span (<= sb2)
+                        spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t
+                                                             in utc_times])
+                        spec_slice = spec_db[:, spec_slice_indices]
+                        # If it still doesn't fit our shape
+                        if np.shape(spec_slice) != (spec_height, interval):
+                            # Try double-inclusive slicing time span (sb1<= t <= sb2)
+                            spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2
+                                                                 for t in utc_times])
+                            spec_slice = spec_db[:, spec_slice_indices]
+                            # If it still doesn't fit our shape, raise error
+                            if np.shape(spec_slice) != (spec_height, interval):
+                                raise ValueError('Spectrogram slicing produced an erroneous shape.')
+
+                    # Stack spectrogram slices to be used as model input
+                    spec_stack.append(spec_slice)
+                    spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
+
+            # Convert spectrogram slices to an array
+            spec_stack = np.array(spec_stack)
+            spec_ids = np.array(spec_ids)
+
+            # If there are spectrogram slices
+            if len(spec_stack) != 0:
+                # Remove spectrograms with data gap
+                keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+                spec_stack = spec_stack[keep_index]
+                spec_ids = spec_ids[keep_index]
+
+                # Standardize and min-max scale
+                spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+                spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
+                             (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
+
+                # Make predictions
+                spec_predictions = saved_model.predict(spec_stack)
+                predicted_labels = np.argmax(spec_predictions, axis=1)
+                for i, spec_id in enumerate(spec_ids):
+                    chunks = spec_id.split('_')
+                    indicators.append([chunks[0], UTCDateTime(chunks[1]) + int(np.round(interval / 2)),
+                                       predicted_labels[i], spec_predictions[i, :]])
+
+                # Save as pickle for each step
+                if export_path:
+                    with open(export_path + 'indicators.pkl', 'wb') as f:
+                        pickle.dump(indicators, f)
+
+            # If not, continue to next time step
+            else:
+                continue
+
+
+    # If a pre-existing npy directory exists, get list of npy file paths
+    else:
+        if npy_dir[-1] == '/':
+            spec_paths_full = glob.glob(npy_dir + '*.npy')
+        else:
+            spec_paths_full = glob.glob(npy_dir + '/*.npy')
+
+        # Filter spec paths by time
+        spec_paths = []
+        for spec_path in spec_paths_full:
+            utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
+            spec_station = spec_path.split('/')[-1].split('_')[0]
+            if (starttime + int(np.round(interval / 2))) <= utc < (endtime - int(np.round(interval / 2))) and spec_station in station:
+                spec_paths.append(spec_path)
+
+        # Create data generator for input spec paths
+        if len(spec_paths) >= 2048:
+            from functools import reduce
+            factors = np.array(reduce(list.__add__,
+                                      ([i, len(spec_paths) // i] for i in
+                                       range(1, int(len(spec_paths) ** 0.5) + 1) if
+                                       len(spec_paths) % i == 0)))
+            batch_size = np.max(factors[factors < 2048])
+        else:
+            batch_size = len(spec_paths)
+        params = {
+            "dim": (spec_height, interval),
+            "batch_size": batch_size,
+            "n_classes": nclasses,
+            "shuffle": False,
+        }
+        spec_placeholder_labels = [0 for i in spec_paths]
+        spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
+        spec_stack = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
+                                 running_x_mean=running_x_mean, running_x_var=running_x_var)
+        spec_ids = [spec_path.split('/')[-1].split('.')[0] for spec_path in spec_paths]
+
+        # Make predictions
+        spec_predictions = saved_model.predict(spec_stack)
+        predicted_labels = np.argmax(spec_predictions, axis=1)
+        indicators = []
+        for i, spec_id in enumerate(spec_ids):
+            chunks = spec_id.split('_')
+            indicators.append([chunks[0], UTCDateTime(chunks[1]) + int(np.round(interval / 2)),
+                               predicted_labels[i], spec_predictions[i, :]])
+
+    if export_path is None:
+        with open('./indicators.pkl', 'wb') as f:
+            pickle.dump(indicators, f)
+    else:
+        if export_path[-4:] != '.pkl':
+            with open(export_path + '.pkl', 'wb') as f:
+                pickle.dump(indicators, f)
+        else:
+            with open(export_path, 'wb') as f:
+                pickle.dump(indicators, f)
+
+
+def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, plot_title, export_path=None,
+                  transparent=False, plot_labels=False, labels_kwargs=None):
     """
     Plot timeline figure showing station-specific and probability-sum voting by monthly rows
-    :param start_month (:class:`~obspy.core.utcdatetime.UTCDateTime`):
-    :param end_month (:class:`~obspy.core.utcdatetime.UTCDateTime`):
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`):
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`):
     :param time_step (float): time step used to divide plot into columns
     :param type (str): defined as either 'seismic' or 'infrasound' to determine color palette
     :param model_path (str): path to model .h5 file
-    :param meanvar_path (str): path to model's meanvar .npy file
-    :param npy_dir (str): path to directory that stores all npy spectrogram files needed for plot
+    :param indicators_path (str): path to pkl file that stores timeline indicators for plotting
     :param plot_title (str): plot title to use
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
     :param transparent (bool): if `True`, export figures with transparent background
@@ -1535,32 +1790,18 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
     :return: None
     """
 
-    # Import all dependencies
-    from obspy import UTCDateTime
-    import glob
-    import numpy as np
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
-    from DataGenerator import DataGenerator
-    from keras.models import load_model
+    print('Plotting timeline...')
 
-    # Filter spec paths by time
-    spec_paths_full = glob.glob(npy_dir + '*.npy')
-    spec_paths = []
-    for spec_path in spec_paths_full:
-        utc = UTCDateTime(spec_path.split('/')[-1].split('_')[1])
-        spec_station = spec_path.split('/')[-1].split('_')[0]
-        if start_month <= utc < end_month:
-            spec_paths.append(spec_path)
+    # Load indicators
+    with open(indicators_path, 'rb') as f:  # Unpickling
+        indicators = pickle.load(f)
 
     # Determine number of stations and number of months
-    spec_path = glob.glob(npy_dir + '*.npy')
-    stations = list(np.unique([(f.split('/')[-1]).split('_')[0] for f in spec_path]))
+    stations = list(np.unique([i[0] for i in indicators]))
     nsubrows = len(stations)
     month_list = []
-    month_utcdate = start_month
-    while month_utcdate < end_month:
+    month_utcdate = starttime
+    while month_utcdate < endtime:
         month_list.append(month_utcdate.strftime('%b \'%y'))
         month_utcdate += 31 * 86400
         month_utcdate = UTCDateTime(month_utcdate.year, month_utcdate.month, 1)
@@ -1571,45 +1812,8 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
     nclasses = saved_model.layers[-1].get_config()['units']
     na_label = nclasses
 
-    # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
-
     # Define fixed params
     TICK_DAYS = [0, 7, 14, 28]
-
-    # Create data generator for input spec paths
-    if len(spec_paths) > 2048:
-        from functools import reduce
-        factors = np.array(reduce(list.__add__,
-                                  ([i, len(spec_paths) // i] for i in
-                                   range(1, int(len(spec_paths) ** 0.5) + 1) if
-                                   len(spec_paths) % i == 0)))
-        batch_size = np.max(factors[factors <= 2048])
-    else:
-        batch_size = len(spec_paths)
-
-    params = {
-        "dim": (saved_model.input_shape[1], saved_model.input_shape[2]),
-        "batch_size": batch_size,
-        "n_classes": nclasses,
-        "shuffle": False,
-    }
-    spec_placeholder_labels = [0 for i in spec_paths]
-    spec_label_dict = dict(zip(spec_paths, spec_placeholder_labels))
-    spec_gen = DataGenerator(spec_paths, spec_label_dict, **params, is_training=False,
-                             running_x_mean=running_x_mean, running_x_var=running_x_var)
-
-    # Make predictions
-    spec_predictions = saved_model.predict(spec_gen)
-    predicted_labels = np.argmax(spec_predictions, axis=1)
-    indicators = []
-    for i, filepath in enumerate(spec_gen.list_ids):
-        filename = filepath.split('/')[-1]
-        chunks = filename.split('_')
-        indicators.append([chunks[0], UTCDateTime(chunks[1]) + int(np.round(saved_model.input_shape[2] / 2)),
-                           predicted_labels[i], spec_predictions[i, :]])
 
     # Craft unlabeled matrix and store probabilities
     matrix_length = int(31 * (86400 / time_step))
@@ -1631,8 +1835,8 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
         labeled_end_index = int((labels_kwargs['end_date'] - UTCDateTime(labels_kwargs['end_date'].year,
                                                                          labels_kwargs['end_date'].month,
                                                                          1)) / time_step)
-        labeled_start_row = int(np.floor((labels_kwargs['start_date'] - start_month) / (31 * 86400)))
-        labeled_end_row = int(np.floor((labels_kwargs['end_date'] - start_month) / (31 * 86400)))
+        labeled_start_row = int(np.floor((labels_kwargs['start_date'] - starttime) / (31 * 86400)))
+        labeled_end_row = int(np.floor((labels_kwargs['end_date'] - starttime) / (31 * 86400)))
         labeled_matrix_plot = np.ones((matrix_height, matrix_length)) * na_label
         labeled_spec_paths = glob.glob(labels_kwargs['labels_dir'] + '*.npy')
         labeled_indicators = []
@@ -1810,6 +2014,7 @@ def plot_timeline(start_month,end_month,time_step,type,model_path,meanvar_path,n
         plt.savefig(export_path[:-4] + '_condensed' + export_path[-4:], bbox_inches='tight', transparent=transparent)
     else:
         fig.show()
+    print('Done!')
 
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
