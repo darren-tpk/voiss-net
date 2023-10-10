@@ -1602,7 +1602,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                     print('Data pull failed, trying again in 10 seconds...')
                     time.sleep(10)
                     load_currenttime = time.time()
-                    if load_currenttime-load_starttime < 60:
+                    if load_currenttime-load_starttime < 180:
                         pass
                     else:
                         raise Exception('Data pull timeout for t1=%s, t2=%s' % (str(t1),str(t2)))
