@@ -1688,10 +1688,15 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
 
             # If there are spectrogram slices
             if len(spec_stack) != 0:
+
                 # Remove spectrograms with data gap
                 keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
                 spec_stack = spec_stack[keep_index]
                 spec_ids = spec_ids[keep_index]
+
+                # If no spectrograms pass the gap check, continue to next time step
+                if len(spec_ids) == 0:
+                    continue
 
                 # Standardize and min-max scale
                 spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)

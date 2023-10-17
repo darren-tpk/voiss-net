@@ -93,6 +93,9 @@ for labeled_image in labeled_images:
             print('gather_waveforms failed to retrieve response')
             pass
 
+    # Calculate expected height of spectrogram
+    expected_height = freq_lims
+
     # Loop over stations that have data
     stream_stations = [tr.stats.station for tr in stream]
     for i, stream_station in enumerate(stream_stations):
