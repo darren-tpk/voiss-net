@@ -1786,8 +1786,9 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                 pickle.dump(indicators, f)
 
 
-def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, plot_title, export_path=None,
-                  transparent=False, plot_labels=False, labels_kwargs=None):
+def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, plot_title,
+                  export_path=None, transparent=False, fig_width=None,
+                  plot_stations=None, plot_labels=False, labels_kwargs=None):
     """
     Plot timeline figure showing station-specific and probability-sum voting by monthly rows
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`):
@@ -1799,6 +1800,8 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     :param plot_title (str): plot title to use
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
     :param transparent (bool): if `True`, export figures with transparent background
+    :param fig_width (float): Figure width [in]
+    :param plot_stations (str): comma-delimited string of stations to include in plot, in that order
     :param plot_labels (bool): if `True`, plot manual timeframe with manual labels. Requires `labels_kwargs`.
     :param labels_kwargs (dict): dictionary with the keys `start_date` (UTCDateTime), `end_date` (UTCDateTime) and `labels_dir` (str)
     :return: None
@@ -1810,9 +1813,18 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     with open(indicators_path, 'rb') as f:  # Unpickling
         indicators = pickle.load(f)
 
-    # Determine number of stations and number of months
-    stations = list(np.unique([i[0] for i in indicators]))
+    # Determine number of stations and filter indicator list if needed
+    if plot_stations:
+        stations = plot_stations.split(',')
+        indicators = [indicator for indicator in indicators if indicator[0] in stations]
+    else:
+        stations = list(np.unique([i[0] for i in indicators]))
     nsubrows = len(stations)
+
+    # Filter indicator list by time
+    indicators = [indicator for indicator in indicators if (starttime<=indicator[1]<=endtime)]
+
+    # Determine number of months
     month_list = []
     month_utcdate = UTCDateTime(starttime.year,starttime.month,1)
     while month_utcdate <= endtime:
@@ -1931,7 +1943,8 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                 'aspect': 30}
 
     # Craft timeline figure
-    fig, ax = plt.subplots(figsize=(20, nmonths * nsubrows / 3))
+    fig_width = fig_width if fig_width else 20
+    fig, ax = plt.subplots(figsize=(fig_width, nmonths * nsubrows / 3))
     sns.heatmap(matrix_plot, cmap=cmap, cbar=True, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses)
     if plot_labels:
         sns.heatmap(labeled_matrix_plot, cmap=labeled_cmap, cbar=False)
