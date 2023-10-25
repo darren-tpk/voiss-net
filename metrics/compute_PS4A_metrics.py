@@ -6,8 +6,8 @@ import numpy as np
 # Define variables
 time_step = 4 * 60  # s
 starttime = UTCDateTime(2021, 1, 1, 0, 0, 0)
-endtime = UTCDateTime(2023, 1, 1, 0, 0, 0)
-tag = '_20210101_20230101'
+endtime = UTCDateTime(2023, 3, 1, 0, 0, 0)
+tag = '_' + starttime.strftime('%Y%m%d') + '_' + endtime.strftime('%Y%m%d')
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -26,7 +26,7 @@ def correct_dimensions(var, used_stations, desired_dim=(5,119)):
     return base_matrix
 
 spec_db_all = []
-utc_times_all = []
+utc_times_all = [starttime-4.992]
 
 # Calculate number of time steps for loop
 calculation_step = 4*60*60

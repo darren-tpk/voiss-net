@@ -6,8 +6,8 @@ import numpy as np
 # Define variables
 time_step = 4 * 60  # s
 starttime = UTCDateTime(2021, 1, 1, 0, 0, 0)
-endtime = UTCDateTime(2023, 1, 1, 0, 0, 0)
-tag = '_20210101_20230101'
+endtime = UTCDateTime(2023, 3, 1, 0, 0, 0)
+tag = '_' + starttime.strftime('%Y%m%d') + '_' + endtime.strftime('%Y%m%d')
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
