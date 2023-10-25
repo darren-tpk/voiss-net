@@ -45,7 +45,7 @@ train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_augmented_infra'
+model_type = '4min_all_augmented_infra_new'
 model_name = repo_dir + '/models/' + model_type + '_model.h5'
 meanvar_name = repo_dir + '/models/' + model_type + '_meanvar.npy'
 curve_name = repo_dir + '/figures/' + model_type + '_curve.png'
@@ -122,7 +122,7 @@ model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics
 # Print out model summary
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
 mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
 emv = ExtractMeanVar()
 # Fit model
@@ -134,19 +134,19 @@ np.save(meanvar_name, [train_gen.running_x_mean,train_gen.running_x_var])
 # Plot loss and accuracy curves
 plt.ion()
 fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-axs[0].plot(history.history["accuracy"], label="training")
-axs[0].plot(history.history["val_accuracy"], label="validation")
-axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k',linestyle='--',alpha=0.5,label='early stop')
-axs[0].set_ylabel("accuracy")
-axs[0].set_xlabel("epoch")
+axs[0].plot(history.history["accuracy"], label="Training")
+axs[0].plot(history.history["val_accuracy"], label="Validation")
+axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k',linestyle='--',alpha=0.5,label='Early Stop')
+axs[0].set_ylabel("Accuracy")
+axs[0].set_xlabel("Epoch")
 axs[1].plot(history.history["loss"], label="training")
 axs[1].plot(history.history["val_loss"], label="validation")
 axs[1].axvline(len(history.history["val_loss"])-es.patience-1,color='k',linestyle='--',alpha=0.5)
-axs[1].set_ylabel("loss")
-axs[1].set_xlabel("epoch")
+axs[1].set_ylabel("Validation Loss")
+axs[1].set_xlabel("Epoch")
 axs[0].legend()
 fig.suptitle(model_type, fontweight='bold')
-fig.savefig(curve_name)
+fig.savefig(curve_name, bbox_inches='tight')
 fig.show()
 
 # Create data generator for test data
@@ -175,10 +175,14 @@ print(metrics_chunk)
 # Confusion matrix
 confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
 cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
-plt.figure()
-cm_display.plot()
-plt.title(model_type + '\nacc:%.3f, pre:%.3f, rec:%.3f, f1:%.3f' % (acc,pre,rec,f1),fontweight='bold')
-plt.savefig(confusion_name)
+fig, ax = plt.subplots(figsize=(7.5,7.5))
+cm_display.plot(ax=ax)
+ax.set_xticklabels(['Infrasonic\nTremor','Explosion','Wind\nNoise','Electronic\nNoise'])
+ax.set_yticklabels(['Infrasonic\nTremor','Explosion','Wind\nNoise','Electronic\nNoise'])
+ax.set_xlabel('Predicted Label')
+ax.set_ylabel('True Label')
+plt.title(model_type + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc,pre,rec,f1),fontweight='bold')
+plt.savefig(confusion_name, bbox_inches='tight')
 plt.show()
 
 # # Now conduct post-mortem
