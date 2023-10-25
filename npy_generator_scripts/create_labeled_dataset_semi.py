@@ -188,3 +188,5 @@ for labeled_image in labeled_images:
             file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
                         sb2.strftime('%Y%m%d%H%M') + '_' + str(label_dict[final_label]) + '.npy'
             np.save(output_dir + file_name, spec_slice)
+
+print('Done!')

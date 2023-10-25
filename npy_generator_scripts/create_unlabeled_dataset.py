@@ -107,3 +107,5 @@ for i in range(num_days):
                         sb2.strftime('%Y%m%d%H%M') + '.npy'
             if file_name not in current_files:
                 np.save(output_dir + file_name, spec_slice)
+
+print('Done!')
