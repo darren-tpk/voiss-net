@@ -3,16 +3,10 @@
   <component name="ChangeListManager">
     <list default="true" id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/tremor_ml.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/tremor_ml.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/debugger.py" beforeDir="false" afterPath="$PROJECT_DIR$/debugger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/environment.yml" beforeDir="false" afterPath="$PROJECT_DIR$/environment.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/timeline_checker_semi.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker_semi.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/timeline_checker_shishaldin.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker_shishaldin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn_augment.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn_augment_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment_infra.py" afterDir="false" />
     </list>
@@ -163,7 +157,7 @@
       <workItem from="1697662096156" duration="3904000" />
       <workItem from="1697670985492" duration="7099000" />
       <workItem from="1697758298936" duration="1126000" />
-      <workItem from="1698089288454" duration="30998000" />
+      <workItem from="1698089288454" duration="31425000" />
     </task>
     <servers />
   </component>
