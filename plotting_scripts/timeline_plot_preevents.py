@@ -5,8 +5,8 @@ from toolbox import plot_timeline
 # Define variables for timeline plotting function
 type = 'seismic'
 time_step = 240
-model_path = './models/4min_all_augmented_drop_model.h5'
-meanvar_path = './models/4min_all_augmented_drop_meanvar.npy'
+model_path = './models/4min_all_augmented_new_model.h5'
+meanvar_path = './models/4min_all_augmented_new_meanvar.npy'
 
 # Plot timeline for Cleveland
 start_month = UTCDateTime(2014,7,25)
@@ -22,7 +22,7 @@ start_month = UTCDateTime(2014,7,1)
 end_month = UTCDateTime(2015,12,20)
 npy_dir = '/Users/darrentpk/Desktop/all_npys/shishaldin_npy1/'
 plot_title = 'Timeline for Shishaldin Seismic Tremor (%s to %s)' % (start_month.strftime('%Y-%m-%d'),end_month.strftime('%Y-%m-%d'))
-export_path = '/Users/darrentpk/Desktop/Github/tremor_ml/figures/shishaldin2014.png'
+export_path = '/Users/darrentpk/Desktop/Github/tremor_ml/figures/shishaldin2014_new.png'
 plot_timeline(start_month, end_month, time_step, type, model_path, meanvar_path, npy_dir, plot_title,
               export_path=export_path, transparent=False)
 
@@ -40,7 +40,7 @@ start_month = UTCDateTime(2008,4,12)
 end_month = UTCDateTime(2008,11,27)
 npy_dir = '/Users/darrentpk/Desktop/all_npys/okmok_npy/'
 plot_title = 'Timeline for Okmok Seismic Tremor (%s to %s)' % (start_month.strftime('%Y-%m-%d'),end_month.strftime('%Y-%m-%d'))
-export_path = '/Users/darrentpk/Desktop/Github/tremor_ml/figures/okmok2008.png'
+export_path = '/Users/darrentpk/Desktop/Github/tremor_ml/figures/okmok2008_new.png'
 plot_timeline(start_month, end_month, time_step, type, model_path, meanvar_path, npy_dir, plot_title,
               export_path=export_path, transparent=False)
 

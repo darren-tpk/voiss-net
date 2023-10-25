@@ -4,21 +4,21 @@ import matplotlib.pyplot as plt
 from obspy import UTCDateTime
 
 # Load seismic indicator (explosion is 4)
-seismic_indicator = np.load('./classifications/seismic_indicators_unlabeled.npy', allow_pickle=True)
+seismic_indicator = np.load('./classifications/seismic_indicators_unlabeled2.npy', allow_pickle=True)
 seismic_df = pd.DataFrame(seismic_indicator, columns=['station','time','class'])
 seismic_df = seismic_df[seismic_df['class']==4]
 seismic_times = np.array(seismic_df['time'])
 
 # Load infrasound indicator (explosion is 1)
-infra_indicator = np.load('./classifications/infrasound_indicators_unlabeled.npy', allow_pickle=True)
+infra_indicator = np.load('./classifications/infrasound_indicators_unlabeled2.npy', allow_pickle=True)
 infra_df = pd.DataFrame(infra_indicator, columns=['station','time','class'])
 infra_df = infra_df[infra_df['class']==1]
 infra_times = np.array(infra_df['time'][infra_df['class']==1])
 
-# # All explosion times
-# all_times = np.concatenate((seismic_times, infra_times))
-# unique_times = np.sort(np.unique(all_times))
-#
+# All explosion times
+all_times = np.concatenate((seismic_times, infra_times))
+unique_times = np.sort(np.unique(all_times))
+
 # seismic_lists = []
 # seismic_counts = []
 # infra_lists = []
@@ -47,7 +47,7 @@ infra_times = np.array(infra_df['time'][infra_df['class']==1])
 # exp_df.to_csv('./explosion_df.csv')
 
 # Load explosion dataframe
-exp_df = pd.read_csv('./explosion_df.csv', usecols=range(1,7))
+exp_df = pd.read_csv('./explosion_df2.csv', usecols=range(1,7))
 
 # Load rtm times
 rtm_df = pd.read_csv('./pavlof_rtm.csv')
@@ -91,7 +91,7 @@ xmax = (UTCDateTime(2023,1,1)-base_time) / 86400
 # fig.show()
 
 # Look at high confidence explosion times?
-best_exp_df = exp_df[(exp_df['seismic_count']>=3) & (exp_df['infrasound_count']>=3)]
+best_exp_df = exp_df[(exp_df['seismic_count']>=3) & (exp_df['infrasound_count']>=2)]
 best_exp_times = np.array([UTCDateTime(t) for t in best_exp_df['time'].tolist()])
 best_exp_days = (best_exp_times-base_time)/86400
 
@@ -162,4 +162,45 @@ axs[1].set_yticklabels(station_list)
 axs[1].invert_yaxis()
 axs[1].set_ylabel('Infrasound Stations')
 axs[1].set_xlabel('Index of unique explosion time returns')
+fig.show()
+
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from obspy import UTCDateTime
+# Load explosion dataframe
+base_time = UTCDateTime(2021,1,1)
+month_utcdatetimes = []
+for i in range(1,13):
+    month_utcdatetime = UTCDateTime(2021,i,1)
+    month_utcdatetimes.append(month_utcdatetime)
+for i in range(1,13):
+    month_utcdatetime = UTCDateTime(2022,i,1)
+    month_utcdatetimes.append(month_utcdatetime)
+month_utcdatetimes.append(UTCDateTime(2023,1,1))
+xticks_horiz = [(t - base_time)/86400 for t in month_utcdatetimes]
+xticklabels_horiz = [t.strftime('%b \'%y') for t in month_utcdatetimes]
+exp_df = pd.read_csv('./explosion_df.csv', usecols=range(1,7))
+best_exp_df = exp_df[(exp_df['seismic_count']>=3) & (exp_df['infrasound_count']>=2)]
+best_exp_times = [UTCDateTime(t) for t in best_exp_df['time'].tolist()]
+best_exp_days_since = [(t-base_time)/86400 for t in best_exp_times]
+rtm_df = pd.read_csv('./pavlof_rtm.csv')
+rtm_dates = rtm_df['Date'].tolist()
+rtm_dists = rtm_df['Distance (M)'].tolist()
+rtm_amps = rtm_df['Stack Amplitude'].tolist()
+rtm_times = [UTCDateTime(rtm_dates[j]) for j in range(len(rtm_dates)) if ((rtm_dists[j] < 600) and rtm_amps[j]>0.9)]
+rtm_days_since = [(t-base_time)/86400 for t in rtm_times]
+# Plot explosion times
+fig, ax = plt.subplots(figsize=(10,1))
+ax.text(0,0.95,'ML ($\geq$3 seismic, $\geq$2 infra)',fontsize=18,color='black',horizontalalignment='left',verticalalignment='top')
+ax.text(-0.05,0,'RTM',fontsize=18,color='red',horizontalalignment='left',verticalalignment='bottom')
+ax.vlines(x=best_exp_days_since, ymin=0.5, ymax=1, colors='black', ls='-', lw=0.5)
+ax.vlines(x=rtm_days_since, ymin=0, ymax=0.5, colors='red', ls='-', lw=0.5)
+ax.set_ylim([0,1])
+ax.set_yticklabels([])
+ax.set_ylabel('Explosions',fontsize=22, rotation=0, labelpad=60, verticalalignment='center')
+ax.set_xlim([xticks_horiz[0], xticks_horiz[-1]])
+ax.set_xticks(xticks_horiz)
+ax.set_xticklabels(xticklabels_horiz, fontsize=20, rotation=30)
 fig.show()

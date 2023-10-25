@@ -141,27 +141,103 @@ fig.suptitle('Histogram density plots for all metrics')
 fig.show()
 
 #### To create dataframe (retain to use for infrasound)
+# Load both labeled and unlabeled seismic spectrogram classifications
+timeline_classified = np.load('./classifications/pavlof_seismic_unlabeled_classifications.npy')
+timeline_labeled = np.load('./classifications/pavlof_seismic_labeled_classifications.npy')
+timeline_classified2 = np.load('./classifications/pavlof_seismic_unlabeled_classifications2.npy')
+timeline_labeled2 = np.load('./classifications/pavlof_seismic_labeled_classifications2.npy')
+timeline_classified2 = timeline_classified2[:,np.shape(timeline_classified)[1]:]
+timeline_labeled2 = timeline_labeled2[:,np.shape(timeline_labeled)[1]:]
+
+# Map to actual classes using reverse dictionary
+label_dict = {'Broadband Tremor': 0,
+              'Harmonic Tremor': 1,
+              'Monochromatic Tremor': 2,
+              'Non-tremor Signal': 3,
+              'Explosion': 4,
+              'Noise': 5,
+              'N/A': 6}
+index_dict = {v: k for k, v in label_dict.items()}
+timeline_classified = [index_dict[int(i)] for i in timeline_classified[0]]
+timeline_labeled = [index_dict[int(i)] for i in timeline_labeled[0]]
+
+# Load in corresponding seismic metrics
+metrics_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml/metrics/PS1A_BHZ_metrics/'
+tag = '_20210101_20230101'
+tmpl = np.load(metrics_dir + 'tmpl_all' + tag + '.npy')
+dr = np.load(metrics_dir + 'dr_all' + tag + '.npy')
+pe = np.load(metrics_dir + 'pe_all' + tag + '.npy')
+fc = np.load(metrics_dir + 'fc_all' + tag + '.npy')
+fd = np.load(metrics_dir + 'fd_all' + tag + '.npy')
+fsd = np.load(metrics_dir + 'fsd_all' + tag + '.npy')
+spec_db = np.load(metrics_dir + 'spec_db_all' + tag + '.npy')
+
+# Convert matplotlib times to match with timeline_classified more easily
+tutc = []
+for t in tmpl[0]:
+    if np.isnan(t):
+        tutc.append(UTCDateTime(1970,1,1))
+    else:
+        tutc.append(UTCDateTime(1970,1,1) + t*86400)
+tutc = np.array(tutc)
+
+# Create corresponding time vector for timeline_classified
+tutc_classified = np.arange(UTCDateTime(2021,1,1,0,2),UTCDateTime(2023,1,1),240)
+tutc_classified = list(tutc_classified)
+dr_retained = []
+pe_retained = []
+fc_retained = []
+fd_retained = []
+fsd_retained = []
+
+test_tutc = list(tutc - .008)
+
+for i, t in enumerate(tutc_classified):
+    print(i)
+    try:
+        ind = test_tutc.index(t)
+        dr_retained.append(np.nanmedian(dr[:,ind]))
+        pe_retained.append(np.nanmedian(pe[:,ind]))
+        fc_retained.append(np.nanmedian(fc[:,ind]))
+        fd_retained.append(np.nanmedian(fd[:,ind]))
+        fsd_retained.append(np.nanmedian(fsd[:,ind]))
+    except:
+        dr_retained.append(np.nan)
+        pe_retained.append(np.nan)
+        fc_retained.append(np.nan)
+        fd_retained.append(np.nan)
+        fsd_retained.append(np.nan)
+
+# Create dataframe
+list_of_tuples = list(zip(tutc_classified,timeline_classified,dr_retained,pe_retained,fc_retained,fd_retained,fsd_retained))
+df = pd.DataFrame(list_of_tuples, columns = ['time', 'class', 'dr', 'pe', 'fc', 'fd', 'fsd'])
+
+
+
+
+
+#################
+
+# #### To create dataframe (retain to use for infrasound)
 # # Load both labeled and unlabeled seismic spectrogram classifications
-# timeline_classified = np.load('./classifications/pavlof_seismic_unlabeled_classifications.npy')
-# timeline_labeled = np.load('./classifications/pavlof_seismic_labeled_classifications.npy')
+# timeline_classified = np.load('./classifications/pavlof_infra_unlabeled_classifications.npy')
+# timeline_labeled = np.load('./classifications/pavlof_infra_labeled_classifications.npy')
 #
 # # Map to actual classes using reverse dictionary
-# label_dict = {'Broadband Tremor': 0,
-#               'Harmonic Tremor': 1,
-#               'Monochromatic Tremor': 2,
-#               'Non-tremor Signal': 3,
-#               'Explosion': 4,
-#               'Noise': 5,
-#               'N/A': 6}
+# label_dict = {'Infrasonic Tremor': 0,
+#               'Explosion': 1,
+#               'Wind Noise': 2,
+#               'Electronic Noise': 3,
+#               'N/A': 4}
 # index_dict = {v: k for k, v in label_dict.items()}
 # timeline_classified = [index_dict[int(i)] for i in timeline_classified[0]]
 # timeline_labeled = [index_dict[int(i)] for i in timeline_labeled[0]]
 #
 # # Load in corresponding seismic metrics
-# metrics_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml/metrics/PS1A_BHZ_metrics/'
-# tag = '_20210101_20230101'
+# metrics_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml/metrics/PS4A_BDF_metrics/'
+# tag = '_20230101_20230301'
 # tmpl = np.load(metrics_dir + 'tmpl_all' + tag + '.npy')
-# dr = np.load(metrics_dir + 'dr_all' + tag + '.npy')
+# rmsp = np.load(metrics_dir + 'rmsp_all' + tag + '.npy')
 # pe = np.load(metrics_dir + 'pe_all' + tag + '.npy')
 # fc = np.load(metrics_dir + 'fc_all' + tag + '.npy')
 # fd = np.load(metrics_dir + 'fd_all' + tag + '.npy')
@@ -178,9 +254,9 @@ fig.show()
 # tutc = np.array(tutc)
 #
 # # Create corresponding time vector for timeline_classified
-# tutc_classified = np.arange(UTCDateTime(2021,1,1,0,2),UTCDateTime(2023,1,1),240)
+# tutc_classified = np.arange(UTCDateTime(2023,1,1,0,2),UTCDateTime(2023,3,1),240)
 # tutc_classified = list(tutc_classified)
-# dr_retained = []
+# rmsp_retained = []
 # pe_retained = []
 # fc_retained = []
 # fd_retained = []
@@ -192,19 +268,19 @@ fig.show()
 #     print(i)
 #     try:
 #         ind = test_tutc.index(t)
-#         dr_retained.append(np.nanmedian(dr[:,ind]))
+#         rmsp_retained.append(np.nanmedian(dr[:,ind]))
 #         pe_retained.append(np.nanmedian(pe[:,ind]))
 #         fc_retained.append(np.nanmedian(fc[:,ind]))
 #         fd_retained.append(np.nanmedian(fd[:,ind]))
 #         fsd_retained.append(np.nanmedian(fsd[:,ind]))
 #     except:
-#         dr_retained.append(np.nan)
+#         rmsp_retained.append(np.nan)
 #         pe_retained.append(np.nan)
 #         fc_retained.append(np.nan)
 #         fd_retained.append(np.nan)
 #         fsd_retained.append(np.nan)
 #
 # # Create dataframe
-# list_of_tuples = list(zip(tutc_classified,timeline_classified,dr_retained,pe_retained,fc_retained,fd_retained,fsd_retained))
-# df = pd.DataFrame(list_of_tuples, columns = ['time', 'class', 'dr', 'pe', 'fc', 'fd', 'fsd'])
-#
+# list_of_tuples = list(zip(tutc_classified,timeline_classified,rmsp_retained,pe_retained,fc_retained,fd_retained,fsd_retained))
+# df = pd.DataFrame(list_of_tuples, columns = ['time', 'class', 'rmsp', 'pe', 'fc', 'fd', 'fsd'])
+# df1 = pd.read_csv('./data_frames/seismic_df.csv', usecols=range(1,8))

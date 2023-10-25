@@ -16,7 +16,7 @@ random_sample = False  # If True, randomly pick one file from each class from np
 visualize_standardized = False
 gradcam_cmap = 'alpha'  # any matplotlib colormap, or 'alpha'
 npy_dir = '/Users/darrentpk/Desktop/all_npys/'
-git_dir = '/Users/dfee/repos/tremor_ml/'
+git_dir = '/Users/darrentpk/Desktop/Github/tremor_ml/'
 
 sys.path.insert(0, git_dir)
 
@@ -132,8 +132,8 @@ test_params = {
 }
 
 # Load model
-saved_model = load_model(git_dir + 'models/4min_all_subsampled2_model.h5')
-saved_meanvar = np.load(git_dir + 'models/4min_all_subsampled2_meanvar.npy')
+saved_model = load_model(git_dir + 'models/4min_all_augmented_new_model.h5')
+saved_meanvar = np.load(git_dir + 'models/4min_all_augmented_new_meanvar.npy')
 running_x_mean = saved_meanvar[0]
 running_x_var = saved_meanvar[1]
 

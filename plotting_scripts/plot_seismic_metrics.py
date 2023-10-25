@@ -9,7 +9,7 @@ import colorcet as cc
 metrics_dir = '/Users/darrentpk/Desktop/GitHub/tremor_ml/metrics/PS1A_BHZ_metrics/'
 
 # Read
-tag = '_20210101_20230101'
+tag = '_20210101_20230301'
 tmpl = np.load(metrics_dir + 'tmpl_all' + tag + '.npy')
 dr = np.load(metrics_dir + 'dr_all' + tag + '.npy')
 # dr = dr * (EXPONENTIAL Q FACTOR -- see Haney et al. on Bogoslof exp(πf(D−10)/cQ)),
@@ -21,11 +21,12 @@ spec_db = np.load(metrics_dir + 'spec_db_all' + tag + '.npy')
 
 # Define spectrogram params
 starttime = UTCDateTime(2021,1,1)
-endtime = UTCDateTime(2023,1,1)
+endtime = UTCDateTime(2023,3,1)
 freq_lims = (0.5,10)
 cmap = cc.cm.rainbow
 time_tick_list = [UTCDateTime(2021,i,1) for i in range(1,13)] + \
                  [UTCDateTime(2022,i,1) for i in range(1,13)]
+time_tick_list.append(UTCDateTime(2023,2,1))
 time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
 time_tick_labels = [time.strftime('%m/%y') for time in time_tick_list]
 
@@ -65,7 +66,8 @@ tick_numbers = [(t-starttime)/86400 for t in time_tick_list+[endtime]]
 g2y_number = (UTCDateTime(2021,7,9)-starttime)/86400
 y2o_number = (UTCDateTime(2021,8,5)-starttime)/86400
 o2y_number = (UTCDateTime(2022,12,17)-starttime)/86400
-y2e_number = (endtime-starttime)/86400
+y2g_number = (UTCDateTime(2023,1,19)-starttime)/86400
+g2e_number = (endtime-starttime)/86400
 
 # Plot spectrogram and time series of metrics
 figsize = (32, 17)
@@ -82,15 +84,16 @@ for ax in axs2[:-1]:
 ax0.axvspan(0, g2y_number, color='green')
 ax0.axvspan(g2y_number, y2o_number, color='yellow')
 ax0.axvspan(y2o_number, o2y_number, color='orange')
-ax0.axvspan(o2y_number, y2e_number, color='yellow')
-ax0.set_xlim([0,y2e_number])
+ax0.axvspan(o2y_number, y2g_number, color='yellow')
+ax0.axvspan(y2g_number, g2e_number, color='green')
+ax0.set_xlim([0,g2e_number])
 ax0.set_xticks(tick_numbers)
 ax0.set_xticklabels([])
 ax0.set_yticks([])
 ax0.set_ylabel('AVO', fontsize=27, rotation=0, labelpad=45, verticalalignment='center')
 c = ax1.imshow(spec_db, extent=[starttime.matplotlib_date, endtime.matplotlib_date, freq_lims[0], freq_lims[-1]],
                vmin=np.nanpercentile(spec_db, 20), vmax=np.nanpercentile(spec_db, 97.5), origin='lower', aspect='auto',
-               interpolation=None, cmap=cmap)
+               interpolation='None', cmap=cmap)
 ax1.set_ylim([freq_lims[0], freq_lims[1]])
 ax1.tick_params(axis='y', labelsize=18)
 ax1.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
