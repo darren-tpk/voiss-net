@@ -98,7 +98,7 @@ for i in range(num_days):
                         raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 50:
+            if np.sum(spec_slice.flatten() < -220) > (0.2 * time_step):
                 print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 

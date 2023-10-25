@@ -725,7 +725,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         # If there are spectrogram slices
         if len(spec_stack) != 0:
             # Remove spectrograms with data gap
-            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < (0.2 * time_step))
             spec_stack = spec_stack[keep_index]
             spec_ids = spec_ids[keep_index]
 
@@ -1199,7 +1199,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         # If there are spectrogram slices
         if len(spec_stack) != 0:
             # Remove spectrograms with data gap
-            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+            keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < (0.2 * interval))
             spec_stack = spec_stack[keep_index]
             spec_ids = spec_ids[keep_index]
 
@@ -1690,7 +1690,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
             if len(spec_stack) != 0:
 
                 # Remove spectrograms with data gap
-                keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < 50)
+                keep_index = np.where(np.sum(spec_stack<spec_thresh, axis=(1,2)) < (0.2 * interval))
                 spec_stack = spec_stack[keep_index]
                 spec_ids = spec_ids[keep_index]
 

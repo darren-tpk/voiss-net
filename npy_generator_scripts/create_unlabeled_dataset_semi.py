@@ -7,11 +7,11 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-starttime = UTCDateTime(2021, 1, 1, 0, 0, 0)  # start time for data pull and spectrogram plot
-endtime = UTCDateTime(2023, 3, 1, 0, 0, 0)  # end time for data pull and spectrogram plot
+starttime = UTCDateTime(2021, 7, 30, 8)  # start time for data pull and spectrogram plot
+endtime = starttime+2*86400  # end time for data pull and spectrogram plot
 interval = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
 time_step = 60  # Take steps of 1 minute
-output_dir = '/jlyons/?'
+output_dir = '/Users/darrentpk/Desktop/all_npys/semi_test/'
 source = 'IRIS'
 network = 'AV'
 station = 'CERB,CESW,CEPE,CERA,CETU,CEAP'
@@ -96,7 +96,7 @@ for i in range(num_days):
                         raise ValueError('Spectrogram slicing produced an erroneous shape.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 50:
+            if np.sum(spec_slice.flatten() < -220) > (0.2 * time_step):
                 print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
