@@ -11,7 +11,7 @@ from toolbox import process_waveform, calculate_spectrogram
 # Define filepaths and variables for functions
 json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/labels_20230215.json'
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min/'
+output_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min/'
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -93,9 +93,6 @@ for labeled_image in labeled_images:
             print('gather_waveforms failed to retrieve response')
             pass
 
-    # Calculate expected height of spectrogram
-    expected_height = freq_lims
-
     # Loop over stations that have data
     stream_stations = [tr.stats.station for tr in stream]
     for i, stream_station in enumerate(stream_stations):
@@ -135,7 +132,7 @@ for labeled_image in labeled_images:
                         raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 50:
+            if np.sum(spec_slice.flatten() < -220) > (0.2 * time_step):
                 print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
@@ -146,17 +143,22 @@ for labeled_image in labeled_images:
             label_indices = np.ones(len(time_slice)) * -1
             for time_bound_station in time_bounds_station:
 
+                # Labeled time bound starts in slice and ends in slice
+                if time_bound_station[1] >= sb1 and time_bound_station[2] <= sb2:
+                    valid_indices = np.flatnonzero(np.logical_and(time_slice >= time_bound_station[1], time_slice <= time_bound_station[2]))
+                    label_indices[valid_indices] = label_dict[time_bound_station[3]]
+
+                # Labeled time bound starts before slice and ends after slice
+                elif time_bound_station[1] < sb1 and time_bound_station[2] > sb2:
+                    label_indices[:] = label_dict[time_bound_station[3]]
+
                 # Labeled time bound starts before slice and ends in slice
-                if sb1 < time_bound_station[2] <= sb2:
-                    label_indices[np.flatnonzero(time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
+                elif time_bound_station[1] < sb1 and (sb1 <= time_bound_station[2] <= sb2):
+                    label_indices[np.flatnonzero(time_slice <= time_bound_station[2])] = label_dict[time_bound_station[3]]
 
                 # Labeled time bound starts in slice and ends after slice
-                elif sb1 <= time_bound_station[1] < sb2:
-                    label_indices[np.flatnonzero(time_slice > time_bound_station[1])] = label_dict[time_bound_station[3]]
-
-                # Labeled time bound starts in slice and ends in slice
-                elif sb1 >= time_bound_station[1] and time_bound_station[2] >= sb2:
-                    label_indices[np.flatnonzero(time_bound_station[1] < time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
+                elif (sb1 <= time_bound_station[1] <= sb2) and time_bound_station[2] > sb2:
+                    label_indices[np.flatnonzero(time_slice >= time_bound_station[1])] = label_dict[time_bound_station[3]]
 
             # Count how many time samples correspond to each label
             labels_seen, label_counts = np.unique(label_indices, return_counts=True)

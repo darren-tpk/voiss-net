@@ -9,26 +9,20 @@ from waveform_collection import gather_waveforms
 from toolbox import process_waveform, calculate_spectrogram
 
 # Define filepaths and variables for functions
-json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/labels_semi_20210701_20210731.json'
+json_filepath = '/Users/darrentpk/Desktop/GitHub/tremor_ml/labels/Semi_tremor_labels_20210701_20210831.json'
 time_step = 4 * 60  # Create a training dataset with 2D matrices spanning 4 minutes each
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_4min_semi/'
+output_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_semi/'
 source = 'IRIS'
 network = 'AV'
 station = 'CERB,CESW,CEPE,CERA,CETU,CEAP'
 location = ''
 channel = '*HE'
 pad = 240  # padding length [s]
-local = False  # pull data from local
-data_dir = None  # local data directory if pulling data from local
 client = 'IRIS'  # FDSN client for data pull
 filter_band = None  # frequency band for bandpass filter
 window_duration = 10  # spectrogram window duration [s]
 freq_lims = (0.5, 20)  # frequency limits for output spectrogram. If `None`, the limits will be adaptive
-log = False  # logarithmic scale in spectrogram
 demean = False  # remove the temporal mean of the plotted time span from the spectrogram matrix
-v_percent_lims = (20,97.5)  # colorbar limits
-export_spec = True  # export spectrogram with no axis labels
-verbose = True
 
 # Create label dictionary
 label_dict = {'Broadband Tremor': 0,
@@ -140,7 +134,7 @@ for labeled_image in labeled_images:
                         raise ValueError('THE SHAPE IS NOT RIGHT.')
 
             # Skip matrices that have a spectrogram data gap
-            if np.sum(spec_slice.flatten() < -220) > 50:
+            if np.sum(spec_slice.flatten() < -220) > (0.2 * time_step):
                 print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < -220))
                 continue
 
@@ -151,17 +145,22 @@ for labeled_image in labeled_images:
             label_indices = np.ones(len(time_slice)) * -1
             for time_bound_station in time_bounds_station:
 
+                # Labeled time bound starts in slice and ends in slice
+                if time_bound_station[1] >= sb1 and time_bound_station[2] <= sb2:
+                    valid_indices = np.flatnonzero(np.logical_and(time_slice >= time_bound_station[1], time_slice <= time_bound_station[2]))
+                    label_indices[valid_indices] = label_dict[time_bound_station[3]]
+
+                # Labeled time bound starts before slice and ends after slice
+                elif time_bound_station[1] < sb1 and time_bound_station[2] > sb2:
+                    label_indices[:] = label_dict[time_bound_station[3]]
+
                 # Labeled time bound starts before slice and ends in slice
-                if sb1 < time_bound_station[2] <= sb2:
-                    label_indices[np.flatnonzero(time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
+                elif time_bound_station[1] < sb1 and (sb1 <= time_bound_station[2] <= sb2):
+                    label_indices[np.flatnonzero(time_slice <= time_bound_station[2])] = label_dict[time_bound_station[3]]
 
                 # Labeled time bound starts in slice and ends after slice
-                elif sb1 <= time_bound_station[1] < sb2:
-                    label_indices[np.flatnonzero(time_slice > time_bound_station[1])] = label_dict[time_bound_station[3]]
-
-                # Labeled time bound starts in slice and ends in slice
-                elif sb1 >= time_bound_station[1] and time_bound_station[2] >= sb2:
-                    label_indices[np.flatnonzero(time_bound_station[1] < time_slice < time_bound_station[2])] = label_dict[time_bound_station[3]]
+                elif (sb1 <= time_bound_station[1] <= sb2) and time_bound_station[2] > sb2:
+                    label_indices[np.flatnonzero(time_slice >= time_bound_station[1])] = label_dict[time_bound_station[3]]
 
             # Count how many time samples correspond to each label
             labels_seen, label_counts = np.unique(label_indices, return_counts=True)
