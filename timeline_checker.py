@@ -9,12 +9,10 @@ station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 seis_channel = '*HZ'
 infra_channel = 'BDF'
-starttime = UTCDateTime(2021, 9, 14, 16)
-endtime = starttime + 3*3600
-seis_model_path = './models/4min_all_augmented_drop_model.h5'
-seis_meanvar_path = './models/4min_all_augmented_drop_meanvar.npy'
-infra_model_path = './models/4min_all_augmented_infra_model.h5'
-infra_meanvar_path = './models/4min_all_augmented_infra_meanvar.npy'
+seis_model_path = './models/4min_all_augmented_new_model.h5'
+seis_meanvar_path = './models/4min_all_augmented_new_meanvar.npy'
+infra_model_path = './models/4min_all_augmented_infra_new_model.h5'
+infra_meanvar_path = './models/4min_all_augmented_infra_new_meanvar.npy'
 npy_dir = None
 generate_fig = True
 fig_width = 34.5
@@ -25,6 +23,8 @@ export_path = None
 transparent = None
 
 # # Check timeline for seismic
+starttime = UTCDateTime(2021, 9, 12, 20)
+endtime = starttime + 8*3600
 class_mat, prob_mat = check_timeline2(source, network, station, seis_channel, location, starttime, endtime,
                                       seis_model_path, seis_meanvar_path, npy_dir=npy_dir, generate_fig=generate_fig,
                                       fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
