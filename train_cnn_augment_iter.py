@@ -166,7 +166,7 @@ for seed in range(1,51):
     set_universal_seed(seed)
 
     # Augmentation params
-    omit_index = [3]  # do not include electronic noise in count determination
+    omit_index = [0,3]  # do not include electronic noise in count determination
     noise_index = 2  # use noise samples to augment
     testval_ratio = 0.2  # use 20% of sparse-est class count to pull test and validation sets
     noise_ratio = 0.35  # weight of noise sample added for augmentation
