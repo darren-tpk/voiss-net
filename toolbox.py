@@ -2424,8 +2424,8 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
     if plot_example:
         import matplotlib.pyplot as plt
         import colorcet as cc
-        indices = np.random.choice(range(len(aug_list)), nclasses)
-        fig, ax = plt.subplots(nclasses, 3, figsize=(.42, nclasses*2))
+        indices = np.random.choice(range(len(aug_list)), 5)
+        fig, ax = plt.subplots(5, 3, figsize=(4.2, 10))
         for i, n in enumerate(indices):
             augment_image = np.load(aug_list[n])
             noise_image = np.load(noise_list[n])
