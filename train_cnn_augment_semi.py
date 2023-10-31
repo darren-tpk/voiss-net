@@ -32,7 +32,7 @@ npy_dir = '/Users/darrentpk/Desktop/all_npys/labeled_npy_4min_semi/'
 repo_dir = '/Users/darrentpk/Desktop/Github/tremor_ml/'
 
 # Augmentation params
-omit_index = [0,3,4]  # do not include broadband tremor and non-tremor signal in count determination
+omit_index = [0,4]  # do not include broadband tremor and non-tremor signal in count determination
 noise_index = 6  # use noise samples to augment
 testval_ratio = 0.2  # use 20% of sparse-est class count to pull test and validation sets
 noise_ratio = 0.35  # weight of noise sample added for augmentation
@@ -45,11 +45,11 @@ train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_augmented_semi'
-model_name = repo_dir + '/models/' + model_type + '_model.h5'
-meanvar_name = repo_dir + '/models/' + model_type + '_meanvar.npy'
-curve_name = repo_dir + '/figures/' + model_type + '_curve.png'
-confusion_name = repo_dir + '/figures/' + model_type + '_confusion.png'
+MODEL_TYPE = '4min_all_augmented_semi_revised'
+model_name = repo_dir + '/models/' + MODEL_TYPE + '_model.h5'
+meanvar_name = repo_dir + '/models/' + MODEL_TYPE + '_meanvar.npy'
+curve_name = repo_dir + '/figures/' + MODEL_TYPE + '_curve.png'
+confusion_name = repo_dir + '/figures/' + MODEL_TYPE + '_confusion.png'
 
 # Read in example file to determine spectrogram shape
 eg_spec = np.load(train_paths[0])
@@ -122,7 +122,7 @@ model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics
 # Print out model summary
 model.summary()
 # Implement early stopping, checkpointing, and transference of mean and variance
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=20)
 mc = ModelCheckpoint(model_name, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
 emv = ExtractMeanVar()
 # Fit model
@@ -132,22 +132,22 @@ history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=
 np.save(meanvar_name, [train_gen.running_x_mean,train_gen.running_x_var])
 
 # Plot loss and accuracy curves
-plt.ion()
-fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-axs[0].plot(history.history["accuracy"], label="training")
-axs[0].plot(history.history["val_accuracy"], label="validation")
-axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k',linestyle='--',alpha=0.5,label='early stop')
-axs[0].set_ylabel("accuracy")
-axs[0].set_xlabel("epoch")
-axs[1].plot(history.history["loss"], label="training")
-axs[1].plot(history.history["val_loss"], label="validation")
-axs[1].axvline(len(history.history["val_loss"])-es.patience-1,color='k',linestyle='--',alpha=0.5)
-axs[1].set_ylabel("loss")
-axs[1].set_xlabel("epoch")
+fig_curves, axs = plt.subplots(1, 2, figsize=(8, 5))
+axs[0].plot(history.history["accuracy"], label="Training", lw=1)
+axs[0].plot(history.history["val_accuracy"], label="Validation", lw=1)
+axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k', linestyle='--',alpha=0.5,label='Early Stop')
+axs[0].set_ylim([0,1])
+axs[0].set_ylabel("Accuracy")
+axs[0].set_xlabel("Epoch")
+axs[1].plot(history.history["loss"], label="Training", lw=1)
+axs[1].plot(history.history["val_loss"], label="Validation", lw=1)
+axs[1].axvline(len(history.history["val_loss"])-es.patience-1,color='k', linestyle='--',alpha=0.5,label='Early Stop')
+axs[1].set_ylabel("Loss")
+axs[1].set_xlabel("Epoch")
 axs[0].legend()
-fig.suptitle(model_type, fontweight='bold')
-fig.savefig(curve_name)
-fig.show()
+fig_curves.suptitle(MODEL_TYPE, fontweight='bold')
+fig_curves.savefig(curve_name, bbox_inches='tight')
+fig_curves.show()
 
 # Create data generator for test data
 test_params = {
@@ -173,13 +173,16 @@ print(metrics_chunk)
 #     outfile.write(metrics_chunk + '\n')
 
 # Confusion matrix
-confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
-cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
-plt.figure()
-cm_display.plot()
-plt.title(model_type + '\nacc:%.3f, pre:%.3f, rec:%.3f, f1:%.3f' % (acc,pre,rec,f1),fontweight='bold')
-plt.savefig(confusion_name)
-plt.show()
+import colorcet as cc
+class_labels = ['Broadband\nTremor','Harmonic\nTremor','Monochromatic\nTremor','Non-tremor\nSignal','Long\nPeriod','Explosion','Noise']
+confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
+cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_labels)
+cm_display.plot(xticks_rotation=30,cmap=cc.cm.blues, values_format='.2f', im_kw=dict(vmin=0, vmax=1))
+fig_cm=plt.gcf()
+fig_cm.set_size_inches(8, 6.25)
+plt.title(MODEL_TYPE + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc,pre,rec,f1),fontweight='bold')
+fig_cm.savefig(confusion_name, bbox_inches='tight')
+fig_cm.show()
 
 # # Now conduct post-mortem
 # path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
