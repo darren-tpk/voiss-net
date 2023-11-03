@@ -123,8 +123,8 @@ test_params = {
 }
 
 # Load model
-saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_augmented_infra_new_model.h5')
-saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_augmented_infra_new_meanvar.npy')
+saved_model = load_model('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_augmented_infra_revised_model.h5')
+saved_meanvar = np.load('/Users/darrentpk/Desktop/GitHub/tremor_ml/models/4min_all_augmented_infra_revised_meanvar.npy')
 running_x_mean = saved_meanvar[0]
 running_x_var = saved_meanvar[1]
 

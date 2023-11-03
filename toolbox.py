@@ -1467,7 +1467,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     if (endtime - starttime) >= (6 * 86400):
         denominator = (endtime - starttime) / 86400
         fmt = '%m/%d %H:%M'
-    elif (2 * 86400) < (endtime - starttime) < (6 * 86400):
+    elif (2 * 86400) <= (endtime - starttime) < (6 * 86400):
         denominator = 2 * (endtime - starttime) / 86400
         fmt = '%m/%d %H:%M'
     elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
@@ -2424,8 +2424,8 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
     if plot_example:
         import matplotlib.pyplot as plt
         import colorcet as cc
-        indices = np.random.choice(range(len(aug_list)), nclasses)
-        fig, ax = plt.subplots(nclasses, 3, figsize=(.42, nclasses*2))
+        indices = np.random.choice(range(len(aug_list)), 5)
+        fig, ax = plt.subplots(5, 3, figsize=(4.2, 10))
         for i, n in enumerate(indices):
             augment_image = np.load(aug_list[n])
             noise_image = np.load(noise_list[n])

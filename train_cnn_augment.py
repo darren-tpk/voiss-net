@@ -45,11 +45,11 @@ train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
 unique_classes = np.unique(train_classes)
 
 # Define model name
-model_type = '4min_all_augmented_new'
-model_name = repo_dir + 'models/' + model_type + '_model.h5'
-meanvar_name = repo_dir + 'models/' + model_type + '_meanvar.npy'
-curve_name = repo_dir + 'figures/' + model_type + '_curve.png'
-confusion_name = repo_dir + 'figures/' + model_type + '_confusion.png'
+MODEL_TYPE = '4min_all_augmented_revised'
+model_name = repo_dir + 'models/' + MODEL_TYPE + '_model.h5'
+meanvar_name = repo_dir + 'models/' + MODEL_TYPE + '_meanvar.npy'
+curve_name = repo_dir + 'figures/' + MODEL_TYPE + '_curve.png'
+confusion_name = repo_dir + 'figures/' + MODEL_TYPE + '_confusion.png'
 
 # Read in example file to determine spectrogram shape
 eg_spec = np.load(train_paths[0])
@@ -132,22 +132,22 @@ history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=
 np.save(meanvar_name, [train_gen.running_x_mean,train_gen.running_x_var])
 
 # Plot loss and accuracy curves
-plt.ion()
-fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-axs[0].plot(history.history["accuracy"], label="Training")
-axs[0].plot(history.history["val_accuracy"], label="Validation")
-axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k',linestyle='--',alpha=0.5,label='Early Stop')
+fig_curves, axs = plt.subplots(1, 2, figsize=(8, 5))
+axs[0].plot(history.history["accuracy"], label="Training", lw=1)
+axs[0].plot(history.history["val_accuracy"], label="Validation", lw=1)
+axs[0].axvline(len(history.history["val_accuracy"])-es.patience-1,color='k', linestyle='--',alpha=0.5,label='Early Stop')
+axs[0].set_ylim([0,1])
 axs[0].set_ylabel("Accuracy")
 axs[0].set_xlabel("Epoch")
-axs[1].plot(history.history["loss"], label="training")
-axs[1].plot(history.history["val_loss"], label="validation")
-axs[1].axvline(len(history.history["val_loss"])-es.patience-1,color='k',linestyle='--',alpha=0.5)
-axs[1].set_ylabel("Validation Loss")
+axs[1].plot(history.history["loss"], label="Training", lw=1)
+axs[1].plot(history.history["val_loss"], label="Validation", lw=1)
+axs[1].axvline(len(history.history["val_loss"])-es.patience-1,color='k', linestyle='--',alpha=0.5,label='Early Stop')
+axs[1].set_ylabel("Loss")
 axs[1].set_xlabel("Epoch")
 axs[0].legend()
-fig.suptitle(model_type, fontweight='bold')
-fig.savefig(curve_name, bbox_inches='tight')
-fig.show()
+fig_curves.suptitle(MODEL_TYPE, fontweight='bold')
+fig_curves.savefig(curve_name, bbox_inches='tight')
+fig_curves.show()
 
 # Create data generator for test data
 test_params = {
@@ -173,17 +173,16 @@ print(metrics_chunk)
 #     outfile.write(metrics_chunk + '\n')
 
 # Confusion matrix
-confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs)
-cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix)
-fig, ax = plt.subplots(figsize=(7.5,7.5))
-cm_display.plot(ax=ax)
-ax.set_xticklabels(['Broadband\nTremor','Harmonic\nTremor','Mono\nTremor','Non-Tremor\nSignal','Explosion','Noise'])
-ax.set_yticklabels(['Broadband\nTremor','Harmonic\nTremor','Mono\nTremor','Non-Tremor\nSignal','Explosion','Noise'])
-ax.set_xlabel('Predicted Label')
-ax.set_ylabel('True Label')
-plt.title(model_type + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc,pre,rec,f1),fontweight='bold')
-plt.savefig(confusion_name, bbox_inches='tight')
-plt.show()
+import colorcet as cc
+class_labels = ['Broadband\nTremor','Harmonic\nTremor','Monochromatic\nTremor','Non-tremor\nSignal','Explosion','Noise']
+confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
+cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_labels)
+cm_display.plot(xticks_rotation=30,cmap=cc.cm.blues, values_format='.2f', im_kw=dict(vmin=0, vmax=1))
+fig_cm=plt.gcf()
+fig_cm.set_size_inches(8, 6.25)
+plt.title(MODEL_TYPE + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc,pre,rec,f1),fontweight='bold')
+fig_cm.savefig(confusion_name, bbox_inches='tight')
+fig_cm.show()
 
 # # Now conduct post-mortem
 # path_pred_true = np.transpose([test_paths, pred_labs, true_labs])
@@ -200,23 +199,24 @@ plt.show()
 #     for true_label in variety:
 #         N = 9
 #         corresponding_filenames = [p[0] for p in path_pred_true if p[1]==predicted_label and p[2]==true_label]
-#         corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
-#         import colorcet as cc
-#         fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
-#         fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
-#         for i in range(int(np.sqrt(N))):
-#             for j in range(int(np.sqrt(N))):
-#                 filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
-#                 if filename_index > (len(corresponding_filenames_chosen) - 1):
-#                     axs[i, j].set_xticks([])
-#                     axs[i, j].set_yticks([])
-#                     continue
-#                 else:
-#                     spec_db = np.load(corresponding_filenames_chosen[filename_index])
-#                     if np.sum(spec_db < -250) > 0:
-#                         print(i, j)
-#                     axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
-#                                      origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
-#                     axs[i, j].set_xticks([])
-#                     axs[i, j].set_yticks([])
-#         fig.show()
+#         if len(corresponding_filenames) >= N:
+#             corresponding_filenames_chosen = random.sample(corresponding_filenames, N)
+#             import colorcet as cc
+#             fig, axs = plt.subplots(nrows=int(np.sqrt(N)), ncols=int(np.sqrt(N)), figsize=(7, 10))
+#             fig.suptitle('%s predicted as %s (total = %d)' % (label_dict[int(true_label)], label_dict[int(predicted_label)], len(corresponding_filenames)))
+#             for i in range(int(np.sqrt(N))):
+#                 for j in range(int(np.sqrt(N))):
+#                     filename_index = i * int(np.sqrt(N)) + (j + 1) - 1
+#                     if filename_index > (len(corresponding_filenames_chosen) - 1):
+#                         axs[i, j].set_xticks([])
+#                         axs[i, j].set_yticks([])
+#                         continue
+#                     else:
+#                         spec_db = np.load(corresponding_filenames_chosen[filename_index])
+#                         if np.sum(spec_db < -250) > 0:
+#                             print(i, j)
+#                         axs[i, j].imshow(spec_db, vmin=np.percentile(spec_db, 20), vmax=np.percentile(spec_db, 97.5),
+#                                          origin='lower', aspect='auto', interpolation=None, cmap=cc.cm.rainbow)
+#                         axs[i, j].set_xticks([])
+#                         axs[i, j].set_yticks([])
+#             fig.show()
