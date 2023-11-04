@@ -673,7 +673,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             spec_db, utc_times = calculate_spectrogram(trace, starttime, endtime, window_duration=window_duration, freq_lims=freq_lims)
 
             # Define array of time steps for spectrogram slicing
-            step_bounds = np.arange(starttime, endtime + time_step, time_step)
+            step_bounds = np.arange(starttime, endtime + 1, time_step)
 
             # Attempt shortcut if dimensions are fit well
             if np.shape(spec_db)[1] % time_step == 0:
@@ -681,8 +681,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     spec_slices = [spec_db[:, t:(t + time_step)] for t in
                                    range(0, spec_db.shape[-1], time_step)]
                     spec_tags = [stream_station + '_' + \
-                                 step_bound.strftime('%Y%m%d%H%M') + '_' + \
-                                 (step_bound+ time_step).strftime('%Y%m%d%H%M') \
+                                 step_bound.strftime('%Y%m%d%H%M%S') + '_' + \
+                                 (step_bound+ time_step).strftime('%Y%m%d%H%M%S') \
                                  for step_bound in step_bounds[:-1]]
                     spec_stack += spec_slices
                     spec_ids += spec_tags
@@ -716,7 +716,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
-                spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
+                spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M%S') + '_' + sb2.strftime('%Y%m%d%H%M%S'))
 
         # Convert spectrogram slices to an array
         spec_stack = np.array(spec_stack)
@@ -1033,7 +1033,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         print('Done!')
     return class_mat, prob_mat
 
-def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
+def check_timeline2(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,npy_dir=None,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -1046,6 +1046,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .h5 file
     :param meanvar_path (str): path to model's meanvar .npy file
+    :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param npy_dir (str): Path to directory of numpy files
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
@@ -1071,7 +1072,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     # Define fixed values
     spec_height = saved_model.input.shape.as_list()[1]
     interval = saved_model.input.shape.as_list()[2]
-    time_step = int(np.round(interval / 4))
+    time_step = int(np.round(interval*overlap))
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
     pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
     window_duration = spec_kwargs['window_duration'] if 'window_duration' in\
@@ -1146,14 +1147,14 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                                     endtime - int(np.round(interval / 2)) +
                                     time_step, time_step)
 
-            # Attempt shortcut if dimensions are fit well
+            # Attempt shortcut if dimensions fit well
             if np.shape(spec_db)[1] % time_step == 0:
                 try:
                     spec_slices = [spec_db[:, t:(t + interval)] for t in
-                                   range(0, spec_db.shape[-1] - interval + time_step, time_step)]
+                                   range(0, spec_db.shape[-1] - interval + 1, time_step)]
                     spec_tags = [stream_station + '_' + \
-                                 (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M') + '_' + \
-                                 (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M') \
+                                 (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M%S') + '_' + \
+                                 (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M%S') \
                                  for step_bound in step_bounds]
                     spec_stack += spec_slices
                     spec_ids += spec_tags
@@ -1190,7 +1191,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
 
                 # Stack spectrogram slices to be used as model input
                 spec_stack.append(spec_slice)
-                spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
+                spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M%S') + '_' + sb2.strftime('%Y%m%d%H%M%S'))
 
         # Convert spectrogram slices to an array
         spec_stack = np.array(spec_stack)
@@ -1286,8 +1287,9 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     matrix_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
     voted_labels = np.argmax(matrix_probs_sum, axis=1)
     voted_labels[matrix_contributing_station_count==0] = na_label
-    voted_labels[:2] = na_label  # pad voting row
-    voted_labels[-2:] = na_label  # pad voting row
+    voted_padding_length = int(interval/2/time_step)
+    voted_labels[:voted_padding_length] = na_label  # pad voting row
+    voted_labels[-voted_padding_length:] = na_label  # pad voting row
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
@@ -1519,7 +1521,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
         print('Done!')
     return class_mat, prob_mat
 
-def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,npy_dir=None,spec_kwargs=None,export_path=None):
+def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,npy_dir=None,spec_kwargs=None,export_path=None):
 
     """
     Pulls data or leverage npy directory to generate list of timeline indicators
@@ -1532,6 +1534,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .h5 file
     :param meanvar_path (str): path to model's meanvar .npy file
+    :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param npy_dir (str): Path to directory of numpy files
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
@@ -1559,7 +1562,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     if not npy_dir:
 
         # Define fixed values
-        time_step = int(np.round(interval / 4))
+        time_step = int(np.round(interval*overlap))
         spec_kwargs = {} if spec_kwargs is None else spec_kwargs
         pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
         window_duration = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
@@ -1636,14 +1639,14 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                                         t2 - int(np.round(interval / 2)) +
                                         time_step, time_step)
 
-                # Attempt shortcut if dimensions are fit well
+                # Attempt shortcut if dimensions fit well
                 if np.shape(spec_db)[1] % time_step == 0:
                     try:
                         spec_slices = [spec_db[:, t:(t + interval)] for t in
-                                       range(0, spec_db.shape[-1] - interval + time_step, time_step)]
+                                       range(0, spec_db.shape[-1] - interval + 1, time_step)]
                         spec_tags = [stream_station + '_' + \
-                                     (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M') + '_' + \
-                                     (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M') \
+                                     (step_bound - int(np.round(interval / 2))).strftime('%Y%m%d%H%M%S') + '_' + \
+                                     (step_bound + int(np.round(interval / 2))).strftime('%Y%m%d%H%M%S') \
                                      for step_bound in step_bounds]
                         spec_stack += spec_slices
                         spec_ids += spec_tags
@@ -1680,7 +1683,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
 
                     # Stack spectrogram slices to be used as model input
                     spec_stack.append(spec_slice)
-                    spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + sb2.strftime('%Y%m%d%H%M'))
+                    spec_ids.append(stream_station + '_' + sb1.strftime('%Y%m%d%H%M%S') + '_' + sb2.strftime('%Y%m%d%H%M%S'))
 
             # Convert spectrogram slices to an array
             spec_stack = np.array(spec_stack)
