@@ -18,6 +18,8 @@ from matplotlib.colors import ListedColormap
 from DataGenerator import DataGenerator
 from keras.models import load_model
 from waveform_collection import gather_waveforms
+from matplotlib import rcParams
+
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
 
     """
@@ -1059,6 +1061,8 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
     :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
 
+    rcParams['font.size'] = font_s
+
     # Load model
     saved_model = load_model(model_path)
     nclasses = saved_model.layers[-1].get_config()['units']
@@ -1367,7 +1371,7 @@ def check_timeline2(source,network,station,channel,location,starttime,endtime,mo
                 'aspect': 40}
 
     # Initialize figure and craft axes
-    figsize = (fig_width, 4 * len(stream) + 8)
+    figsize = (fig_width, fig_width*.75)
     fig = plt.figure(figsize=figsize)
     height_ratios = np.ones(len(stream) + 2)
     height_ratios[1] = 0.5
