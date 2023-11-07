@@ -1,6 +1,6 @@
 # Import dependencies
 from obspy import UTCDateTime
-from toolbox import check_timeline, check_timeline2
+from toolbox import check_timeline
 
 # Define variables for timeline checker function
 source = 'IRIS'
@@ -13,8 +13,7 @@ seis_model_path = './models/4min_all_augmented_revised_model.h5'
 seis_meanvar_path = './models/4min_all_augmented_revised_meanvar.npy'
 infra_model_path = './models/4min_all_augmented_infra_revised_model.h5'
 infra_meanvar_path = './models/4min_all_augmented_infra_revised_meanvar.npy'
-overlap = 0.25  # 1 min overlap for 4 min interval
-npy_dir = None
+overlap = 0.75  # 1 min overlap for 4 min interval
 generate_fig = True
 fig_width = 34.5
 class_cbar = True
@@ -26,15 +25,15 @@ transparent = None
 # # Check timeline for seismic
 starttime = UTCDateTime(2021, 9, 14, 16)
 endtime = starttime + 3*3600
-class_mat, prob_mat = check_timeline2(source, network, station, seis_channel, location, starttime, endtime,
-                                      seis_model_path, seis_meanvar_path, overlap, npy_dir=npy_dir,
-                                      generate_fig=generate_fig, fig_width=fig_width, spec_kwargs=spec_kwargs,
-                                      class_cbar=class_cbar, export_path=export_path, transparent=transparent)
+class_mat, prob_mat = check_timeline(source, network, station, seis_channel, location, starttime, endtime,
+                                     seis_model_path, seis_meanvar_path, overlap, generate_fig=generate_fig,
+                                     fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
+                                     export_path=export_path, transparent=transparent)
 
 # Check timeline for infrasound
 starttime = UTCDateTime(2021, 8, 6, 10)
 endtime = starttime + 3*3600
-class_mat, prob_mat = check_timeline2(source, network, station, infra_channel, location, starttime, endtime,
-                                      infra_model_path, infra_meanvar_path, overlap, npy_dir=npy_dir,
-                                      generate_fig=generate_fig, fig_width=fig_width, spec_kwargs=spec_kwargs,
-                                      class_cbar=class_cbar, export_path=export_path, transparent=transparent)
+class_mat, prob_mat = check_timeline(source, network, station, infra_channel, location, starttime, endtime,
+                                     infra_model_path, infra_meanvar_path, overlap, generate_fig=generate_fig,
+                                     fig_width=fig_width, spec_kwargs=spec_kwargs, class_cbar=class_cbar,
+                                     export_path=export_path, transparent=transparent)
