@@ -1088,7 +1088,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                            range(0, spec_db.shape[-1] - interval + 1, time_step)]
             spec_tags = [stream_station + '_' + step_bound.strftime('%Y%m%d%H%M%S') + '_' + \
                          (step_bound + interval).strftime('%Y%m%d%H%M%S') \
-                         for step_bound in np.arange(starttime, endtime - interval + 1, time_step)]
+                         for step_bound in np.arange(t1, t2 - interval + 1, time_step)]
             spec_stack += spec_slices
             spec_ids += spec_tags
 
@@ -1337,15 +1337,18 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     if plot_labels:
         labeled_matrix_condensed = np.ones((nmonths, matrix_length)) * na_label
     for i in range(nmonths):
-        for j in range(matrix_length):
-            # Sum probabilities to find best class and store pnorm
-            sub_probs = matrix_probs[nsubrows * i:nsubrows * i + nsubrows, j, :]
-            sub_probs_sum = np.sum(sub_probs, axis=0)
-            sub_probs_contributing_station_count = np.sum(np.sum(sub_probs, axis=1) != 0)
-            matrix_condensed[i, j] = np.argmax(sub_probs_sum) if sub_probs_contributing_station_count != 0 else na_label
-            matrix_pnorm[i, j] = np.max(sub_probs_sum) / sub_probs_contributing_station_count
-            # Use majority voting to condense manual labels
-            if plot_labels:
+
+        # Sum probabilities to find best class and store pnorm
+        sub_probs = matrix_probs[nsubrows * i:nsubrows * i + nsubrows, :, :]
+        sub_probs_sum = np.sum(sub_probs, axis=0)
+        sub_probs_contributing_station_count = np.sum(np.sum(sub_probs, axis=2) != 0, axis=0)
+        matrix_condensed[i, :] = np.argmax(sub_probs_sum, axis=1)
+        matrix_condensed[i, :][sub_probs_contributing_station_count == 0] = na_label
+        matrix_pnorm[i, :] = np.max(sub_probs_sum, axis=1) / sub_probs_contributing_station_count
+
+        # Use majority voting to condense manual labels
+        if plot_labels:
+            for j in range(matrix_length):
                 sub_col = labeled_matrix_plot[nsubrows * i:nsubrows * i + nsubrows, j]
                 labels_seen, label_counts = np.unique(sub_col, return_counts=True)
                 if len(labels_seen) == 1 and na_label in labels_seen:
