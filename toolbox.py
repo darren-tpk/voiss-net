@@ -1145,8 +1145,8 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                   plot_stations=None, plot_labels=False, labels_kwargs=None):
     """
     Plot timeline figure showing station-specific and probability-sum voting by monthly rows
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`):
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`):
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
     :param time_step (float): time step used to divide plot into columns
     :param type (str): defined as either 'seismic' or 'infrasound' to determine color palette
     :param model_path (str): path to model .h5 file
@@ -1401,6 +1401,56 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     else:
         fig.show()
     print('Done!')
+
+def indicators_to_voted_dataframe(starttime, endtime, time_step, indicators_path, class_order=None, export_path=None):
+    """
+    Convert indicators pickle file to dataframe of voted classes and pnorm
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for dataframe
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for dataframe
+    :param time_step (float): time step used for dataframe
+    :param indicators_path (str): path to pkl file that stores timeline indicators
+    :param class_order (list): list of class names in order of class index
+    :param export_path (str): filepath to export dataframe
+    :return: Pandas dataframe of time, voted class and pnorm
+    """
+
+    # Read indicators pickle file
+    with open(indicators_path, 'rb') as f:  # Unpickling
+        indicators = pickle.load(f)
+
+    # Derive matrix dimensions and initialize
+    matrix_length = int((endtime - starttime) / time_step + 1)
+    stations = list(np.sort(list(set([i[0] for i in indicators]))))
+    matrix_height = len(stations)
+    nclasses = len(indicators[0][-1])
+    matrix_probs = np.zeros((matrix_height, matrix_length, nclasses))
+
+    # Fill in matrix
+    for indicator in indicators:
+        row_index = stations.index(indicator[0])
+        col_index = int((indicator[1] - starttime) / 60)
+        matrix_probs[row_index, col_index, :] = indicator[3]
+
+    # Sum probabilities to find best class and store pnorm
+    probs_sum = np.sum(matrix_probs, axis=0)
+    probs_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
+    matrix_condensed = np.argmax(probs_sum, axis=1)
+    matrix_condensed[probs_contributing_station_count == 0] = nclasses
+    matrix_pnorm = np.max(probs_sum, axis=1) / probs_contributing_station_count
+
+    # Convert to dataframe
+    time_vec = [str(t) for t in np.arange(starttime, endtime + 60, 60)]
+    if class_order:
+        class_vec = [class_order[i] for i in matrix_condensed]
+        df = pd.DataFrame(list(zip(time_vec, class_vec, list(matrix_pnorm))), columns=['time', 'class', 'pnorm'])
+    else:
+        df = pd.DataFrame(list(zip(time_vec, list(matrix_condensed), list(matrix_pnorm))), columns=['time', 'class', 'pnorm'])
+
+    # Export if desired
+    if export_path == None:
+        return df
+    else:
+        df.to_csv(export_path, index=False)
 
 def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, filter_band=None, window_length=240, overlap=0, vlatlon=(55.4173, -161.8937)):
 
