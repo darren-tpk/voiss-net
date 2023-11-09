@@ -1032,8 +1032,11 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     for n in range(int(num4h)):
 
         # Determine start and end time of current step
-        t1 = starttime + n*14400 - 2*60
-        t2 = starttime + (n+1)*14400 + 2*60
+        t1 = starttime + n * 14400 - 2 * 60
+        if n == (num4h-1):
+            t2 = starttime + (n + 1) * 14400 + 2 * 60
+        else:
+            t2 = starttime + (n + 1) * 14400 + 2 * 60 - time_step
         print('Now at %s, time elapsed: %.2f hours' %
               ((t1+2*60).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
 
