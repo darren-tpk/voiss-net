@@ -822,26 +822,26 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Initialize figure and craft axes
     figsize = (fig_width, fig_width*.75)
     fig = plt.figure(figsize=figsize)
-    height_ratios = np.ones(len(stream) + 2)
+    height_ratios = np.ones(len(station.split(',')) + 2)
     height_ratios[1] = 0.5
     if class_cbar:
-        gs_top = plt.GridSpec(len(stream) + 2, 2, top=0.89,
+        gs_top = plt.GridSpec(len(station.split(',')) + 2, 2, top=0.89,
                               height_ratios=height_ratios, width_ratios=[35, 1],
                               wspace=0.05)
-        gs_base = plt.GridSpec(len(stream) + 2, 2, hspace=0,
+        gs_base = plt.GridSpec(len(station.split(',')) + 2, 2, hspace=0,
                                height_ratios=height_ratios, width_ratios=[35, 1],
                                wspace=0.05)
         cbar_ax = fig.add_subplot(gs_top[:, 1])
     else:
-        gs_top = plt.GridSpec(len(stream) + 2, 1, top=0.89,
+        gs_top = plt.GridSpec(len(station.split(',')) + 2, 1, top=0.89,
                               height_ratios=height_ratios)
-        gs_base = plt.GridSpec(len(stream) + 2, 1, hspace=0,
+        gs_base = plt.GridSpec(len(station.split(',')) + 2, 1, hspace=0,
                                height_ratios=height_ratios)
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
     ax3 = fig.add_subplot(gs_base[2, 0])
     other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in
-                  range(3, len(stream) + 2)]
+                  range(3, len(station.split(',')) + 2)]
     axs = [ax3] + other_axes
     for ax in axs[:-1]:
         plt.setp(ax.get_xticklabels(), visible=False)
@@ -876,47 +876,58 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
     plt.setp(ax2.get_xticklabels(), visible=False)
 
-    # Loop over each trace in the stream and plot spectrograms on lower axes
-    for axs_index, trace in enumerate(stream):
-        # Extract trace information for FFT
-        sampling_rate = trace.stats.sampling_rate
-        samples_per_segment = int(window_duration * sampling_rate)
+    # Loop over input stations and plot spectrograms on lower axes
+    for axs_index, stn in enumerate(station.split(',')):
 
-        # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
-        sample_frequencies, segment_times, spec = spectrogram(trace.data,
-                                                              sampling_rate,
-                                                              window='hann',
-                                                              scaling='density',
-                                                              nperseg=samples_per_segment,
-                                                              noverlap=samples_per_segment * .9)
+        # If corresponding trace exists, plot spectrogram
+        if stn in stream_stations:
 
-        # Convert spectrogram matrix to decibels for plotting
-        spec_db = 10 * np.log10(abs(spec) / (reference_value ** 2))
+            # Extract trace information for FFT
+            trace = stream[stream_stations.index(stn)]
+            sampling_rate = trace.stats.sampling_rate
+            samples_per_segment = int(window_duration * sampling_rate)
 
-        # Convert trace times to matplotlib dates
-        trace_time_matplotlib = trace.stats.starttime.matplotlib_date +\
-            (segment_times / dates.SEC_PER_DAY)
+            # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
+            sample_frequencies, segment_times, spec = spectrogram(trace.data,
+                                                                  sampling_rate,
+                                                                  window='hann',
+                                                                  scaling='density',
+                                                                  nperseg=samples_per_segment,
+                                                                  noverlap=samples_per_segment * .9)
 
-        # Determine frequency limits and trim spec_db
-        spec_db_plot = spec_db[
-                       np.flatnonzero((sample_frequencies > freq_lims[0]) &\
-                                      (sample_frequencies < freq_lims[1])), :]
-        axs[axs_index].imshow(spec_db,
-                              extent=[trace_time_matplotlib[0],
-                                      trace_time_matplotlib[-1],
-                                      sample_frequencies[0],
-                                      sample_frequencies[-1]],
-                              vmin=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[0]),
-                              vmax=np.percentile(spec_db_plot[spec_db_plot>spec_thresh], v_percent_lims[1]),
-                              origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+            # Convert spectrogram matrix to decibels for plotting
+            spec_db = 10 * np.log10(abs(spec) / (reference_value ** 2))
 
-        # Tidy figure axes
+            # Convert trace times to matplotlib dates
+            trace_time_matplotlib = trace.stats.starttime.matplotlib_date + \
+                                    (segment_times / dates.SEC_PER_DAY)
+
+            # Determine frequency limits and trim spec_db
+            spec_db_plot = spec_db[
+                           np.flatnonzero((sample_frequencies > freq_lims[0]) & \
+                                          (sample_frequencies < freq_lims[1])), :]
+            axs[axs_index].imshow(spec_db,
+                                  extent=[trace_time_matplotlib[0],
+                                          trace_time_matplotlib[-1],
+                                          sample_frequencies[0],
+                                          sample_frequencies[-1]],
+                                  vmin=np.percentile(spec_db_plot[spec_db_plot > spec_thresh], v_percent_lims[0]),
+                                  vmax=np.percentile(spec_db_plot[spec_db_plot > spec_thresh], v_percent_lims[1]),
+                                  origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+
+            # Label y-axis with trace information
+            axs[axs_index].set_ylabel(stream[stream_stations.index(stn)].id, fontsize=font_s, fontweight='bold')
+
+        else:
+            # If corresponding trace does not exist, label station as 'No Data'
+            axs[axs_index].set_ylabel(stn + ' (No Data)', fontsize=font_s, fontweight='bold')
+
+        # Tidy up axes
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
-        axs[axs_index].set_yticks(range(2, freq_lims[1] + 1, int(freq_lims[1]/5)))
+        axs[axs_index].set_yticks(range(2, freq_lims[1] + 1, int(freq_lims[1] / 5)))
         axs[axs_index].set_xlim([starttime.matplotlib_date,
                                  endtime.matplotlib_date])
         axs[axs_index].tick_params(axis='y', labelsize=font_s)
-        axs[axs_index].set_ylabel(trace.id, fontsize=font_s, fontweight='bold')
 
     # Configure shared x-axis ticks and labels
     if (endtime - starttime) >= (6 * 86400):
