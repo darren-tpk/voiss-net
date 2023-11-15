@@ -34,14 +34,14 @@ class_mat, prob_mat = check_timeline(source, network, station, channel, location
                                      fig_width=fig_width, spec_kwargs=spec_kwargs, dr_kwargs=dr_kwargs,
                                      export_path=export_path, transparent=transparent)
 
-# # Check timeline for infrasound
-# channel = 'BDF'
-# starttime = UTCDateTime(2021, 8, 6, 10)
-# endtime = starttime + 3*3600
-# model_path = './models/4min_all_augmented_infra_revised_model.h5'
-# meanvar_path = './models/4min_all_augmented_infra_revised_meanvar.npy'
-# dr_kwargs = None
-# class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
-#                                      model_path, meanvar_path, overlap, generate_fig=generate_fig,
-#                                      fig_width=fig_width, spec_kwargs=spec_kwargs, dr_kwargs=dr_kwargs,
-#                                      export_path=export_path, transparent=transparent)
+# Check timeline for infrasound
+channel = 'BDF'
+starttime = UTCDateTime(2021, 8, 6, 10)
+endtime = starttime + 3*3600
+model_path = './models/4min_all_augmented_infra_revised_model.h5'
+meanvar_path = './models/4min_all_augmented_infra_revised_meanvar.npy'
+dr_kwargs = None
+class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
+                                     model_path, meanvar_path, overlap, generate_fig=generate_fig,
+                                     fig_width=fig_width, spec_kwargs=spec_kwargs, dr_kwargs=dr_kwargs,
+                                     export_path=export_path, transparent=transparent)
