@@ -570,7 +570,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,font_s=22,class_cbar=True,spec_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,font_s=22,spec_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -587,7 +587,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
     :param font_s (float): Font size [points]
-    :param class_cbar (bool): Plot colorbar
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
@@ -824,19 +823,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     fig = plt.figure(figsize=figsize)
     height_ratios = np.ones(len(station.split(',')) + 2)
     height_ratios[1] = 0.5
-    if class_cbar:
-        gs_top = plt.GridSpec(len(station.split(',')) + 2, 2, top=0.89,
-                              height_ratios=height_ratios, width_ratios=[35, 1],
-                              wspace=0.05)
-        gs_base = plt.GridSpec(len(station.split(',')) + 2, 2, hspace=0,
-                               height_ratios=height_ratios, width_ratios=[35, 1],
-                               wspace=0.05)
-        cbar_ax = fig.add_subplot(gs_top[:, 1])
-    else:
-        gs_top = plt.GridSpec(len(station.split(',')) + 2, 1, top=0.89,
-                              height_ratios=height_ratios)
-        gs_base = plt.GridSpec(len(station.split(',')) + 2, 1, hspace=0,
-                               height_ratios=height_ratios)
+    gs_top = plt.GridSpec(len(station.split(',')) + 2, 2, top=0.89,
+                          height_ratios=height_ratios, width_ratios=[35, 1],
+                          wspace=0.05)
+    gs_base = plt.GridSpec(len(station.split(',')) + 2, 2, hspace=0,
+                           height_ratios=height_ratios, width_ratios=[35, 1],
+                           wspace=0.05)
+    cbar_ax = fig.add_subplot(gs_top[:, 1])
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
     ax3 = fig.add_subplot(gs_base[2, 0])
@@ -960,15 +953,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[-1].set_xlabel('UTC Time', fontsize=font_s)
 
     # Plot colorbar
-    if class_cbar:
-        for i, rgb_ratio in enumerate(rgb_ratios):
-            cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
-        cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
-        cbar_ax.set_yticklabels(rgb_keys, fontsize=font_s)
-        cbar_ax.yaxis.tick_right()
-        cbar_ax.set_ylim([0, len(rgb_ratios)])
-        cbar_ax.invert_yaxis()
-        cbar_ax.set_xticks([])
+    for i, rgb_ratio in enumerate(rgb_ratios):
+        cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
+    cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
+    cbar_ax.set_yticklabels(rgb_keys, fontsize=font_s)
+    cbar_ax.yaxis.tick_right()
+    cbar_ax.set_ylim([0, len(rgb_ratios)])
+    cbar_ax.invert_yaxis()
+    cbar_ax.set_xticks([])
 
     # Show figure or export
     class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
