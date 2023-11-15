@@ -570,7 +570,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,font_s=22,spec_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -588,6 +588,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param fig_width (float): Figure width [in]
     :param font_s (float): Font size [points]
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
+    :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
@@ -635,11 +636,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     load_starttime = time.time()
     while not successfully_loaded:
         try:
-            stream = gather_waveforms(source=source, network=network, station=station,
+            stream_raw = gather_waveforms(source=source, network=network, station=station,
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
                                       verbose=False)
-            stream = process_waveform(stream, remove_response=True, detrend=False,
+            stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
             successfully_loaded = True
         except:
@@ -818,23 +819,28 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 'fraction': 0.15,
                 'aspect': 40}
 
+    # Define plotting parameters based on reduced displacement kwargs
+    header_panels = 3 if dr_kwargs is not None else 2
+    top_space = 0.905 if dr_kwargs is not None else 0.89
+
     # Initialize figure and craft axes
-    figsize = (fig_width, fig_width*.75)
+    figsize = (fig_width, fig_width * .75)
     fig = plt.figure(figsize=figsize)
-    height_ratios = np.ones(len(station.split(',')) + 2)
-    height_ratios[1] = 0.5
-    gs_top = plt.GridSpec(len(station.split(',')) + 2, 2, top=0.89,
+    height_ratios = np.ones(len(station.split(',')) + header_panels)
+    height_ratios[1:header_panels] = 0.5
+    gs_top = plt.GridSpec(len(station.split(',')) + header_panels, 2, top=top_space,
                           height_ratios=height_ratios, width_ratios=[35, 1],
                           wspace=0.05)
-    gs_base = plt.GridSpec(len(station.split(',')) + 2, 2, hspace=0,
+    gs_base = plt.GridSpec(len(station.split(',')) + header_panels, 2, hspace=0,
                            height_ratios=height_ratios, width_ratios=[35, 1],
                            wspace=0.05)
     cbar_ax = fig.add_subplot(gs_top[:, 1])
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
-    ax3 = fig.add_subplot(gs_base[2, 0])
+    ax2b = fig.add_subplot(gs_top[2, 0]) if dr_kwargs is not None else None
+    ax3 = fig.add_subplot(gs_base[header_panels, 0])
     other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in
-                  range(3, len(station.split(',')) + 2)]
+                  range(header_panels + 1, len(station.split(',')) + header_panels)]
     axs = [ax3] + other_axes
     for ax in axs[:-1]:
         plt.setp(ax.get_xticklabels(), visible=False)
@@ -855,11 +861,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_ylim([len(station.split(',')) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(2)
-    ax1.set_title('Station-based Voting', fontsize=font_s+2)
+    ax1.set_title('Station-based Voting', fontsize=font_s + 2)
 
     # Plot probabilities in middle axis
-    prob_xvec = np.arange(0.5, len(voted_probabilities)+0.5, 1)
-    ax2.plot(prob_xvec,voted_probabilities, color='k', linewidth=2)
+    prob_xvec = np.arange(0.5, len(voted_probabilities) + 0.5, 1)
+    ax2.plot(prob_xvec, voted_probabilities, color='k', linewidth=2)
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     ax2.set_xlim([0, len(voted_probabilities)])
@@ -868,6 +874,34 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.set_yticks([0, 0.5, 1])
     ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
     plt.setp(ax2.get_xticklabels(), visible=False)
+
+    # If dr_kwargs is not None, plot reduced displacement in middle axis
+    if dr_kwargs is not None:
+        # Calculate reduce displacement
+        tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
+                                   remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+                                   taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
+        tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
+                                       endtime=endtime + dr_kwargs['window_length'] / 2)
+        window_samples = int(dr_kwargs['window_length'] * tr_disp.stats.sampling_rate)
+        tr_disp_segments = [tr_disp_trimmed.data[i:i + window_samples] for i in
+                            range(0, len(tr_disp_trimmed.data) - window_samples + 1,
+                                  int(window_samples * dr_kwargs['overlap']))]
+        rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
+        station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
+                          (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
+        wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+        dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+
+        # Plot reduced displacement
+        dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
+        ax2b.plot(dr_tvec, dr, color='k', linewidth=2)
+        ax2b.set_xlim(0, len(dr))
+        ax2b.set_ylim([0, np.ceil(np.max(dr))])
+        ax2b.tick_params(axis='y', labelsize=font_s)
+        ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
+        ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+        plt.setp(ax2b.get_xticklabels(), visible=False)
 
     # Loop over input stations and plot spectrograms on lower axes
     for axs_index, stn in enumerate(station.split(',')):
@@ -936,14 +970,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         fmt = '%H:%M'
         denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
 
-    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime)\
+    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) \
                                / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
     axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
     if endtime.date == starttime.date:
-        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'),\
+        axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
     elif (endtime - starttime) < (2 * 86400):
         axs[-1].set_xlabel('UTC Time starting from ' +
