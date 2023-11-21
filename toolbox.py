@@ -570,7 +570,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -586,6 +586,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
+    :param fig_height (float): Figure height [in] (if `None`, figure height = figure width * 0.75)
     :param font_s (float): Font size [points]
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq)
@@ -826,9 +827,23 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     LW = 0.75
     LW_LABEL = 2
 
+    # Configure shared x-axis ticks and labels
+    if (endtime - starttime) >= (6 * 86400):
+        denominator = (endtime - starttime) / 86400
+        fmt = '%m/%d %H:%M'
+    elif (2 * 86400) <= (endtime - starttime) < (6 * 86400):
+        denominator = 2 * (endtime - starttime) / 86400
+        fmt = '%m/%d %H:%M'
+    elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
+        fmt = '%m/%d %H:%M'
+        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
+    else:
+        fmt = '%H:%M'
+        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
+
     # Initialize figure and craft axes
-    figsize = (fig_width, fig_width * .75)
-    fig = plt.figure(figsize=figsize)
+    fig_height = fig_height if fig_height else (fig_width * .75)
+    fig = plt.figure(figsize=(fig_width, fig_height))
     height_ratios = np.ones(len(station.split(',')) + header_panels)
     height_ratios[1:header_panels] = 0.5
     gs_top = plt.GridSpec(len(station.split(',')) + header_panels, 2, top=top_space,
@@ -872,11 +887,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     ax2.set_xlim([0, len(voted_probabilities)])
+    ax2.set_xticks(np.linspace(0, len(voted_probabilities), denominator+1))
+    plt.setp(ax2.get_xticklabels(), visible=False)
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
     ax2.set_yticks([0, 0.5, 1])
     ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
-    plt.setp(ax2.get_xticklabels(), visible=False)
 
     # If dr_kwargs is not None, plot reduced displacement in middle axis
     if dr_kwargs is not None:
@@ -900,11 +916,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
         ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
         ax2b.set_xlim(0, len(dr))
+        ax2b.set_xticks(np.linspace(0, len(dr), denominator+1))
+        plt.setp(ax2b.get_xticklabels(), visible=False)
         ax2b.set_ylim([0, np.ceil(np.max(dr))])
         ax2b.tick_params(axis='y', labelsize=font_s)
         ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
         ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
-        plt.setp(ax2b.get_xticklabels(), visible=False)
 
     # Loop over input stations and plot spectrograms on lower axes
     for axs_index, stn in enumerate(station.split(',')):
@@ -959,20 +976,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                  endtime.matplotlib_date])
         axs[axs_index].tick_params(axis='y', labelsize=font_s)
 
-    # Configure shared x-axis ticks and labels
-    if (endtime - starttime) >= (6 * 86400):
-        denominator = (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (2 * 86400) <= (endtime - starttime) < (6 * 86400):
-        denominator = 2 * (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
-        fmt = '%m/%d %H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
-    else:
-        fmt = '%H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
-
+    # Format time ticks
     time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) \
                                / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]

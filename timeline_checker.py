@@ -9,7 +9,9 @@ station = 'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 overlap = 0.75  # 1 min overlap for 4 min interval
 generate_fig = True
-fig_width = 34.5
+fig_width = 9
+fig_height = 9
+font_s = 8
 spec_kwargs = None
 annotate = False
 export_path = None
@@ -31,8 +33,8 @@ dr_kwargs = {'reference_station': 'PS1A',    # station code
              'dominant_freq': 2}             # Hz
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
                                      model_path, meanvar_path, overlap, generate_fig=generate_fig,
-                                     fig_width=fig_width, spec_kwargs=spec_kwargs, dr_kwargs=dr_kwargs,
-                                     export_path=export_path, transparent=transparent)
+                                     fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
+                                     dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
 
 # Check timeline for infrasound
 channel = 'BDF'
@@ -43,5 +45,5 @@ meanvar_path = './models/4min_all_augmented_infra_revised_meanvar.npy'
 dr_kwargs = None
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
                                      model_path, meanvar_path, overlap, generate_fig=generate_fig,
-                                     fig_width=fig_width, spec_kwargs=spec_kwargs, dr_kwargs=dr_kwargs,
-                                     export_path=export_path, transparent=transparent)
+                                     fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
+                                     dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
