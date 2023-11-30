@@ -887,7 +887,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     ax2.set_xlim([0, len(voted_probabilities)])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities), denominator+1))
+    ax2.set_xticks(np.linspace(0, len(voted_probabilities), int(denominator+1)))
     plt.setp(ax2.get_xticklabels(), visible=False)
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
@@ -916,7 +916,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
         ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
         ax2b.set_xlim(0, len(dr))
-        ax2b.set_xticks(np.linspace(0, len(dr), denominator+1))
+        ax2b.set_xticks(np.linspace(0, len(dr), int(denominator+1)))
         plt.setp(ax2b.get_xticklabels(), visible=False)
         ax2b.set_ylim([0, np.ceil(np.max(dr))])
         ax2b.tick_params(axis='y', labelsize=font_s)
@@ -1185,7 +1185,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
             continue
 
 def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, plot_title,
-                  export_path=None, transparent=False, fig_width=None,
+                  export_path=None, transparent=False, fig_width=None, fig_height=None, font_s=18,
                   plot_stations=None, plot_labels=False, labels_kwargs=None):
     """
     Plot timeline figure showing station-specific and probability-sum voting by monthly rows
@@ -1199,6 +1199,8 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
     :param transparent (bool): if `True`, export figures with transparent background
     :param fig_width (float): Figure width [in]
+    :param fig_height (float): Figure height [in]
+    :param font_s (int): font size for figure
     :param plot_stations (str): comma-delimited string of stations to include in plot, in that order
     :param plot_labels (bool): if `True`, plot manual timeframe with manual labels. Requires `labels_kwargs`.
     :param labels_kwargs (dict): dictionary with the keys `start_date` (UTCDateTime), `end_date` (UTCDateTime) and `labels_dir` (str)
@@ -1340,21 +1342,26 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                 'drawedges': True,
                 'aspect': 30}
 
+    # Define linewidths
+    LW = 0.75
+    LW_LABEL = 2
+
     # Craft timeline figure
     fig_width = fig_width if fig_width else 20
-    fig, ax = plt.subplots(figsize=(fig_width, nmonths * nsubrows / 3))
+    fig_height = fig_height if fig_height else (nmonths * nsubrows / 3)
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     sns.heatmap(matrix_plot, cmap=cmap, cbar=True, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses)
     if plot_labels:
         sns.heatmap(labeled_matrix_plot, cmap=labeled_cmap, cbar=False)
     cbar = ax.collections[0].colorbar
     cbar.outline.set_color('black')
     cbar.outline.set_linewidth(LW)
-    cbar.ax.set_yticklabels(rgb_keys, fontsize=22)
+    cbar.ax.set_yticklabels(rgb_keys, fontsize=font_s)
     cbar.ax.invert_yaxis()
     for y in range(0, matrix_height, nsubrows):
         ax.axhline(y=y, color='black')
         for i, station in enumerate(stations):
-            ax.text(100, y + i + 1, station, fontsize=15)
+            ax.text(100, y + i + 1, station, fontsize=font_s-7)
     if plot_labels:
         ax.plot([labeled_start_index, matrix_length], [labeled_start_row * nsubrows, labeled_start_row * nsubrows],
                 'k-', linewidth=LW_LABEL)
@@ -1366,13 +1373,13 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         ax.plot([0, labeled_end_index], [(labeled_end_row + 1) * nsubrows, (labeled_end_row + 1) * nsubrows], 'k-',
                 linewidth=LW_LABEL)
     ax.set_yticks(np.arange(nsubrows / 2, matrix_height, nsubrows))
-    ax.set_yticklabels(month_list, rotation=0, fontsize=22)
+    ax.set_yticklabels(month_list, rotation=0, fontsize=font_s)
     ax.set_xticks(np.array([0, 7, 14, 21, 28]) * (86400 / time_step))
-    ax.set_xticklabels([0, 7, 14, 21, 28], rotation=0, fontsize=22)
-    ax.set_xlabel('Date', fontsize=25)
+    ax.set_xticklabels([0, 7, 14, 21, 28], rotation=0, fontsize=font_s)
+    ax.set_xlabel('Date', fontsize=font_s-2)
     ax.patch.set_edgecolor('black')
     ax.patch.set_linewidth(LW)
-    ax.set_title(plot_title, fontsize=30)
+    ax.set_title(plot_title, fontsize=font_s+7)
     if export_path:
         plt.savefig(export_path, bbox_inches='tight', transparent=transparent)
     else:
@@ -1413,14 +1420,14 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                 'drawedges': True,
                 'aspect': 30}
 
-    fig, ax = plt.subplots(figsize=(20, nmonths))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     sns.heatmap(matrix_condensed, cmap=cmap, cbar=True, cbar_kws=cbar_kws, alpha=0.8)
     if plot_labels:
         sns.heatmap(labeled_matrix_condensed, cmap=labeled_cmap, cbar=False)
     cbar = ax.collections[0].colorbar
     cbar.outline.set_color('black')
     cbar.outline.set_linewidth(LW)
-    cbar.ax.set_yticklabels(rgb_keys, fontsize=22)
+    cbar.ax.set_yticklabels(rgb_keys, fontsize=font_s)
     cbar.ax.invert_yaxis()
     for y in range(0, nmonths):
         ax.axhline(y=y, color='black')
@@ -1433,13 +1440,13 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         ax.plot([0, labeled_end_index], [labeled_end_row, labeled_end_row], 'k-', linewidth=5.5)
         ax.plot([0, labeled_end_index], [labeled_end_row + 1, labeled_end_row + 1], 'k-', linewidth=5.5)
     ax.set_yticks(np.arange(0.5, nmonths))
-    ax.set_yticklabels(month_list, rotation=0, fontsize=22)
+    ax.set_yticklabels(month_list, rotation=0, fontsize=font_s)
     ax.set_xticks(np.array([0, 7, 14, 21, 28]) * (86400 / time_step))
-    ax.set_xticklabels([0, 7, 14, 21, 28], rotation=0, fontsize=22)
-    ax.set_xlabel('Date', fontsize=25)
+    ax.set_xticklabels([0, 7, 14, 21, 28], rotation=0, fontsize=font_s)
+    ax.set_xlabel('Date', fontsize=font_s)
     ax.patch.set_edgecolor('black')
     ax.patch.set_linewidth(LW)
-    ax.set_title(plot_title, fontsize=30)
+    ax.set_title(plot_title, fontsize=font_s+7)
     if export_path:
         plt.savefig(export_path[:-4] + '_condensed' + export_path[-4:], bbox_inches='tight', transparent=transparent)
     else:
