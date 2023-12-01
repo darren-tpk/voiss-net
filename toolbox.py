@@ -652,10 +652,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 pass
             else:
                 raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime),str(endtime)))
+
+    # reorder both raw and processed streams
     stream_default_order = [tr.stats.station for tr in stream]
     desired_index_order = [stream_default_order.index(stn) for stn in
                            station.split(',') if stn in stream_default_order]
     stream = Stream([stream[i] for i in desired_index_order])
+    stream_raw = Stream([stream_raw[i] for i in desired_index_order])
 
     # If stream sampling rate is not an integer, fix
     for tr in stream:
@@ -897,6 +900,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # If dr_kwargs is not None, plot reduced displacement in middle axis
     if dr_kwargs is not None:
         # Calculate reduce displacement
+        print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
         tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
                                    remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
                                    taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
