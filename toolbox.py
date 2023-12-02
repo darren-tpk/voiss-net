@@ -3,6 +3,7 @@ import time
 import os
 import glob
 import pickle
+import pandas as pd
 import colorcet as cc
 import seaborn as sns
 import numpy as np
@@ -1457,29 +1458,43 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
-def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,figsize=(10,4.5),fs=12):
+def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
     """
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
     :param classification_interval (float): interval used for class_mat[-1,:] or indicators.pkl, in seconds
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
-    :param xtick_interval (float): tick interval to label x-axis, in seconds
+    :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
     :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
     :param input (ndarray or str): input array or path to indicators.pkl
     :param class_dict (dict): dictionary of classes, with keys as integers and values as (class_name, rgb_value)
     :param cumsum_panel (bool): if `True`, plot cumulative sum panel
     :param cumsum_style (str): if `normalized`, plot normalized cumulative sum. if `raw`, plot raw cumulative sum
     :param cumsum_legend (bool): if `True`, plot legend for cumulative sum panel
+    :param plot_title (str): plot title to use
     :param figsize (tuple): figure size
     :param fs (int): font size
+    :param export_path (str): filepath to export figures
     :return: None
     """
 
     # Define time ticks on x-axis
-    xtick_utcdatetimes = np.arange(starttime, endtime + 1, xtick_interval)
-    xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
-    xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
+    if xtick_interval != 'month':
+        xtick_utcdatetimes = np.arange(starttime, endtime + 1, xtick_interval)
+        xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
+        xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
+    else:
+        xtick_utcdatetimes = []
+        t = UTCDateTime(starttime.year, starttime.month, 1)
+        while t <= endtime:
+            xtick_utcdatetimes.append(t)
+            if t.month + 1 <= 12:
+                t += UTCDateTime(t.year, t.month + 1, 1) - t
+            else:
+                t += UTCDateTime(t.year + 1, 1, 1) - t
+        xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
+        xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
 
     # Determine number of classes from class dictionary
     nclasses = len(class_dict)
@@ -1599,7 +1614,15 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     ax1.set_ylabel('Class', fontsize=fs)
     ax1.set_xticks(np.array(xtick_pcts) * np.shape(matrix_plot)[1])
     ax1.set_xticklabels(xtick_labels, fontsize=fs)
-    fig.show()
+    if plot_title:
+        if cumsum_panel:
+            ax0.set_title(plot_title, fontsize=fs)
+        else:
+            ax1.set_title(plot_title, fontsize=fs)
+    if export_path:
+        plt.savefig(export_path, bbox_inches='tight')
+    else:
+        fig.show()
 
 def indicators_to_voted_dataframe(starttime, endtime, time_step, indicators_path, class_order=None, export_path=None):
     """

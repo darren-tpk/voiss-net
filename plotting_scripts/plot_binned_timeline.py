@@ -40,7 +40,9 @@ class_dict = {0: ('BT', [193,  39,  45]),
 cumsum_panel = True
 cumsum_style = 'normalized'  # 'normalized' or 'unnormalized'
 cumsum_legend = True
+plot_title = 'Binned Timeline for Pavlof Seismic Tremor (%s to %s)' % (starttime.strftime('%Y-%m-%d'),endtime.strftime('%Y-%m-%d'))
 figsize = (10, 4.5)
 fs = 12
+export_path = None
 plot_timeline_binned(starttime, endtime, classification_interval, binning_interval, xtick_interval, xtick_format,
-                     input, class_dict, cumsum_panel, cumsum_style, cumsum_legend, figsize, fs)
+                     input, class_dict, cumsum_panel, cumsum_style, cumsum_legend, plot_title, figsize, fs, export_path=export_path)
