@@ -1457,6 +1457,150 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
+def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,figsize=(10,4.5),fs=12):
+    """
+    Plot flattened timeline figure, separated by class and using user-specified times.
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
+    :param classification_interval (float): interval used for class_mat[-1,:] or indicators.pkl, in seconds
+    :param binning_interval (float): interval to bin results into occurence ratios, in seconds
+    :param xtick_interval (float): tick interval to label x-axis, in seconds
+    :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
+    :param input (ndarray or str): input array or path to indicators.pkl
+    :param class_dict (dict): dictionary of classes, with keys as integers and values as (class_name, rgb_value)
+    :param cumsum_panel (bool): if `True`, plot cumulative sum panel
+    :param cumsum_style (str): if `normalized`, plot normalized cumulative sum. if `raw`, plot raw cumulative sum
+    :param cumsum_legend (bool): if `True`, plot legend for cumulative sum panel
+    :param figsize (tuple): figure size
+    :param fs (int): font size
+    :return: None
+    """
+
+    # Define time ticks on x-axis
+    xtick_utcdatetimes = np.arange(starttime, endtime + 1, xtick_interval)
+    xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
+    xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
+
+    # Determine number of classes from class dictionary
+    nclasses = len(class_dict)
+
+    # If the input is a pickle file, configure voted timeline
+    if type(input) == str and input[-4:] == '.pkl':
+
+        # Filter indicators by time
+        indicators = pd.read_pickle(input)
+        indicators = [indicator for indicator in indicators if (starttime <= indicator[1] < endtime)]
+
+        # Populate matrix to derive voted timeline
+        classification_steps = np.arange(starttime, endtime + 1, classification_interval)
+        matrix_length = len(classification_steps) - 1
+        stations = list(np.unique([indicator[0] for indicator in indicators]))
+        matrix_height = len(stations)
+        matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
+        matrix_probs = np.zeros((matrix_height, matrix_length, nclasses))
+        for indicator in indicators:
+            utc = indicator[1]
+            row_index = stations.index(indicator[0])
+            col_index = int((indicator[1] - starttime) / classification_interval)
+            matrix_plot[row_index, col_index] = indicator[2]
+            matrix_probs[row_index, col_index, :] = indicator[3]
+
+        # Derive voted timeline
+        matrix_probs_sum = np.sum(matrix_probs, axis=0)
+        matrix_probs_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
+        voted_timeline = np.argmax(matrix_probs_sum, axis=1)
+        voted_timeline[matrix_probs_contributing_station_count == 0] = nclasses
+
+        # Corresponding time array
+        voted_utctimes = np.arange(starttime, endtime, classification_interval)
+
+    # If the input is an array, check shape and assign to voted timeline
+    elif type(input) == np.ndarray:
+
+        # Check dimensions
+        required_shape = (int((endtime - starttime - 240) / classification_interval + 1),)
+        if np.shape(input) != required_shape:
+            raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
+        voted_timeline = input
+
+        # Corresponding time array
+        voted_utctimes = np.arange(starttime + 120, endtime - 120 + 1, classification_interval)
+
+    # If the input is invalid, raise error
+    else:
+        raise ValueError('Input must be either an indicators pickle file or a 1D numpy array.')
+
+    # Set up time bins
+    bin_lims = np.arange(starttime, endtime + 1, binning_interval)
+    count_array = np.zeros((len(bin_lims) - 1, nclasses + 1))
+
+    # Count classes per bin
+    for i in range(len(bin_lims) - 1):
+        bin_start = bin_lims[i]
+        bin_end = bin_lims[i + 1]
+        voted_classes = voted_timeline[np.where(np.logical_and(voted_utctimes >= bin_start, voted_utctimes < bin_end))]
+        voted_counts = [list(voted_classes).count(i) for i in range(nclasses)] + [len(voted_classes)]
+        count_array[i, :] = voted_counts
+
+    # Prepare dummy matrix plot and calculate alpha value
+    matrix_plot = np.ones((nclasses, len(bin_lims) - 1))
+    for i in range(6):
+        matrix_plot[i, :] = matrix_plot[i, :] * i
+    matrix_plot = np.flip(matrix_plot, axis=0)
+    alpha_array = np.sqrt(count_array[:, :-1] / count_array[:, -1].reshape(-1, 1))
+    matrix_alpha = np.transpose(alpha_array)
+    matrix_alpha = np.flip(matrix_alpha, axis=0)
+
+    # Colormap
+    rgb_values = np.array([class_dict[i][1] for i in range(nclasses)])
+    rgb_ratios = rgb_values / 255
+    cmap = ListedColormap(rgb_ratios)
+
+    # Alpha map
+    amap = np.ones([256, 4])
+    amap[:, 3] = np.linspace(0, 1, 256)
+    amap = ListedColormap(amap)
+
+    # Compute cumulative sum if desired
+    if cumsum_panel:
+        cumsum_array = np.cumsum(count_array[:, :-1], axis=0)
+        norm_cumsum_array = cumsum_array / np.sum(count_array[:, :-1], axis=0)
+
+    # Plot figure
+    if cumsum_panel:
+        fig, (ax0, ax1) = plt.subplots(2, 1, figsize=figsize)
+        fig.subplots_adjust(hspace=0.1)
+        cumsum_x = [0] + list(np.arange(0.5, len(bin_lims) - 1, 1)) + [len(bin_lims) - 1]
+        for j in range(nclasses):
+            if cumsum_style == 'normalized':
+                ax0.plot(cumsum_x, [0] + list(norm_cumsum_array[:, j]) + [1], color=rgb_ratios[j],
+                         label=class_dict[j][0])
+            else:
+                ax0.plot(cumsum_x, [0] + list(cumsum_array[:, j]) + [np.sum(count_array[:, j])], color=rgb_ratios[j],
+                         label=class_dict[j][0])
+        ax0.set_xticks(np.array(xtick_pcts) * (len(bin_lims) - 1))
+        ax0.set_xticklabels([])
+        ax0.set_xlim(0, len(bin_lims) - 1)
+        if cumsum_style == 'normalized':
+            ax0.set_yticks(np.arange(0, 1.05, 0.2))
+            ax0.set_ylim(-0.05, 1.05)
+            ax0.set_ylabel('Normalized\nCumulative\nClass Count', fontsize=fs)
+        else:
+            ax0.set_ylabel('Cumulative\nClass Count', fontsize=fs)
+        ax0.tick_params(axis='y', labelsize=fs)
+        if cumsum_legend:
+            ax0.legend(fontsize=fs - 4)
+    else:
+        fig, ax1 = plt.subplots(1, 1, figsize=figsize)
+    ax1.pcolormesh(matrix_plot, cmap=cmap)
+    ax1.pcolormesh(1 - matrix_alpha, cmap=amap)
+    ax1.set_yticks(np.arange(0.5, nclasses, 1))
+    ax1.set_yticklabels(reversed([class_dict[i][0] for i in range(nclasses)]), fontsize=fs)
+    ax1.set_ylabel('Class', fontsize=fs)
+    ax1.set_xticks(np.array(xtick_pcts) * np.shape(matrix_plot)[1])
+    ax1.set_xticklabels(xtick_labels, fontsize=fs)
+    fig.show()
+
 def indicators_to_voted_dataframe(starttime, endtime, time_step, indicators_path, class_order=None, export_path=None):
     """
     Convert indicators pickle file to dataframe of voted classes and pnorm
