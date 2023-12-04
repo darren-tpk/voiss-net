@@ -1559,7 +1559,7 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
 
     # Prepare dummy matrix plot and calculate alpha value
     matrix_plot = np.ones((nclasses, len(bin_lims) - 1))
-    for i in range(6):
+    for i in range(nclasses):
         matrix_plot[i, :] = matrix_plot[i, :] * i
     matrix_plot = np.flip(matrix_plot, axis=0)
     alpha_array = np.sqrt(count_array[:, :-1] / count_array[:, -1].reshape(-1, 1))
