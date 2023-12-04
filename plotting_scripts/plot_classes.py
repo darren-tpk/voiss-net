@@ -6,7 +6,6 @@ from matplotlib import rcParams
 from toolbox import set_universal_seed, augment_labeled_dataset
 
 #%% user input
-VOLC = 'Pavlof'
 SVDIR = '/Users/dfee/Documents/generalized_tremor/figures/'
 SAVE = False
 PLOT_AUGMENT = False
@@ -16,10 +15,10 @@ TESTVAL_RAT = 0.2
 
 SPEC_DIR = '/Users/dfee/Documents/generalized_tremor/labeled_npy_2min_all/'
 label_dict= {'Broadband Tremor': 0, 'Harmonic Tremor': 1,
-                     'Monochromatic Tremor': 2, 'Non-tremor Signal': 3,
+                     'Monochromatic Tremor': 2, 'Earthquake': 3,
                      'Long Period': 4, 'Explosion': 5, 'Noise': 6}
 
-VOLC_STA_WC = {'Pavlof':'P*', 'Semisopochnoi':'C*'}
+#VOLC_STA_WC = {'Pavlof':'P*', 'Semisopochnoi':'C*'}
 rcParams['font.size'] = 8
 
 #%% read in files and count classes
@@ -42,7 +41,9 @@ print(''.join(['%d: %d\n' % (c, class_counts[c]) for c in range(nclasses)]))
 import fnmatch
 
 VOLC_STA_WC = {'Pavlof':['PN7A', 'PVV', 'PV6A','PN7A','PS1A'],
-               'Semisopochnoi':['CERB','CESW','CEPE','CERA','CETU','CEAP']}
+               'Semisopochnoi':['CERB','CESW','CEPE','CERA','CETU','CEAP'],
+               'Veniaminof':['VNSS,VNWF,VNFG,VNHG,VNNF,VNKR,VNWF,VNSW'],
+               'Etna': ['EMFO,ECPN']}
 
 class_counts_split = np.zeros((2,nclasses))
 for i,key in enumerate(VOLC_STA_WC):
