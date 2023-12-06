@@ -968,11 +968,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                   origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
             # Label y-axis with trace information
-            axs[axs_index].set_ylabel(stream[stream_stations.index(stn)].id, fontsize=font_s, fontweight='bold')
+            stn_label = stn + '\n' + stream[stream_stations.index(stn)].stats.channel
+            axs[axs_index].set_ylabel(stn_label, fontsize=font_s, fontweight='bold')
+            # axs[axs_index].set_ylabel(stream[stream_stations.index(stn)].id, fontsize=font_s, fontweight='bold')
 
         else:
             # If corresponding trace does not exist, label station as 'No Data'
-            axs[axs_index].set_ylabel(stn + ' (No Data)', fontsize=font_s, fontweight='bold')
+            axs[axs_index].set_ylabel(stn + '\n(No Data)', fontsize=font_s, fontweight='bold')
 
         # Tidy up axes
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
