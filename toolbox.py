@@ -1547,20 +1547,17 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     else:
         raise ValueError('Input must be either an indicators pickle file or a 1D numpy array.')
 
-    # Set up time bins
-    bin_lims = np.arange(starttime, endtime + 1, binning_interval)
-    count_array = np.zeros((len(bin_lims) - 1, nclasses + 1))
-
     # Count classes per bin
-    for i in range(len(bin_lims) - 1):
-        bin_start = bin_lims[i]
-        bin_end = bin_lims[i + 1]
-        voted_classes = voted_timeline[np.where(np.logical_and(voted_utctimes >= bin_start, voted_utctimes < bin_end))]
-        voted_counts = [list(voted_classes).count(i) for i in range(nclasses)] + [len(voted_classes)]
-        count_array[i, :] = voted_counts
+    num_bins = int((endtime-starttime) / binning_interval)
+    num_classification_intervals_per_bin = int(binning_interval / classification_interval)
+    count_array = np.zeros((num_bins, nclasses + 1))
+    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_classification_intervals_per_bin))
+    for i in range(nclasses):
+        count_array[:, i] = np.sum(voted_timeline_reshaped == i, axis=1)
+    count_array[:, nclasses] = num_classification_intervals_per_bin
 
     # Prepare dummy matrix plot and calculate alpha value
-    matrix_plot = np.ones((nclasses, len(bin_lims) - 1))
+    matrix_plot = np.ones((nclasses, num_bins))
     for i in range(nclasses):
         matrix_plot[i, :] = matrix_plot[i, :] * i
     matrix_plot = np.flip(matrix_plot, axis=0)
@@ -1587,7 +1584,7 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     if cumsum_panel:
         fig, (ax0, ax1) = plt.subplots(2, 1, figsize=figsize)
         fig.subplots_adjust(hspace=0.1)
-        cumsum_x = [0] + list(np.arange(0.5, len(bin_lims) - 1, 1)) + [len(bin_lims) - 1]
+        cumsum_x = [0] + list(np.arange(0.5, num_bins, 1)) + [num_bins]
         for j in range(nclasses):
             if cumsum_style == 'normalized':
                 ax0.plot(cumsum_x, [0] + list(norm_cumsum_array[:, j]) + [1], color=rgb_ratios[j],
@@ -1595,9 +1592,9 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
             else:
                 ax0.plot(cumsum_x, [0] + list(cumsum_array[:, j]) + [np.sum(count_array[:, j])], color=rgb_ratios[j],
                          label=class_dict[j][0])
-        ax0.set_xticks(np.array(xtick_pcts) * (len(bin_lims) - 1))
+        ax0.set_xticks(np.array(xtick_pcts) * (num_bins))
         ax0.set_xticklabels([])
-        ax0.set_xlim(0, len(bin_lims) - 1)
+        ax0.set_xlim(0, num_bins)
         if cumsum_style == 'normalized':
             ax0.set_yticks(np.arange(0, 1.05, 0.2))
             ax0.set_ylim(-0.05, 1.05)
