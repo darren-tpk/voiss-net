@@ -57,4 +57,4 @@ Dependencies
 Other repositories:
 * [waveform_collection](https://github.com/uafgeotools/waveform_collection)
 * [label-studio](https://github.com/HumanSignal/label-studio)
-* [PhysicsML-Combine Features (Home repository for GradCAM reference code, Kong et al. (2022))](https://github.com/qingkaikong/PhysicsML-CombineFeatures/)
+* [PhysicsML-Combine Features](https://github.com/qingkaikong/PhysicsML-CombineFeatures/) (Home repository for GradCAM reference code, Kong et al. (2022))
