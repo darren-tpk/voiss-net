@@ -2,21 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_meanvar.npy" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_meanvar.npy" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_model.h5" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/toolbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/toolbox.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn_augment.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment.py" afterDir="false" />
@@ -40,8 +25,6 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/debugger.py" root0="SKIP_INSPECTION" />
-    <setting file="file://$PROJECT_DIR$/plotting_scripts/plot_explosion_times.py" root0="SKIP_INSPECTION" />
-    <setting file="file://$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" root0="SKIP_INSPECTION" />
     <setting file="file://$PROJECT_DIR$/toolbox.py" root0="SKIP_INSPECTION" />
   </component>
   <component name="MarkdownSettingsMigration">
@@ -217,6 +200,7 @@
       <workItem from="1706851999249" duration="5729000" />
       <workItem from="1707349461916" duration="396000" />
       <workItem from="1707349926774" duration="14475000" />
+      <workItem from="1708374657363" duration="856000" />
     </task>
     <servers />
   </component>
