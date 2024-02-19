@@ -37,14 +37,27 @@ python check_timeline.py
 Train alternate models 
 ----------
 
-1. Build labeled spectrograms from Label Studio labels
+1. Plot stacked spectrograms in bulk.
+
+```
+python plot_spectrograms_bulk.py
+```
+
+2. Open the Label Studio (Tkachenko et al., 2020) web browser interface, upload stacked spectrograms, and label spectrograms using the ``Bounding Box" option.
+
+```
+conda activate voiss-net
+label-studio
+```
+
+3. Use python to build labeled spectrograms (saved as .npy files) from Label Studio labels
 
 ```
 python create_labeled_dataset_seis.py
 python create_labeled_dataset_infra.py
 ```
 
-2. Train CNNs (specify data splitting and augmentation options, as well as model name in script)
+4. Train CNNs using tensorflow (specify data splitting and augmentation options, as well as model name in script)
 
 ```
 python train_cnn_agument_seis.py
