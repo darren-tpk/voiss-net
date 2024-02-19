@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="ptan@tamarack.gi.alaska.edu:22 password (4)" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+    <option name="confirmBeforeUploading" value="false" />
+    <serverData>
+      <paths name="ptan@tamarack.gi.alaska.edu:22 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ptan/tremor_ml/" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ptan@tamarack.gi.alaska.edu:22 password (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ptan/tremor_ml" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ptan@tamarack.gi.alaska.edu:22 password (4)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ptan/tremor_ml" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

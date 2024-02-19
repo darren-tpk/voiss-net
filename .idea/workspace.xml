@@ -3,10 +3,22 @@
   <component name="ChangeListManager">
     <list default="true" id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/debugger.py" beforeDir="false" afterPath="$PROJECT_DIR$/debugger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_meanvar.npy" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_model.h5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_meanvar.npy" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_model.h5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/toolbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/toolbox.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn_augment.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_cnn_augment_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment_infra.py" afterDir="false" />
     </list>
@@ -63,10 +75,10 @@
       <recent name="$PROJECT_DIR$/plotting_scripts" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/old_scripts" />
       <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/models" />
       <recent name="$PROJECT_DIR$/plotting_scripts" />
+      <recent name="$PROJECT_DIR$/old_scripts" />
+      <recent name="$PROJECT_DIR$/models" />
       <recent name="$PROJECT_DIR$/npy_generator_scripts" />
     </key>
   </component>
@@ -157,7 +169,54 @@
       <workItem from="1697662096156" duration="3904000" />
       <workItem from="1697670985492" duration="7099000" />
       <workItem from="1697758298936" duration="1126000" />
-      <workItem from="1698089288454" duration="31425000" />
+      <workItem from="1698089288454" duration="63991000" />
+      <workItem from="1698697568781" duration="1201000" />
+      <workItem from="1698713522623" duration="387000" />
+      <workItem from="1698774038478" duration="7766000" />
+      <workItem from="1698792989334" duration="1401000" />
+      <workItem from="1698870357369" duration="595000" />
+      <workItem from="1698962204784" duration="738000" />
+      <workItem from="1698969489834" duration="13909000" />
+      <workItem from="1699046215520" duration="6599000" />
+      <workItem from="1699297393187" duration="34384000" />
+      <workItem from="1699396449303" duration="27959000" />
+      <workItem from="1699658378360" duration="1587000" />
+      <workItem from="1699902380673" duration="2126000" />
+      <workItem from="1699918338432" duration="9223000" />
+      <workItem from="1699995941632" duration="37588000" />
+      <workItem from="1700252741900" duration="7958000" />
+      <workItem from="1700606774296" duration="8381000" />
+      <workItem from="1700618747878" duration="13255000" />
+      <workItem from="1701208981536" duration="17545000" />
+      <workItem from="1701473416052" duration="30226000" />
+      <workItem from="1701752450868" duration="4937000" />
+      <workItem from="1701764921533" duration="17190000" />
+      <workItem from="1701988608876" duration="815000" />
+      <workItem from="1701995177255" duration="8298000" />
+      <workItem from="1702023588903" duration="1118000" />
+      <workItem from="1702024770512" duration="2802000" />
+      <workItem from="1702114966218" duration="620000" />
+      <workItem from="1702197493139" duration="753000" />
+      <workItem from="1702224405773" duration="1982000" />
+      <workItem from="1702271051678" duration="608000" />
+      <workItem from="1704221325964" duration="8171000" />
+      <workItem from="1704914198263" duration="3850000" />
+      <workItem from="1704934835722" duration="19129000" />
+      <workItem from="1705479125855" duration="2718000" />
+      <workItem from="1705543843703" duration="844000" />
+      <workItem from="1705563356736" duration="9660000" />
+      <workItem from="1705652191432" duration="13180000" />
+      <workItem from="1705731737689" duration="37043000" />
+      <workItem from="1706044711576" duration="14193000" />
+      <workItem from="1706133475561" duration="4288000" />
+      <workItem from="1706155570673" duration="24000" />
+      <workItem from="1706157674011" duration="20411000" />
+      <workItem from="1706576136103" duration="7133000" />
+      <workItem from="1706678247592" duration="5076000" />
+      <workItem from="1706733609192" duration="4084000" />
+      <workItem from="1706851999249" duration="5729000" />
+      <workItem from="1707349461916" duration="396000" />
+      <workItem from="1707349926774" duration="14475000" />
     </task>
     <servers />
   </component>
@@ -177,6 +236,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/tremor_ml$timeline_figure_historic.coverage" NAME="timeline_figure_historic Coverage Results" MODIFIED="1678847261170" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_duty.coverage" NAME="timeline_checker_duty Coverage Results" MODIFIED="1707764812853" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_infra.coverage" NAME="timeline_checker_infra Coverage Results" MODIFIED="1679002569062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
     <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_shishaldin.coverage" NAME="timeline_checker_shishaldin Coverage Results" MODIFIED="1692978289846" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>

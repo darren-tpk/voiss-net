@@ -1,4 +1,4 @@
-name: tremor_ml
+name: voiss-net
 channels:
   - conda-forge
   - defaults
