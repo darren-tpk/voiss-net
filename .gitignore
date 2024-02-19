@@ -4,7 +4,7 @@
 **/__pycache__
 **/__pycache__/*
 **/idea
-**/.idea
+**/idea/*
 **/.ipynb_checkpoints
 **/.ipynb_checkpoints/*
 
@@ -12,9 +12,10 @@
 **/data_frames
 **/figures
 **/metrics
-**/pavlof_webcam_images/
-**/plotting_scripts/
+**/pavlof_webcam_images
+**/plotting_scripts
 **/timeline_plots
+**/timeline_plots_tam
 timeline_plot_tam*
 timeline_checker_*
 debugger*
