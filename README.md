@@ -34,9 +34,27 @@ conda activate voiss_net
 python check_timeline.py
 ```
 
+Train alternate models 
+----------
+
+1. Build labeled spectrograms from Label Studio labels
+
+```
+python create_labeled_dataset_seis.py
+python create_labeled_dataset_infra.py
+```
+
+2. Train CNNs (specify data splitting and augmentation options, as well as model name in script)
+
+```
+python train_cnn_agument_seis.py
+python train_cnn_agument_infra.py
+```
+
 Dependencies
 ------------
 
 Other repositories:
-* [label-studio](https://github.com/HumanSignal/label-studio)
 * [waveform_collection](https://github.com/uafgeotools/waveform_collection)
+* [label-studio](https://github.com/HumanSignal/label-studio)
+* [PhysicsML-Combine Features (Home repository for GradCAM reference code, Kong et al. (2022))](https://github.com/qingkaikong/PhysicsML-CombineFeatures/)
