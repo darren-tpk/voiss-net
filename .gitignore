@@ -8,4 +8,17 @@
 **/.ipynb_checkpoints
 **/.ipynb_checkpoints/*
 
+# publication related items
+**/data_frames
+**/figures
+**/metrics
+**/pavlof_webcam_images/
+**/plotting_scripts/
+**/timeline_plots
+timeline_plot_tam*
+timeline_checker_*
+debugger*
 
+# pre release
+/models/old_models
+/models/other_models
