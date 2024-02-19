@@ -17,8 +17,8 @@ Quickstart
 1. Obtain
 
 ```
-git clone https://github.com/darren-tpk/VOISS_Net.git
-cd VOISS_Net
+git clone https://github.com/darren-tpk/voiss-net.git
+cd voiss-net
 ```
 
 2. Create environment and activate
