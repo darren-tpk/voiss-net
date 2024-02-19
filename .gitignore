@@ -22,3 +22,7 @@ timeline_checker_*
 # pre release
 /models/old_models
 /models/other_models
+/debugger.py
+/train_cnn_augment_all.py
+/train_cnn_augment_iter.py
+/train_cnn_augment_semi.py
