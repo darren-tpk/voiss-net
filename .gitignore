@@ -1,12 +1,11 @@
-.DS_Store
-**.DS_Store
-.idea
-.idea/
-__pycache__/
-figures/
-labels/*.png
-metrics/PS1A_BHZ_metrics/
-metrics/PS4A_BDF_metrics/
-pavlof_rtm.csv
-output*.txt
-npy_temporary/
+# macOS Finder and Python stuff
+**/.DS_Store
+**/._.DS_Store
+**/__pycache__
+**/__pycache__/*
+**/idea
+**/idea/*
+**/.ipynb_checkpoints
+**/.ipynb_checkpoints/*
+
+
