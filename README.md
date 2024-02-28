@@ -31,7 +31,7 @@ conda activate voiss_net
 3. Run example to check 3 hour seismic and infrasound timeline (Fig. 6 & 7 in Tan et al. (2024))
 
 ```
-python check_timeline.py
+python timeline_checker.py
 ```
 
 Train alternate models 
