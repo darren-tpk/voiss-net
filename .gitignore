@@ -23,10 +23,6 @@ timeline_checker_*
 /labels/Semi_tremor_labels_20210701_20210831.json
 /models/old_models
 /models/other_models
-/npy_generator_scripts/create_labeled_dataset_semi.py
-/npy_generator_scripts/create_labeled_dataset_semi_supp.py
-/npy_generator_scripts/create_unlabeled_dataset.py
+/train_voiss_net_semisopochnoi.py
 /debugger.py
-/train_cnn_augment_all.py
-/train_cnn_augment_iter.py
-/train_cnn_augment_semi.py
+/retired_code/
