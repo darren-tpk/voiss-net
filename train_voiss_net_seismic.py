@@ -3,7 +3,7 @@ from toolbox import create_labeled_dataset, set_universal_seed, augment_labeled_
 
 # Define inputs and parameters for create_labeled_dataset
 json_filepath = './labels/voissnet_labels_seismic.json'
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_files/seismic/'
+output_dir = './labeled_npy_files/seismic/'
 label_dict = {'Broadband Tremor': 0,
               'Harmonic Tremor': 1,
               'Monochromatic Tremor': 2,

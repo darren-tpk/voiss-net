@@ -3,7 +3,7 @@ from toolbox import create_labeled_dataset, set_universal_seed, augment_labeled_
 
 # Define inputs and parameters for create_labeled_dataset
 json_filepath = './labels/voissnet_labels_infrasound.json'
-output_dir = '/Users/darrentpk/Desktop/labeled_npy_files/infrasound/'
+output_dir = './labeled_npy_files/infrasound/'
 label_dict = {'Infrasonic Tremor': 0,
               'Explosion': 1,
               'Wind Noise': 2,
