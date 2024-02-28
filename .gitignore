@@ -20,6 +20,8 @@ timeline_plot_tam*
 timeline_checker_*
 
 # pre release
+/labels/labels_20230215.json
+/labels/labels_20230314_infra.json
 /labels/Semi_tremor_labels_20210701_20210831.json
 /models/old_models
 /models/other_models
