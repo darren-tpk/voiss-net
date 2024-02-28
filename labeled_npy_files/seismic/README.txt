@@ -1,0 +1,1 @@
+seismic examples go in this directory
