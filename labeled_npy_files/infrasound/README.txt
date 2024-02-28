@@ -1,0 +1,1 @@
+infrasound examples go in this directory
