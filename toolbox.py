@@ -386,7 +386,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
         ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right')
+        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right', rotation_mode='anchor')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
@@ -397,7 +397,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels, fontsize=18, rotation=30, ha='right')
+        ax2.set_xticklabels(time_tick_labels, fontsize=18, rotation=30, ha='right', rotation_mode='anchor')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
         if export_path is None:
@@ -550,7 +550,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=22, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=22, rotation=30, rotation_mode='anchor')
     axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
@@ -1611,7 +1611,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30, ha='right', rotation_mode='anchor')
     if endtime.date == starttime.date:
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
