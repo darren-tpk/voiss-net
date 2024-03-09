@@ -1,7 +1,8 @@
 # Import dependencies
-import time
 import os
+import time
 import glob
+import json
 import pickle
 import shutil
 import random
@@ -9,6 +10,7 @@ import pyproj
 import pandas as pd
 import colorcet as cc
 import seaborn as sns
+import statistics as sts
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -384,7 +386,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
         ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
@@ -395,7 +397,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax2.set_xticklabels(time_tick_labels, fontsize=18, rotation=30, ha='right')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
         if export_path is None:
@@ -619,12 +621,13 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
     return spec_db, utc_times
 
 # def create_labeled_dataset(json_path, output_dir, time_step, )
-def create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, source, network, station, location, channel, pad, window_duration, freq_lims):
+def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims):
     """
     Create a labeled spectrogram dataset from a json file from label studio
     :param json_filepath (str): File path to the json file from label studio
     :param output_dir (str): Directory to save the npy files
     :param label_dict (dict): Dictionary to convert labels to appended file index
+    :param transient_indices (list): List of indices for transients (these will be prioritized in assigning labels, and the higher index number will be prioritized)
     :param time_step (float): Time step for the 2D matrices
     :param source (str): Source of the data
     :param network (str or list): SEED network code(s)
@@ -709,7 +712,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, sou
             trace = stream[i]
 
             # Calculate spectrogram power matrix
-            spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, demean=demean)
+            spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, demean=False)
 
             # Get label time bounds that are observed on station
             time_bounds_station = [tb for tb in time_bounds if tb[0] == stream_station]
@@ -740,8 +743,9 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, sou
                             raise ValueError('THE SHAPE IS NOT RIGHT.')
 
                 # Skip matrices that have a spectrogram data gap
-                if np.sum(spec_slice.flatten() < 0) > (0.2 * time_step):
-                    print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < 0))
+                amplitude_threshold = 0 if channel[-2:] == 'DF' else -220
+                if np.sum(spec_slice.flatten() < amplitude_threshold) > (0.2 * time_step):
+                    print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < amplitude_threshold))
                     continue
 
                 # Obtain corresponding time samples for spectrogram slice
@@ -774,21 +778,25 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, sou
                 # Count how many time samples correspond to each label
                 labels_seen, label_counts = np.unique(label_indices, return_counts=True)
 
-                # If it's all unlabeled, skip
-                if len(labels_seen) == 1 and -1 in labels_seen:
-                    continue
-                # If we see the explosion label in >10% of the time samples, choose explosion
-                elif label_dict['Explosion'] in labels_seen and label_counts[
-                    list(labels_seen).index(label_dict['Explosion'])] >= 0.1 * len(label_indices):
-                    final_label = 'Explosion'
-                # If we don't see explosions, and less than 50% of the time samples are meaningfully labeled, skip
-                elif np.max(label_counts) <= 0.5 * len(label_indices) or st.mode(label_indices) == -1:
-                    continue
-                # If we see a tremor or noise label in > 50% of the time samples, choose that label
-                else:
+                # Define dummy label
+                final_label = -1
+
+                # Check for tremor or noise label in > 50 % of the time samples
+                if np.max(label_counts) > 0.5 * len(label_indices) and sts.mode(label_indices) != -1:
                     final_label_value = int(labels_seen[np.argmax(label_counts)])
                     final_label = next(key for key, value in label_dict.items() if value == final_label_value)
 
+                # Override label with transient label if it is in > 10 % of the time samples
+                if len(set(labels_seen) & set(transient_indices)) != 0:
+                    for transient_index in list(set(labels_seen) & set(transient_indices)):
+                        if label_counts[list(labels_seen).index(transient_index)] >= 0.1 * len(label_indices):
+                            final_label = list(label_dict.keys())[int(transient_index)]
+
+                # If label is still invalid, skip
+                if final_label == -1:
+                    continue
+
+                # Construct file name and save
                 file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
                             sb2.strftime('%Y%m%d%H%M') + '_' + str(label_dict[final_label]) + '.npy'
                 np.save(output_dir + file_name, spec_slice)
@@ -1359,11 +1367,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
-    # Return class and probability outputs if figure plotting is not desired
+    # Calculate and return class and probability outputs if figure plotting is not desired
+    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
+    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if not generate_fig:
-        class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
-        prob_mat = np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
         return class_mat, prob_mat
+
+    # Pad matrix plot and voted probabilities with unclassified columns for plotting
+    matrix_plot = np.repeat(matrix_plot, 2, axis=1)
+    num_columns_to_pad = int(np.round(interval / 2) / time_step)
+    matrix_plot = np.pad(matrix_plot, ((0, 0), (num_columns_to_pad*2-1, num_columns_to_pad*2-1)), 'constant', constant_values=(na_label, na_label))
+    voted_probabilities = np.pad(voted_probabilities, (num_columns_to_pad, num_columns_to_pad), 'constant', constant_values=(np.nan, np.nan))
 
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
@@ -1494,12 +1508,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_title('Station-based Voting', fontsize=font_s + 2)
 
     # Plot probabilities in middle axis
-    prob_xvec = np.arange(0.5, len(voted_probabilities) + 0.5, 1)
+    prob_xvec = np.arange(0, len(voted_probabilities), 1)
     ax2.plot(prob_xvec, voted_probabilities, color='k', linewidth=LW)
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
-    ax2.set_xlim([0, len(voted_probabilities)])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities), int(denominator+1)))
+    ax2.set_xlim([0, np.max(prob_xvec)])
+    ax2.set_xticks(np.linspace(0, np.max(prob_xvec), int(denominator+1)))
     plt.setp(ax2.get_xticklabels(), visible=False)
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
@@ -1619,8 +1633,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax.set_xticks([])
 
     # Show figure or export
-    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
-    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if export_path is None:
         fig.show()
         print('Done!')
