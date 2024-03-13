@@ -8,6 +8,7 @@ label_dict = {'Infrasonic Tremor': 0,
               'Explosion': 1,
               'Wind Noise': 2,
               'Electronic Noise': 3}
+transient_indices = [1]  # indices of transient classes
 time_step = 4 * 60  # s
 source = 'IRIS'
 network = 'AV'
@@ -19,8 +20,8 @@ window_duration = 10  # s
 freq_lims = (0.5, 10)  # Hz
 
 # Create labeled dataset from json file and store in output directory
-create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, source, network, station, location, channel,
-                       pad, window_duration, freq_lims)
+create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station,
+                       location, channel, pad, window_duration, freq_lims)
 
 # Set universal seed for dataset augmentation and model training
 set_universal_seed(43)

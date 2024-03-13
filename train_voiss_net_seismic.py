@@ -1,5 +1,9 @@
 # Import all dependencies
+import tensorflow as tf
 from toolbox import create_labeled_dataset, set_universal_seed, augment_labeled_dataset, train_voiss_net
+
+# Disable GPU if desired
+DISABLE_GPU = True
 
 # Define inputs and parameters for create_labeled_dataset
 json_filepath = './labels/voissnet_labels_seismic.json'
@@ -10,6 +14,7 @@ label_dict = {'Broadband Tremor': 0,
               'Earthquake': 3,
               'Explosion': 4,
               'Noise': 5}
+transient_indices = [3, 4]  # indices of transient classes
 time_step = 4 * 60  # s
 source = 'IRIS'
 network = 'AV'
@@ -21,8 +26,22 @@ window_duration = 10  # s
 freq_lims = (0.5, 10)  # Hz
 
 # Create labeled dataset from json file and store in output directory
-create_labeled_dataset(json_filepath, output_dir, label_dict, time_step, source, network, station, location, channel,
-                       pad, window_duration, freq_lims)
+create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station,
+                       location, channel, pad, window_duration, freq_lims)
+
+# Disable GPU if desired
+if DISABLE_GPU:
+    try:
+        # Disable all GPUS
+        tf.config.set_visible_devices([], 'GPU')
+        visible_devices = tf.config.get_visible_devices()
+        for device in visible_devices:
+            assert device.device_type != 'GPU'
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
+else:
+    tf.keras.backend.set_floatx('float32')
 
 # Set universal seed for dataset augmentation and model training
 set_universal_seed(19)
@@ -40,7 +59,7 @@ train_paths, valid_paths, test_paths = augment_labeled_dataset(npy_dir=npy_dir, 
                                                                noise_ratio=noise_ratio)
 
 # Define inputs and parameters for train_voiss_net
-model_tag = 'voissnet_4min_seismic'
+model_tag = 'voissnet_4min_seismic_NEWTEST'
 batch_size = 100  # default
 learning_rate = 0.0005  # default
 patience = 20  # epochs
