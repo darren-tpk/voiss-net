@@ -28,3 +28,4 @@ timeline_checker_*
 /train_voiss_net_semisopochnoi.py
 /debugger.py
 /retired_code/
+/labeled_npy_files/
