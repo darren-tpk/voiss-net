@@ -59,7 +59,7 @@ train_paths, valid_paths, test_paths = augment_labeled_dataset(npy_dir=npy_dir, 
                                                                noise_ratio=noise_ratio)
 
 # Define inputs and parameters for train_voiss_net
-model_tag = 'voissnet_4min_seismic_NEWTEST'
+model_tag = 'voissnet_seismic'
 batch_size = 100  # default
 learning_rate = 0.0005  # default
 patience = 20  # epochs

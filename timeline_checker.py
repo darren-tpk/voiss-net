@@ -21,8 +21,8 @@ transparent = None
 channel = '*HZ'
 starttime = UTCDateTime(2021, 9, 14, 16)
 endtime = starttime + 3*3600
-model_path = './models/4min_all_augmented_final_model.h5'
-meanvar_path = './models/4min_all_augmented_final_meanvar.npy'
+model_path = './models/voissnet_seismic_model.h5'
+meanvar_path = './models/voissnet_seismic_meanvar.npy'
 dr_kwargs = {'reference_station': 'PS1A',    # station code
              'filter_band': (1, 5),          # Hz
              'window_length': 10,            # seconds
@@ -40,8 +40,8 @@ class_mat, prob_mat = check_timeline(source, network, station, channel, location
 channel = 'BDF'
 starttime = UTCDateTime(2021, 8, 6, 10)
 endtime = starttime + 3*3600
-model_path = './models/4min_all_augmented_infra_final_model.h5'
-meanvar_path = './models/4min_all_augmented_infra_final_meanvar.npy'
+model_path = './models/voissnet_infrasound_model.h5'
+meanvar_path = './models/voissnet_infrasound_meanvar.npy'
 dr_kwargs = None
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
                                      model_path, meanvar_path, overlap, generate_fig=generate_fig,
