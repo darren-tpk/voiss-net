@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS1A_metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics/compute_PS4A_metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_meanvar.npy" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_infra_revised_model.h5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_meanvar.npy" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/4min_all_augmented_revised_model.h5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/fig1_station_map.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_class_distributions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_gradcam_infra.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_simulations_histogram.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/plot_spectrograms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotting_scripts/timeline_plot_pavlof.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/timeline_checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/timeline_checker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/toolbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/toolbox.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_cnn_augment.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_cnn_augment_infra.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_cnn_augment_infra.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="JavaScript File" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/debugger.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/plotting_scripts/plot_explosion_times.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/plotting_scripts/plot_gradcam.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/toolbox.py" root0="SKIP_INSPECTION" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2KOPdKuwFRDr2c9f7WhokxyfJg2" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowPanel.toolwindow.highlight.mappings&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowPanel.toolwindow.highlight.symlinks&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowPanel.toolwindow.show.date&quot;: &quot;false&quot;,
+    &quot;WebServerToolWindowPanel.toolwindow.show.permissions&quot;: &quot;false&quot;,
+    &quot;WebServerToolWindowPanel.toolwindow.show.size&quot;: &quot;false&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/darrentpk/Desktop/GitHub/tremor_ml/plotting_scripts&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/plotting_scripts" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/plotting_scripts" />
+      <recent name="$PROJECT_DIR$/old_scripts" />
+      <recent name="$PROJECT_DIR$/models" />
+      <recent name="$PROJECT_DIR$/npy_generator_scripts" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="tremor_ml" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="fd715f7e-042d-4d76-8b27-f0b3cbe159f0" name="Changes" comment="" />
+      <created>1673842744062</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1673842744062</updated>
+      <workItem from="1673842749572" duration="808000" />
+      <workItem from="1673843884903" duration="33916000" />
+      <workItem from="1673984842108" duration="22249000" />
+      <workItem from="1674252272451" duration="597000" />
+      <workItem from="1674595073102" duration="3903000" />
+      <workItem from="1675302167838" duration="1887000" />
+      <workItem from="1675973922674" duration="23936000" />
+      <workItem from="1676257257379" duration="8212000" />
+      <workItem from="1676405396512" duration="702000" />
+      <workItem from="1676522563040" duration="1205000" />
+      <workItem from="1676524012825" duration="36088000" />
+      <workItem from="1676918793337" duration="44588000" />
+      <workItem from="1677280611933" duration="4846000" />
+      <workItem from="1677527732551" duration="1966000" />
+      <workItem from="1677536668761" duration="17378000" />
+      <workItem from="1677904001284" duration="2929000" />
+      <workItem from="1678129144050" duration="80973000" />
+      <workItem from="1679344339405" duration="6150000" />
+      <workItem from="1679504760828" duration="3395000" />
+      <workItem from="1679531822654" duration="1121000" />
+      <workItem from="1679595084467" duration="763000" />
+      <workItem from="1679596624105" duration="15610000" />
+      <workItem from="1679696933487" duration="1008000" />
+      <workItem from="1679697951730" duration="1465000" />
+      <workItem from="1679713494379" duration="1030000" />
+      <workItem from="1679714531555" duration="7428000" />
+      <workItem from="1679721992245" duration="1249000" />
+      <workItem from="1679723251599" duration="1165000" />
+      <workItem from="1679724424738" duration="7559000" />
+      <workItem from="1679950080880" duration="63752000" />
+      <workItem from="1680801716338" duration="19796000" />
+      <workItem from="1681427605069" duration="363000" />
+      <workItem from="1681495772267" duration="55803000" />
+      <workItem from="1682026864552" duration="148000" />
+      <workItem from="1682104564735" duration="12441000" />
+      <workItem from="1682128176460" duration="15404000" />
+      <workItem from="1682557086024" duration="2801000" />
+      <workItem from="1682630526181" duration="836000" />
+      <workItem from="1694546925507" duration="70000" />
+      <workItem from="1694547023940" duration="107375000" />
+      <workItem from="1695520955138" duration="2466000" />
+      <workItem from="1695523877097" duration="32896000" />
+      <workItem from="1695745686413" duration="25543000" />
+      <workItem from="1696012091949" duration="41234000" />
+      <workItem from="1696543802316" duration="10452000" />
+      <workItem from="1696631272112" duration="21540000" />
+      <workItem from="1696869967331" duration="8321000" />
+      <workItem from="1696897218431" duration="200000" />
+      <workItem from="1696897423943" duration="17000" />
+      <workItem from="1696897514135" duration="7253000" />
+      <workItem from="1696979183032" duration="16647000" />
+      <workItem from="1697353747550" duration="23755000" />
+      <workItem from="1697662096156" duration="3904000" />
+      <workItem from="1697670985492" duration="7099000" />
+      <workItem from="1697758298936" duration="1126000" />
+      <workItem from="1698089288454" duration="63991000" />
+      <workItem from="1698697568781" duration="1201000" />
+      <workItem from="1698713522623" duration="387000" />
+      <workItem from="1698774038478" duration="7766000" />
+      <workItem from="1698792989334" duration="1401000" />
+      <workItem from="1698870357369" duration="595000" />
+      <workItem from="1698962204784" duration="738000" />
+      <workItem from="1698969489834" duration="13909000" />
+      <workItem from="1699046215520" duration="6599000" />
+      <workItem from="1699297393187" duration="34384000" />
+      <workItem from="1699396449303" duration="27959000" />
+      <workItem from="1699658378360" duration="1587000" />
+      <workItem from="1699902380673" duration="2126000" />
+      <workItem from="1699918338432" duration="9223000" />
+      <workItem from="1699995941632" duration="37588000" />
+      <workItem from="1700252741900" duration="7958000" />
+      <workItem from="1700606774296" duration="8381000" />
+      <workItem from="1700618747878" duration="13255000" />
+      <workItem from="1701208981536" duration="17545000" />
+      <workItem from="1701473416052" duration="30226000" />
+      <workItem from="1701752450868" duration="4937000" />
+      <workItem from="1701764921533" duration="17190000" />
+      <workItem from="1701988608876" duration="815000" />
+      <workItem from="1701995177255" duration="8298000" />
+      <workItem from="1702023588903" duration="1118000" />
+      <workItem from="1702024770512" duration="2802000" />
+      <workItem from="1702114966218" duration="620000" />
+      <workItem from="1702197493139" duration="753000" />
+      <workItem from="1702224405773" duration="1982000" />
+      <workItem from="1702271051678" duration="608000" />
+      <workItem from="1704221325964" duration="8171000" />
+      <workItem from="1704914198263" duration="3850000" />
+      <workItem from="1704934835722" duration="19129000" />
+      <workItem from="1705479125855" duration="2718000" />
+      <workItem from="1705543843703" duration="844000" />
+      <workItem from="1705563356736" duration="9660000" />
+      <workItem from="1705652191432" duration="13180000" />
+      <workItem from="1705731737689" duration="37043000" />
+      <workItem from="1706044711576" duration="14193000" />
+      <workItem from="1706133475561" duration="4288000" />
+      <workItem from="1706155570673" duration="24000" />
+      <workItem from="1706157674011" duration="20411000" />
+      <workItem from="1706576136103" duration="7133000" />
+      <workItem from="1706678247592" duration="5076000" />
+      <workItem from="1706733609192" duration="4084000" />
+      <workItem from="1706851999249" duration="5729000" />
+      <workItem from="1707349461916" duration="396000" />
+      <workItem from="1707349926774" duration="14475000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_figure_historic.coverage" NAME="timeline_figure_historic Coverage Results" MODIFIED="1678847261170" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_duty.coverage" NAME="timeline_checker_duty Coverage Results" MODIFIED="1707764812853" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_infra.coverage" NAME="timeline_checker_infra Coverage Results" MODIFIED="1679002569062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/plotting_scripts" />
+    <SUITE FILE_PATH="coverage/tremor_ml$timeline_checker_shishaldin.coverage" NAME="timeline_checker_shishaldin Coverage Results" MODIFIED="1692978289846" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
