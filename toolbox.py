@@ -387,6 +387,12 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     # Loop over each trace in the stream
     for axs_index, trace in enumerate(stream):
 
+        # Define target axis
+        if len(stream) > 1:
+            target_ax = axs[axs_index]
+        else:
+            target_ax = axs
+
         # Check if input trace is infrasound (SEED channel name ends with 'DF'). Else, assume seismic.
         if trace.stats.channel[1:] == 'DF':
             # If infrasound, define corresponding reference values
@@ -446,7 +452,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
             freq_min = freq_lims[0]
             freq_max = freq_lims[1]
             spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
-            axs[axs_index].imshow(spec_db,
+            target_ax.imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
@@ -461,14 +467,14 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
                 sample_frequencies_plot = sample_frequencies[
                     np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max))]
-                axs[axs_index].plot(hist_plotting_points, sample_frequencies_plot, 'k-', linewidth=8, alpha=0.6)
-                axs[axs_index].plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
+                target_ax.plot(hist_plotting_points, sample_frequencies_plot, 'k-', linewidth=8, alpha=0.6)
+                target_ax.plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
                          [sample_frequencies_plot[-1], sample_frequencies_plot[-1]], 'k-', linewidth=8, alpha=0.6)
-                axs[axs_index].plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies_plot[-1], 'k<', markersize=30)
+                target_ax.plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies_plot[-1], 'k<', markersize=30)
         # If no frequencies limits are given
         else:
             # We go straight into plotting spec_db
-            axs[axs_index].imshow(spec_db,
+            target_ax.imshow(spec_db,
                                       extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1],
                                               sample_frequencies[0],
                                               sample_frequencies[-1]],
@@ -481,36 +487,38 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
                 spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
                 hist_plotting_range = (1 / denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
-                axs[axs_index].plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=8, alpha=0.6)
-                axs[axs_index].plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
+                target_ax.plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=8, alpha=0.6)
+                target_ax.plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
                          [sample_frequencies[-1], sample_frequencies[-1]], 'k-', linewidth=8, alpha=0.6)
-                axs[axs_index].plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies[-1], 'k<', markersize=30)
+                target_ax.plot(trace_time_matplotlib[-1] - hist_plotting_range, sample_frequencies[-1], 'k<', markersize=30)
         for earthquake_time_matplotlib in earthquake_times_matplotlib:
-            axs[axs_index].axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
+            target_ax.axvline(x=earthquake_time_matplotlib, linestyle='--', color='k', linewidth=3, alpha=0.7)
         for explosion_time_matplotlib in explosion_times_matplotlib:
-            axs[axs_index].axvline(x=explosion_time_matplotlib, linestyle='--', color='darkred', linewidth=3, alpha=0.7)
+            target_ax.axvline(x=explosion_time_matplotlib, linestyle='--', color='darkred', linewidth=3, alpha=0.7)
         if log:
-            axs[axs_index].set_yscale('log')
+            target_ax.set_yscale('log')
         if freq_lims is not None:
-            axs[axs_index].set_ylim([freq_min, freq_max])
-            axs[axs_index].set_yticks(range(2, freq_max + 1, 2))
-        axs[axs_index].set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
-        axs[axs_index].tick_params(axis='y', labelsize=18)
-        axs[axs_index].set_ylabel(trace.id, fontsize=22, fontweight='bold')
+            target_ax.set_ylim([freq_min, freq_max])
+            target_ax.set_yticks(range(2, freq_max + 1, 2))
+        target_ax.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
+        target_ax.tick_params(axis='y', labelsize=18)
+        target_ax.set_ylabel(trace.id, fontsize=22, fontweight='bold')
     time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
-    axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=22, rotation=30)
-    axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
+    bottom_ax = axs[-1] if len(stream)>1 else axs
+    bottom_ax.set_xticks(time_tick_list_mpl)
+    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30)
+    bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
     else:
         file_label = starttime.strftime('%Y%m%d_%H%M') + '__' + endtime.strftime('%Y%m%d_%H%M') + '_' + '_'.join([tr.id.split('.')[1] for tr in stream])
         fig.savefig(export_path + file_label + '.png', bbox_inches='tight')
         if export_spec:
-            extent1 = axs[0].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-            extent2 = axs[-1].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            top_ax = axs[0] if len(stream)>1 else axs
+            extent1 = top_ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            extent2 = bottom_ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             extent = Bbox([extent2._points[0], extent1._points[1]])
             fig.savefig(export_path + file_label + '_spec.png', bbox_inches=extent)
             plt.close()
