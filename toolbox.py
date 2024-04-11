@@ -1468,7 +1468,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
-def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
+def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,timeline_input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
     """
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
@@ -1477,7 +1477,7 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
     :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
-    :param input (ndarray or str): input array or path to indicators.pkl
+    :param timeline_input (ndarray or str): input array or path to indicators.pkl
     :param class_dict (dict): dictionary of classes, with keys as integers and values as (class_name, rgb_value)
     :param cumsum_panel (bool): if `True`, plot cumulative sum panel
     :param cumsum_style (str): if `normalized`, plot normalized cumulative sum. if `raw`, plot raw cumulative sum
@@ -1509,11 +1509,11 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     # Determine number of classes from class dictionary
     nclasses = len(class_dict)
 
-    # If the input is a pickle file, configure voted timeline
-    if type(input) == str and input[-4:] == '.pkl':
+    # If the timeline_input is a pickle file, configure voted timeline
+    if isinstance(timeline_input, str) and timeline_input[-4:] == '.pkl':
 
         # Filter indicators by time
-        indicators = pd.read_pickle(input)
+        indicators = pd.read_pickle(timeline_input)
         indicators = [indicator for indicator in indicators if (starttime <= indicator[1] < endtime)]
 
         # Populate matrix to derive voted timeline
@@ -1539,21 +1539,21 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
         # Corresponding time array
         voted_utctimes = np.arange(starttime, endtime, classification_interval)
 
-    # If the input is an array, check shape and assign to voted timeline
-    elif type(input) == np.ndarray:
+    # If the timeline_input is an array, check shape and assign to voted timeline
+    elif type(timeline_input) == np.ndarray:
 
         # Check dimensions
         required_shape = (int((endtime - starttime - 240) / classification_interval + 1),)
-        if np.shape(input) != required_shape:
+        if np.shape(timeline_input) != required_shape:
             raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
-        voted_timeline = input
+        voted_timeline = timeline_input
 
         # Corresponding time array
         voted_utctimes = np.arange(starttime + 120, endtime - 120 + 1, classification_interval)
 
     # If the input is invalid, raise error
     else:
-        raise ValueError('Input must be either an indicators pickle file or a 1D numpy array.')
+        raise ValueError('Timeline input must be either an indicators pickle file or a 1D numpy array.')
 
     # Count classes per bin
     num_bins = int((endtime-starttime) / binning_interval)
