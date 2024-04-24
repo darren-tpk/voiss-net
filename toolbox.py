@@ -891,7 +891,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_ylim([len(station.split(',')) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(LW)
-    ax1.set_title('Station-based Voting', fontsize=font_s + 2)
+    ax1.set_title('Network-Wide Voting', fontsize=font_s + 2)
 
     # Plot probabilities in middle axis
     prob_xvec = np.arange(0.5, len(voted_probabilities) + 0.5, 1)
@@ -1468,16 +1468,17 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
-def plot_timeline_binned(starttime,endtime,classification_interval,binning_interval,xtick_interval,xtick_format,timeline_input,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
+def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,binning_interval,xtick_interval,xtick_format,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
     """
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
-    :param classification_interval (float): interval used for class_mat[-1,:] or indicators.pkl, in seconds
+    :param model_path (str): path to model .h5 file
+    :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices used to generate timeline_input
+    :param timeline_input (ndarray or str): input array or path to indicators.pkl
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
     :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
-    :param timeline_input (ndarray or str): input array or path to indicators.pkl
     :param class_dict (dict): dictionary of classes, with keys as integers and values as (class_name, rgb_value)
     :param cumsum_panel (bool): if `True`, plot cumulative sum panel
     :param cumsum_style (str): if `normalized`, plot normalized cumulative sum. if `raw`, plot raw cumulative sum
@@ -1506,8 +1507,13 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
         xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
         xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
 
+    # Determine classification interval using model file and overlap
+    saved_model = load_model(model_path)
+    model_input_length = saved_model.input.shape.as_list()[2]
+    classification_interval = model_input_length * (1-overlap)
+
     # Determine number of classes from class dictionary
-    nclasses = len(class_dict)
+    nclasses = saved_model.layers[-1].get_config()['units']
 
     # If the timeline_input is a pickle file, configure voted timeline
     if isinstance(timeline_input, str) and timeline_input[-4:] == '.pkl':
@@ -1536,20 +1542,21 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
         voted_timeline = np.argmax(matrix_probs_sum, axis=1)
         voted_timeline[matrix_probs_contributing_station_count == 0] = nclasses
 
-        # Corresponding time array
-        voted_utctimes = np.arange(starttime, endtime, classification_interval)
+        # # Corresponding time array
+        # voted_utctimes = np.arange(starttime, endtime, classification_interval)
 
     # If the timeline_input is an array, check shape and assign to voted timeline
     elif type(timeline_input) == np.ndarray:
 
         # Check dimensions
-        required_shape = (int((endtime - starttime - 240) / classification_interval + 1),)
+        required_shape = (int((endtime - starttime - model_input_length) / classification_interval + 1),)
         if np.shape(timeline_input) != required_shape:
             raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
-        voted_timeline = timeline_input
+        voted_timeline = np.concatenate((nclasses*np.ones(int(model_input_length/2/classification_interval),), timeline_input,
+                                         nclasses*np.ones(int(model_input_length/2/classification_interval-1),)))
 
-        # Corresponding time array
-        voted_utctimes = np.arange(starttime + 120, endtime - 120 + 1, classification_interval)
+        # # Corresponding time array
+        # voted_utctimes = np.arange(starttime + model_input_length/2, endtime - model_input_length/2 + 1, classification_interval)
 
     # If the input is invalid, raise error
     else:
@@ -1560,7 +1567,7 @@ def plot_timeline_binned(starttime,endtime,classification_interval,binning_inter
     num_classification_intervals_per_bin = int(binning_interval / classification_interval)
     count_array = np.zeros((num_bins, nclasses + 1))
     voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_classification_intervals_per_bin))
-    for i in range(nclasses):
+    for i in range(nclasses + 1):
         count_array[:, i] = np.sum(voted_timeline_reshaped == i, axis=1)
     count_array[:, nclasses] = num_classification_intervals_per_bin
 
