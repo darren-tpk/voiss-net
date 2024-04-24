@@ -1512,6 +1512,10 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     model_input_length = saved_model.input.shape.as_list()[2]
     classification_interval = model_input_length * (1-overlap)
 
+    # Check if binning interval divides perfectly by classification interval
+    if binning_interval % classification_interval != 0:
+        raise ValueError('binning_interval must divide perfectly by classification_interval.')
+
     # Determine number of classes from class dictionary
     nclasses = saved_model.layers[-1].get_config()['units']
 
