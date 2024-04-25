@@ -1468,7 +1468,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
-def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,binning_interval,xtick_interval,xtick_format,class_dict,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
+def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,binning_interval,xtick_interval,xtick_format,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
     """
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
@@ -1479,7 +1479,6 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
     :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
-    :param class_dict (dict): dictionary of classes, with keys as integers and values as (class_name, rgb_value)
     :param cumsum_panel (bool): if `True`, plot cumulative sum panel
     :param cumsum_style (str): if `normalized`, plot normalized cumulative sum. if `raw`, plot raw cumulative sum
     :param cumsum_legend (bool): if `True`, plot legend for cumulative sum panel
@@ -1518,7 +1517,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     if binning_interval % classification_interval != 0:
         raise ValueError('binning_interval (%.1f s) must divide perfectly by classification_interval (%.1f s).' % (binning_interval, classification_interval))
 
-    # Determine number of classes from class dictionary
+    # Determine number of classes from model
     nclasses = saved_model.layers[-1].get_config()['units']
 
     # If the timeline_input is a pickle file, configure voted timeline
@@ -1586,7 +1585,29 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     matrix_alpha = np.transpose(alpha_array)
     matrix_alpha = np.flip(matrix_alpha, axis=0)
 
-    # Colormap
+    # Determine class dictionary from nclasses and craft colormap
+    if nclasses == 6:
+        class_dict = {0: ('BT', [193,  39,  45]),
+                      1: ('HT', [  0, 129, 118]),
+                      2: ('MT', [  0,   0, 167]),
+                      3: ('EQ', [238, 204,  22]),
+                      4: ('EX', [164,  98,   0]),
+                      5: ('NO', [ 40,  40,  40])}
+    elif nclasses == 7:
+        class_dict = {0: ('BT', [193,  39,  45]),
+                      1: ('HT', [  0, 129, 118]),
+                      2: ('MT', [  0,   0, 167]),
+                      3: ('EQ', [238, 204,  22]),
+                      4: ('LP', [103,  72, 132]),
+                      5: ('EX', [164,  98,   0]),
+                      6: ('NO', [ 40,  40,  40])}
+    elif nclasses == 4:
+        class_dict = {0: ('IT', [103, 52, 235]),
+                      1: ('EX', [235, 152, 52]),
+                      2: ('WN', [40, 40, 40]),
+                      3: ('EN', [15, 37, 60])}
+    else:
+        raise ValueError('Unrecognized model output number of classes. Please modify plot_timeline_binned to define class_dict option.')
     rgb_values = np.array([class_dict[i][1] for i in range(nclasses)])
     rgb_ratios = rgb_values / 255
     cmap = ListedColormap(rgb_ratios)
