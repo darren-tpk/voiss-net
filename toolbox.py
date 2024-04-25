@@ -1033,6 +1033,248 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         print('Done!')
     return class_mat, prob_mat
 
+def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
+                          meanvar_path, overlap, binning_interval, xtick_interval, xtick_format, spec_kwargs=None,
+                          figsize=(10, 4), font_s=12, export_path=None):
+    """
+    This function checks the voted VOISS-Net timeline using given stations and plots a selected spectrogram alongside results in a binned format.
+    :param source (str): Which source to gather waveforms from (e.g. IRIS)
+    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
+    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
+    :param spec_station (str): SEED station code of the station for which the spectrogram will be plotted
+    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
+    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
+    :param model_path (str): Path to model .h5 file
+    :param meanvar_path (str): path to model's meanvar .npy file
+    :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
+    :param binning_interval (float): interval to bin results into occurence ratios, in seconds
+    :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
+    :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
+    :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
+    :param figsize (tuple): figure size
+    :param font_s (float): Font size [points]
+    :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :return: None
+    """
+
+    rcParams['font.size'] = font_s
+
+    # Define fixed values
+    saved_model = load_model(model_path)
+    model_input_length = saved_model.input.shape.as_list()[2]
+    classification_interval = int(np.round(model_input_length * (1 - overlap)))
+
+    # Enforce the duration to be a multiple of the model's time step
+    if (endtime - starttime - model_input_length) % classification_interval != 0:
+        print('The desired analysis duration is not a multiple of the inbuilt time step.')
+        endtime = endtime + (
+                    classification_interval - (endtime - starttime - model_input_length) % classification_interval)
+        print('Rounding up endtime to %s.' % str(endtime))
+
+    # Parse spec_kwargs
+    spec_kwargs = {} if spec_kwargs is None else spec_kwargs
+    pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
+    window_duration = spec_kwargs['window_duration'] if 'window_duration' in \
+                                                        spec_kwargs else 10
+    freq_lims = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else \
+        (0.5, 10)
+    v_percent_lims = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in \
+                                                      spec_kwargs else (20, 97.5)
+
+    # Load data of spec station for spectrogram
+    successfully_loaded = False
+    load_starttime = time.time()
+    while not successfully_loaded:
+        try:
+            stream_raw = gather_waveforms(source=source, network=network, station=spec_station,
+                                          location=location, channel=channel,
+                                          starttime=starttime - pad, endtime=endtime + pad,
+                                          verbose=False)
+            stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
+                                      taper_length=pad, verbose=False)
+            successfully_loaded = True
+        except:
+            print('Data pull failed, trying again in 10 seconds...')
+            time.sleep(10)
+            load_currenttime = time.time()
+            if load_currenttime - load_starttime < 60:
+                pass
+            else:
+                raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime), str(endtime)))
+
+    # If stream sampling rate is not an integer, fix
+    for tr in stream:
+        if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
+            tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
+
+    # Determine if infrasound
+    infrasound = True if channel[-1] == 'F' else False
+    reference_value = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
+    spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
+
+    # Extract trace information for FFT
+    trace = stream[0]
+    sampling_rate = trace.stats.sampling_rate
+    samples_per_segment = int(window_duration * sampling_rate)
+
+    # Compute spectrogram (Note that overlap is 90% of samples_per_segment)
+    sample_frequencies, segment_times, spec = spectrogram(trace.data,
+                                                          sampling_rate,
+                                                          window='hann',
+                                                          scaling='density',
+                                                          nperseg=samples_per_segment,
+                                                          noverlap=samples_per_segment * .9)
+
+    # Convert spectrogram matrix to decibels for plotting
+    spec_db = 10 * np.log10(abs(spec) / (reference_value ** 2))
+
+    # Convert trace times to matplotlib dates
+    trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
+
+    # Determine frequency limits and trim spec_db
+    spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > freq_lims[0]) & (sample_frequencies < freq_lims[1])), :]
+
+    # Obtain class mat for binned timeline
+    class_mat, _ = check_timeline(source, network, station, channel, location, starttime, endtime,
+                                  model_path, meanvar_path, overlap, spec_kwargs=spec_kwargs,
+                                  generate_fig=False)
+
+    # Define time ticks on x-axis
+    if xtick_interval != 'month':
+        xtick_utcdatetimes = np.arange(starttime, endtime + 1, xtick_interval)
+        xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
+        xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
+    else:
+        xtick_utcdatetimes = []
+        t = UTCDateTime(starttime.year, starttime.month, 1)
+        while t <= endtime:
+            xtick_utcdatetimes.append(t)
+            if t.month + 1 <= 12:
+                t += UTCDateTime(t.year, t.month + 1, 1) - t
+            else:
+                t += UTCDateTime(t.year + 1, 1, 1) - t
+        xtick_pcts = [(t - starttime) / (endtime - starttime) for t in xtick_utcdatetimes]
+        xtick_labels = [t.strftime(xtick_format) for t in xtick_utcdatetimes]
+
+    # Define timeline input
+    timeline_input = class_mat[-1, :]
+
+    # Check if binning interval divides perfectly by classification interval
+    if binning_interval % classification_interval != 0:
+        raise ValueError('binning_interval (%.1f s) must divide perfectly by classification_interval (%.1f s).' % (
+            binning_interval, classification_interval))
+
+    # Determine number of classes from model
+    nclasses = saved_model.layers[-1].get_config()['units']
+
+    # Check dimensions and pad voted timeline
+    required_shape = (int((endtime - starttime - model_input_length) / classification_interval + 1),)
+    if np.shape(timeline_input) != required_shape:
+        raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
+    voted_timeline = np.concatenate(
+        (nclasses * np.ones(int(model_input_length / 2 / classification_interval), ), timeline_input,
+         nclasses * np.ones(int(model_input_length / 2 / classification_interval - 1), )))
+
+    # Count classes per bin
+    num_bins = int((endtime - starttime) / binning_interval)
+    num_classification_intervals_per_bin = int(binning_interval / classification_interval)
+    count_array = np.zeros((num_bins, nclasses + 1))
+    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_classification_intervals_per_bin))
+    for i in range(nclasses + 1):
+        count_array[:, i] = np.sum(voted_timeline_reshaped == i, axis=1)
+    count_array[:, nclasses] = num_classification_intervals_per_bin
+
+    # Prepare dummy matrix plot and calculate alpha value
+    matrix_plot = np.ones((nclasses, num_bins))
+    for i in range(nclasses):
+        matrix_plot[i, :] = matrix_plot[i, :] * i
+    matrix_plot = np.flip(matrix_plot, axis=0)
+    alpha_array = np.sqrt(count_array[:, :-1] / count_array[:, -1].reshape(-1, 1))
+    matrix_alpha = np.transpose(alpha_array)
+    matrix_alpha = np.flip(matrix_alpha, axis=0)
+
+    # Determine class dictionary from nclasses and craft colormap
+    if nclasses == 6:
+        class_dict = {0: ('BT', [193, 39, 45]),
+                      1: ('HT', [0, 129, 118]),
+                      2: ('MT', [0, 0, 167]),
+                      3: ('EQ', [238, 204, 22]),
+                      4: ('EX', [164, 98, 0]),
+                      5: ('NO', [40, 40, 40])}
+    elif nclasses == 7:
+        class_dict = {0: ('BT', [193, 39, 45]),
+                      1: ('HT', [0, 129, 118]),
+                      2: ('MT', [0, 0, 167]),
+                      3: ('EQ', [238, 204, 22]),
+                      4: ('LP', [103, 72, 132]),
+                      5: ('EX', [164, 98, 0]),
+                      6: ('NO', [40, 40, 40])}
+    elif nclasses == 4:
+        class_dict = {0: ('IT', [103, 52, 235]),
+                      1: ('EX', [235, 152, 52]),
+                      2: ('WN', [40, 40, 40]),
+                      3: ('EN', [15, 37, 60])}
+    else:
+        raise ValueError(
+            'Unrecognized model output number of classes. Please modify check_timeline_binned to define class_dict option.')
+    rgb_values = np.array([class_dict[i][1] for i in range(nclasses)])
+    rgb_ratios = rgb_values / 255
+    cmap = ListedColormap(rgb_ratios)
+
+    # Alpha map
+    amap = np.ones([256, 4])
+    amap[:, 3] = np.linspace(0, 1, 256)
+    amap = ListedColormap(amap)
+
+    # Commence plotting
+    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=figsize)
+    fig.subplots_adjust(hspace=0.05)
+
+    # Spectrogram
+    ax0.imshow(spec_db, extent=[trace_time_matplotlib[0], trace_time_matplotlib[-1], sample_frequencies[0],
+                                sample_frequencies[-1]],
+               vmin=np.percentile(spec_db_plot[spec_db_plot > spec_thresh], v_percent_lims[0]),
+               vmax=np.percentile(spec_db_plot[spec_db_plot > spec_thresh], v_percent_lims[1]),
+               origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
+    ax0.set_ylabel(spec_station + '\n' + trace.stats.channel, fontsize=font_s, fontweight='bold')
+    ax0.set_ylim([freq_lims[0], freq_lims[1]])
+    ax0.set_yticks(range(2, freq_lims[1] + 1, int(freq_lims[1] / 5)))
+    ax0.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
+    ax0.set_xticks(
+        np.array(xtick_pcts) * (endtime.matplotlib_date - starttime.matplotlib_date) + starttime.matplotlib_date)
+    ax0.set_xticklabels([])
+    ax0.tick_params(axis='y', labelsize=font_s)
+    plot_title = 'VOISS-Net results using %s' % station
+    plot_title_split = plot_title.split(spec_station)
+    ax0.set_title(plot_title_split[0] + r"$\bf{" + spec_station + "}$" + plot_title_split[1], fontsize=font_s + 2)
+
+    # Binned timeline
+    ax1.pcolormesh(matrix_plot, cmap=cmap)
+    ax1.pcolormesh(1 - matrix_alpha, cmap=amap)
+    ax1.set_yticks(np.arange(0.5, nclasses, 1))
+    ax1.set_yticklabels(reversed([class_dict[i][0] for i in range(nclasses)]), fontsize=font_s)
+    ax1.set_ylabel('Class', fontsize=font_s, fontweight='bold')
+    ax1.set_xticks(np.array(xtick_pcts) * np.shape(matrix_plot)[1])
+    ax1.set_xticklabels(xtick_labels, fontsize=font_s)
+
+    # Tidy x label
+    if endtime.date == starttime.date:
+        ax1.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=font_s)
+    elif (endtime - starttime) < (2 * 86400):
+        ax1.set_xlabel('UTC Time starting from ' +
+                       starttime.date.strftime('%b %d, %Y'),
+                       fontsize=font_s)
+    else:
+        ax1.set_xlabel('UTC Time', fontsize=font_s)
+
+    # Plot or save figure
+    if export_path:
+        plt.savefig(export_path, bbox_inches='tight')
+    else:
+        fig.show()
+
 def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None):
 
     """
