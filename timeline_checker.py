@@ -13,7 +13,6 @@ fig_width = 12
 fig_height = 10
 font_s = 12
 spec_kwargs = None
-annotate = False
 export_path = None
 transparent = None
 
