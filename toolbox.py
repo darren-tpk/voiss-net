@@ -579,7 +579,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap, pnorm_thresh=None, generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -593,6 +593,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param model_path (str): Path to model .h5 file
     :param meanvar_path (str): path to model's meanvar .npy file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
+    :param pnorm_thresh (float): Threshold for network-averaged probability
+     cutoff. If `None` [default], no threshold is applied
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
     :param fig_height (float): Figure height [in] (if `None`, figure height = figure width * 0.75)
@@ -757,6 +759,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     voted_labels = np.argmax(matrix_probs_sum, axis=1)
     voted_labels[matrix_contributing_station_count==0] = na_label
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
+
+    # remove low probability votes
+    if pnorm_thresh:
+        print(f'Removing low probability classification s(below {pnorm_thresh})'
+              f'from voting scheme.')
+        # remove low probability votes
+        voted_labels[voted_probabilities < pnorm_thresh] = na_label
+
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
     # Return class and probability outputs if figure plotting is not desired
