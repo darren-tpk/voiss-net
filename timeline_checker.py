@@ -17,12 +17,13 @@ annotate = False
 export_path = None
 transparent = None
 
-# # Check timeline for seismic
+# Check timeline for seismic
 channel = '*HZ'
 starttime = UTCDateTime(2021, 9, 14, 16)
 endtime = starttime + 3*3600
 model_path = './models/voissnet_seismic_model.h5'
 meanvar_path = './models/voissnet_seismic_meanvar.npy'
+pnorm_thresh = None
 dr_kwargs = {'reference_station': 'PS1A',    # station code
              'filter_band': (1, 5),          # Hz
              'window_length': 10,            # seconds
@@ -31,9 +32,8 @@ dr_kwargs = {'reference_station': 'PS1A',    # station code
              'volc_lon': -161.8937,          # decimal degrees
              'seis_vel': 1500,               # m/s
              'dominant_freq': 2}             # Hz
-PNORM_THRESH = None
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
-                                     model_path, meanvar_path, overlap, generate_fig=generate_fig,
+                                     model_path, meanvar_path, overlap, pnorm_thresh=pnorm_thresh, generate_fig=generate_fig,
                                      fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
                                      dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
 
@@ -43,8 +43,9 @@ starttime = UTCDateTime(2021, 8, 6, 10)
 endtime = starttime + 3*3600
 model_path = './models/voissnet_infrasound_model.h5'
 meanvar_path = './models/voissnet_infrasound_meanvar.npy'
+pnorm_thresh = None
 dr_kwargs = None
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
-                                     model_path, meanvar_path, overlap, generate_fig=generate_fig,
+                                     model_path, meanvar_path, overlap, pnorm_thresh=pnorm_thresh, generate_fig=generate_fig,
                                      fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
                                      dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
