@@ -31,6 +31,7 @@ dr_kwargs = {'reference_station': 'PS1A',    # station code
              'volc_lon': -161.8937,          # decimal degrees
              'seis_vel': 1500,               # m/s
              'dominant_freq': 2}             # Hz
+PNORM_THRESH = None
 class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
                                      model_path, meanvar_path, overlap, generate_fig=generate_fig,
                                      fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
