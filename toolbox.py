@@ -579,7 +579,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap, pnorm_thresh=None, generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -908,6 +908,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.plot(prob_xvec, voted_probabilities, color='k', linewidth=LW)
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
+    if pnorm_thresh:
+        ax2.axhline(pnorm_thresh, color='r', linestyle='-', linewidth=LW+1)
     ax2.set_xlim([0, len(voted_probabilities)])
     ax2.set_xticks(np.linspace(0, len(voted_probabilities), int(denominator+1)))
     plt.setp(ax2.get_xticklabels(), visible=False)
@@ -1044,8 +1046,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     return class_mat, prob_mat
 
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
-                          meanvar_path, overlap, binning_interval, xtick_interval, xtick_format, spec_kwargs=None,
-                          figsize=(10, 4), font_s=12, export_path=None):
+                          meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
+                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None):
     """
     This function checks the voted VOISS-Net timeline using given stations and plots a selected spectrogram alongside results in a binned format.
     :param source (str): Which source to gather waveforms from (e.g. IRIS)
@@ -1147,8 +1149,8 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > freq_lims[0]) & (sample_frequencies < freq_lims[1])), :]
 
     # Obtain class mat for binned timeline
-    class_mat, _ = check_timeline(source, network, station, channel, location, starttime, endtime,
-                                  model_path, meanvar_path, overlap, spec_kwargs=spec_kwargs,
+    class_mat, _ = check_timeline(source, network, station, channel, location, starttime, endtime, model_path,
+                                  meanvar_path, overlap, pnorm_thresh=pnorm_thresh, spec_kwargs=spec_kwargs,
                                   generate_fig=False)
 
     # Define time ticks on x-axis
