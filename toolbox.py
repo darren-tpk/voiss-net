@@ -762,8 +762,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # remove low probability votes
     if pnorm_thresh:
-        print(f'Removing low probability classification s(below {pnorm_thresh})'
-              f'from voting scheme.')
+        print(f'Removing low probability classifications (Pnorm < {pnorm_thresh})'
+              f' from voting scheme.')
         # remove low probability votes
         voted_labels[voted_probabilities < pnorm_thresh] = na_label
 
