@@ -765,7 +765,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         print(f'Removing low probability classification s(below {pnorm_thresh})'
               f'from voting scheme.')
         # remove low probability votes
-        voted_probabilities[voted_probabilities < pnorm_thresh] = na_label
+        voted_labels[voted_probabilities < pnorm_thresh] = na_label
 
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
