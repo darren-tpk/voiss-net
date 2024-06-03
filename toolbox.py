@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from obspy import UTCDateTime, read, Stream, Trace
 from matplotlib import dates
 from matplotlib.transforms import Bbox
-from scipy.signal import spectrogram, find_peaks
+from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
 from ordpy import complexity_entropy
 from geopy.distance import geodesic as GD
@@ -688,17 +688,17 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
                 spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in utc_times])
                 spec_slice = spec_db[:, spec_slice_indices]
 
-                # Enforce shape
-                if np.shape(spec_slice) != (94, time_step):
+                # Enforce spectrogram length
+                if np.shape(spec_slice)[1] != time_step:
                     # Try inclusive slicing time span (<= sb2)
                     spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
                     spec_slice = spec_db[:, spec_slice_indices]
                     # If it still doesn't fit our shape, try double inclusive time bounds
-                    if np.shape(spec_slice) != (94, time_step):
+                    if np.shape(spec_slice)[1] != time_step:
                         spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
                         spec_slice = spec_db[:, spec_slice_indices]
                         # Otherwise, raise error
-                        if np.shape(spec_slice) != (94, time_step):
+                        if np.shape(spec_slice)[1] != time_step:
                             raise ValueError('THE SHAPE IS NOT RIGHT.')
 
                 # Skip matrices that have a spectrogram data gap
@@ -783,7 +783,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param fig_height (float): Figure height [in] (if `None`, figure height = figure width * 0.75)
     :param font_s (float): Font size [points]
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
-    :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq)
+    :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq, med_filt_kernel, dr_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
@@ -1119,6 +1119,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                           (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
         wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
         dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+        if 'med_filt_kernel' in dr_kwargs:
+            dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
 
         # Plot reduced displacement
         dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
@@ -1126,9 +1128,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         ax2b.set_xlim(0, len(dr))
         ax2b.set_xticks(np.linspace(0, len(dr), int(denominator+1)))
         plt.setp(ax2b.get_xticklabels(), visible=False)
-        ax2b.set_ylim([0, np.ceil(np.max(dr))])
+        if 'dr_lims' in dr_kwargs:
+            ax2b.set_ylim(dr_kwargs['dr_lims'])
+            ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+        else:
+            ax2b.set_ylim([0, np.ceil(np.max(dr))])
+            ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
         ax2b.tick_params(axis='y', labelsize=font_s)
-        ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
         ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
 
     # Loop over input stations and plot spectrograms on lower axes
