@@ -9,6 +9,11 @@ import colorcet as cc
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+from keras import layers, models, losses, optimizers
+from keras import backend as K
+from keras.models import load_model
+from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
+from sklearn import metrics
 from obspy import UTCDateTime, read, Stream, Trace
 from matplotlib import dates
 from matplotlib.transforms import Bbox
@@ -1475,6 +1480,177 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
         plt.savefig(export_path, bbox_inches='tight')
     else:
         fig.show()
+def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20):
+    """
+    Train an iteration VOISS-Net convolutional neural network for classifying spectrogram slices
+    :param train_paths (list): List of file paths to training data
+    :param valid_paths (list): List of file paths to validation data
+    :param test_paths (list): List of file paths to test data
+    :param label_dict (dict): Dictionary to convert appended file index to their actual label
+    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.h5')
+    :param batch_size (int): Batch size for training (default 100)
+    :param learning_rate (float): Learning rate for the optimizer (default 0.0005)
+    :param patience (int): Number of epochs to  for early stopping (default 20)
+    """
+
+    # Initialize model and figure subdirectories if needed
+    if not os.path.isdir('./models/'):
+        os.mkdir('./models/')
+    if not os.path.isdir('./figures/'):
+        os.mkdir('./figures/')
+
+    # Define filepaths of all model products
+    model_filepath = './models/' + model_tag + '_model.h5'
+    meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
+    history_filepath = './models/' + model_tag + '_history.npy'
+    curve_filepath = './figures/' + model_tag + '_curve.png'
+    confusion_filepath = './figures/' + model_tag + '_confusion.png'
+
+    # Determine the number of unique classes in training to decide on the number of output nodes in model
+    train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
+    unique_classes = np.unique(train_classes)
+
+    # Read in example file to determine spectrogram shape
+    eg_spec = np.load(train_paths[0])
+
+    # Define parameters to generate the training, testing, validation data
+    params = {
+        "dim": eg_spec.shape,
+        "n_classes": len(unique_classes),
+        "shuffle": True,
+        "running_x_mean": np.mean(eg_spec),
+        "running_x_var": np.var(eg_spec)
+    }
+
+    # Configure test and validation lists
+    valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
+    test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
+
+    # Create a dictionary holding labels for all filepaths in the training, testing, and validation data
+    train_labels = [np.where(i == unique_classes)[0][0] for i in train_classes]
+    train_label_dict = dict(zip(train_paths, train_labels))
+    valid_labels = [np.where(i == unique_classes)[0][0] for i in valid_classes]
+    valid_label_dict = dict(zip(valid_paths, valid_labels))
+    test_labels = [np.where(i == unique_classes)[0][0] for i in test_classes]
+    test_label_dict = dict(zip(test_paths, test_labels))
+
+    # Initialize the training and validation generators
+    train_gen = DataGenerator(train_paths, train_label_dict, batch_size=batch_size, **params, is_training=True)
+    valid_gen = DataGenerator(valid_paths, valid_label_dict, batch_size=len(valid_paths), **params, is_training=False)
+
+    # Define a Callback class that allows the validation dataset to adopt the running
+    # training mean and variance for spectrogram standardization (by each pixel)
+    class ExtractMeanVar(Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            valid_gen.running_x_mean = train_gen.running_x_mean
+            valid_gen.running_x_var = train_gen.running_x_var
+
+    # Define the CNN
+
+    # Add singular channel to conform with tensorflow input dimensions
+    input_shape = [*eg_spec.shape, 1]
+
+    # Build a sequential model
+    model = models.Sequential()
+    # Convolutional layer, 32 filters, 3x3 kernel, 1x1 stride, padded to retain shape
+    model.add(layers.Conv2D(32, (3, 3), activation="relu", input_shape=input_shape, padding="same"))
+    # Max pooling layer, 3x3 pool, 3x3 stride
+    model.add(layers.MaxPooling2D((3, 3)))
+    # Convolutional layer, 64 filters, 3x3 kernel, 1x1 stride, padded to retain shape
+    model.add(layers.Conv2D(64, (3, 3), activation="relu", padding="same"))
+    # Max pooling layer, 3x3 pool, 3x3 stride
+    model.add(layers.MaxPooling2D((3, 3)))
+    # Convolutional layer, 128 filters, 3x3 kernel, 1x1 stride, padded to retain shape
+    model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
+    # Max pooling layer, 3x3 pool, 3x3 stride
+    model.add(layers.MaxPooling2D((3, 3)))
+    # Flatten and add 20% dropout to inputs
+    model.add(layers.Flatten())
+    model.add(layers.Dropout(0.2))
+    # Dense layer, 128 units with 50% dropout
+    model.add(layers.Dense(128, activation="relu"))
+    model.add(layers.Dropout(0.5))
+    # Dense layer, 64 units with 50% dropout
+    model.add(layers.Dense(64, activation="relu"))
+    model.add(layers.Dropout(0.5))
+    # Dense layer, 6 units, one per class
+    model.add(layers.Dense(params["n_classes"], activation="softmax"))
+    # Compile model
+    optimizer = optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics=["accuracy"])
+    # Print out model summary
+    model.summary()
+    # Implement early stopping, checkpointing, and transference of mean and variance
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
+    mc = ModelCheckpoint(model_filepath, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
+    emv = ExtractMeanVar()
+    # Fit model
+    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+
+    # Save the final running mean and variance
+    np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
+
+    # Save model training history to reproduce learning curves
+    np.save(history_filepath, history.history)
+
+    # Plot loss and accuracy curves
+    fig_curves, axs = plt.subplots(1, 2, figsize=(8, 5))
+    axs[0].plot(history.history["accuracy"], label="Training", lw=1)
+    axs[0].plot(history.history["val_accuracy"], label="Validation", lw=1)
+    axs[0].axvline(len(history.history["val_accuracy"]) - es.patience - 1, color='k', linestyle='--', alpha=0.5,
+                   label='Early Stop')
+    axs[0].set_ylim([0, 1])
+    axs[0].set_ylabel("Accuracy")
+    axs[0].set_xlabel("Epoch")
+    axs[1].plot(history.history["loss"], label="Training", lw=1)
+    axs[1].plot(history.history["val_loss"], label="Validation", lw=1)
+    axs[1].axvline(len(history.history["val_loss"]) - es.patience - 1, color='k', linestyle='--', alpha=0.5,
+                   label='Early Stop')
+    axs[1].set_ylabel("Loss")
+    axs[1].set_xlabel("Epoch")
+    axs[0].legend()
+    fig_curves.suptitle(model_tag, fontweight='bold')
+    fig_curves.savefig(curve_filepath, bbox_inches='tight')
+    fig_curves.show()
+
+    # Create data generator for test data
+    test_params = {
+        "dim": eg_spec.shape,
+        "batch_size": len(test_labels),
+        "n_classes": len(unique_classes),
+        "shuffle": False}
+    test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                             running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
+
+    # Use saved model to make predictions
+    saved_model = load_model(model_filepath)
+    test = saved_model.predict(test_gen)
+    pred_labs = np.argmax(test, axis=1)
+    true_labs = np.array([test_gen.labels[id] for id in test_gen.list_ids])
+
+    # Print evaluation on test data
+    acc = metrics.accuracy_score(true_labs, pred_labs)
+    pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='macro')
+    metrics_chunk = model_filepath + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + (
+                'Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
+    print(metrics_chunk)
+
+    # Confusion matrix
+    import colorcet as cc
+    class_labels_raw = list(label_dict.keys())
+    class_labels = [cl.replace(' ', '\n') for cl in class_labels_raw]
+    confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_labels)
+    cm_display.plot(xticks_rotation=30, cmap=cc.cm.blues, values_format='.2f', im_kw=dict(vmin=0, vmax=1))
+    fig_cm = plt.gcf()
+    fig_cm.set_size_inches(8, 6.25)
+    plt.title(model_tag + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc, pre, rec, f1),
+              fontweight='bold')
+    fig_cm.savefig(confusion_filepath, bbox_inches='tight')
+    fig_cm.show()
+
+    # Print text on completion
+    print('Done.')
 
 def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None):
 
