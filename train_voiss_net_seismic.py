@@ -3,19 +3,20 @@ import tensorflow as tf
 from toolbox import create_labeled_dataset, set_universal_seed, augment_labeled_dataset, train_voiss_net
 
 # Disable GPU if desired
-DISABLE_GPU = True
+DISABLE_GPU = True 
 
 # Define inputs and parameters for create_labeled_dataset
 json_filepath = './labels/voissnet_labels_seismic.json'
-output_dir = './labeled_npy_files/seismic/'
+output_dir = '/data/generalized_tremor/labeled_npy_2min_all/'
 label_dict = {'Broadband Tremor': 0,
               'Harmonic Tremor': 1,
               'Monochromatic Tremor': 2,
               'Earthquake': 3,
-              'Explosion': 4,
-              'Noise': 5}
-transient_indices = [3, 4]  # indices of transient classes
-time_step = 4 * 60  # s
+              'Long Period': 4,
+              'Explosion': 5,
+              'Noise': 6}
+transient_indices = [3, 4, 5]  # indices of transient classes
+time_step = 2 * 60  # s
 source = 'IRIS'
 network = 'AV'
 station = 'PN7A,PS1A,PS4A,PV6A,PVV'
@@ -26,8 +27,8 @@ window_duration = 10  # s
 freq_lims = (0.5, 10)  # Hz
 
 # Create labeled dataset from json file and store in output directory
-create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station,
-                       location, channel, pad, window_duration, freq_lims)
+#create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station,
+#                       location, channel, pad, window_duration, freq_lims)
 
 # Disable GPU if desired
 if DISABLE_GPU:
@@ -49,9 +50,9 @@ set_universal_seed(19)
 # Define inputs and parameters for augment_labeled_dataset
 npy_dir = output_dir
 omit_index = [0,3]  # do not include broadband tremor and earthquakes in count determination
-noise_index = 5  # use noise samples to augment
+noise_index = 6  # use noise samples to augment
 testval_ratio = 0.2  # use 20% of sparse-est class count to pull test and validation sets
-noise_ratio = 0.35  # weight of noise sample added for augmentation
+noise_ratio = 0.2  # weight of noise sample added for augmentation
 
 # Augment labeled dataset and do training, validation and test set split
 train_paths, valid_paths, test_paths = augment_labeled_dataset(npy_dir=npy_dir, omit_index=omit_index,
@@ -59,7 +60,7 @@ train_paths, valid_paths, test_paths = augment_labeled_dataset(npy_dir=npy_dir, 
                                                                noise_ratio=noise_ratio)
 
 # Define inputs and parameters for train_voiss_net
-model_tag = 'voissnet_seismic'
+model_tag = 'voissnet_seismic_2min_all'
 batch_size = 100  # default
 learning_rate = 0.0005  # default
 patience = 20  # epochs
