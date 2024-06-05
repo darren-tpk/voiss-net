@@ -11,8 +11,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statistics as sts
 from keras import layers, models, losses, optimizers
-from keras import backend as K
-from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from sklearn import metrics
 from obspy import UTCDateTime, read, Stream, Trace
@@ -586,7 +584,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims):
+def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims, transient_ratio_threshold=0.1):
     """
     Create a labeled spectrogram dataset from a json file from label studio
     :param json_filepath (str): File path to the json file from label studio
@@ -602,6 +600,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
     :param pad (float): Padding length [s]
     :param window_duration (float): Window duration for the spectrogram [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
+    :param transient_ratio_threshold (float): Ratio of time samples needed to be occupied by a transient label for it to be prioritized (default = 0.1)
     """
 
     # Check if output directory exists
@@ -754,7 +753,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
                 # Override label with transient label if it is in > 10 % of the time samples
                 if len(set(labels_seen) & set(transient_indices)) != 0:
                     for transient_index in list(set(labels_seen) & set(transient_indices)):
-                        if label_counts[list(labels_seen).index(transient_index)] >= 0.1 * len(label_indices):
+                        if label_counts[list(labels_seen).index(transient_index)] >= transient_ratio_threshold * len(label_indices):
                             final_label = list(label_dict.keys())[int(transient_index)]
 
                 # If label is still invalid, skip
@@ -1637,7 +1636,6 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     print(metrics_chunk)
 
     # Confusion matrix
-    import colorcet as cc
     class_labels_raw = list(label_dict.keys())
     class_labels = [cl.replace(' ', '\n') for cl in class_labels_raw]
     confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
@@ -2469,7 +2467,6 @@ def rotate_NE_to_RT(stream, source_coord):
 
     # Import necessary packages
     import pyproj
-    from math import atan2
     from obspy import Stream
 
     # Calculate incidence angle from source
@@ -2519,7 +2516,6 @@ def set_universal_seed(seed_value):
     import random
     import numpy as np
     import tensorflow as tf
-    from keras import backend as K
 
     # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
     os.environ['PYTHONHASHSEED']=str(seed_value)
@@ -2549,11 +2545,6 @@ def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=Non
     :return: list: list of validation set filepaths
     :return: list: list of test set filepaths
     """
-
-    # Import all dependencies
-    import glob
-    import random
-    import numpy as np
 
     # Count the number of samples of each class
     nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
