@@ -778,7 +778,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
+    :param model_path (str): Path to model .keras file
     :param meanvar_path (str): path to model's meanvar .npy file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param pnorm_thresh (float): Threshold for network-averaged probability
@@ -1252,7 +1252,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
+    :param model_path (str): Path to model .keras file
     :param meanvar_path (str): path to model's meanvar .npy file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
@@ -1487,7 +1487,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     :param valid_paths (list): List of file paths to validation data
     :param test_paths (list): List of file paths to test data
     :param label_dict (dict): Dictionary to convert appended file index to their actual label
-    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.h5')
+    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.keras')
     :param batch_size (int): Batch size for training (default 100)
     :param learning_rate (float): Learning rate for the optimizer (default 0.0005)
     :param patience (int): Number of epochs to  for early stopping (default 20)
@@ -1500,7 +1500,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
         os.mkdir('./figures/')
 
     # Define filepaths of all model products
-    model_filepath = './models/' + model_tag + '_model.h5'
+    model_filepath = './models/' + model_tag + '_model.keras'
     meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
     history_filepath = './models/' + model_tag + '_history.npy'
     curve_filepath = './figures/' + model_tag + '_curve.png'
@@ -1663,7 +1663,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
+    :param model_path (str): Path to model .keras file
     :param meanvar_path (str): path to model's meanvar .npy file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
@@ -1827,7 +1827,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
     :param time_step (float): time step used to divide plot into columns
     :param type (str): defined as either 'seismic' or 'infrasound' to determine color palette
-    :param model_path (str): path to model .h5 file
+    :param model_path (str): path to model .keras file
     :param indicators_path (str): path to pkl file that stores timeline indicators for plotting
     :param plot_title (str): plot title to use
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
@@ -2092,7 +2092,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
-    :param model_path (str): path to model .h5 file
+    :param model_path (str): path to model .keras file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices used to generate timeline_input
     :param timeline_input (ndarray or str): input array or path to indicators.pkl
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
