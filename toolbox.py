@@ -2518,7 +2518,8 @@ def set_universal_seed(seed_value):
     import random
     import numpy as np
     import tensorflow as tf
-    from keras import backend as K
+    #from keras import backend as K
+    from tensorflow.python.keras import backend as K
 
     # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
     os.environ['PYTHONHASHSEED']=str(seed_value)
@@ -2535,7 +2536,8 @@ def set_universal_seed(seed_value):
     # 5. Configure a new global `tensorflow` session
     session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
     sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
-    tf.compat.v1.keras.backend.set_session(sess)
+    #tf.compat.v1.keras.backend.set_session(sess)
+    K.set_session(sess)
 
 def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None):
     """
