@@ -1,31 +1,32 @@
 # Import dependencies
-import json
-import time
 import os
+import time
 import glob
-import random
+import json
 import pickle
+import random
+import pyproj
+import numpy as np
 import pandas as pd
 import colorcet as cc
 import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
+import tensorflow as tf
 import statistics as sts
+import matplotlib.pyplot as plt
+from DataGenerator import DataGenerator
+from geopy.distance import geodesic as GD
 from keras import layers, models, losses, optimizers
+from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
-from sklearn import metrics
-from obspy import UTCDateTime, read, Stream, Trace
-from matplotlib import dates
+from matplotlib import dates, rcParams
 from matplotlib.transforms import Bbox
+from matplotlib.colors import ListedColormap
+from obspy import UTCDateTime, read, Stream, Trace
+from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
-from ordpy import complexity_entropy
-from geopy.distance import geodesic as GD
-from matplotlib.colors import ListedColormap
-from DataGenerator import DataGenerator
-from keras.models import load_model
+from sklearn import metrics
 from waveform_collection import gather_waveforms
-from matplotlib import rcParams
 
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
 
@@ -343,7 +344,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
         ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right', rotation_mode='anchor')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
@@ -354,7 +355,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax2.set_xticklabels(time_tick_labels, fontsize=18, rotation=30, ha='right', rotation_mode='anchor')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
         if export_path is None:
@@ -514,7 +515,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
     bottom_ax = axs[-1] if len(stream)>1 else axs
     bottom_ax.set_xticks(time_tick_list_mpl)
-    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30)
+    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
     bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
@@ -642,6 +643,8 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
 
         # Now loop over annotations to fill
         for annotation in annotations:
+            if annotation['value']['rectanglelabels'] == []:
+                continue
             label = annotation['value']['rectanglelabels'][0]
             x1 = t1 + (annotation['value']['x'] * time_per_percent)
             x2 = t1 + ((annotation['value']['x'] + annotation['value']['width']) * time_per_percent)
@@ -958,11 +961,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
-    # Return class and probability outputs if figure plotting is not desired
+    # Calculate and return class and probability outputs if figure plotting is not desired
+    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
+    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if not generate_fig:
-        class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
-        prob_mat = np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
         return class_mat, prob_mat
+
+    # Pad matrix plot and voted probabilities with unclassified columns for plotting
+    matrix_plot = np.repeat(matrix_plot, 2, axis=1)
+    num_columns_to_pad = int(np.round(interval / 2) / time_step)
+    matrix_plot = np.pad(matrix_plot, ((0, 0), (num_columns_to_pad*2-1, num_columns_to_pad*2-1)), 'constant', constant_values=(na_label, na_label))
+    voted_probabilities = np.pad(voted_probabilities, (num_columns_to_pad, num_columns_to_pad), 'constant', constant_values=(np.nan, np.nan))
 
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
@@ -1093,14 +1102,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_title('Network-Wide Voting', fontsize=font_s + 2)
 
     # Plot probabilities in middle axis
-    prob_xvec = np.arange(0.5, len(voted_probabilities) + 0.5, 1)
+    prob_xvec = np.arange(0, len(voted_probabilities))
     ax2.plot(prob_xvec, voted_probabilities, color='k', linewidth=LW)
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     if pnorm_thresh:
         ax2.axhline(pnorm_thresh, color='r', linestyle='-', linewidth=LW+1)
-    ax2.set_xlim([0, len(voted_probabilities)])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities), int(denominator+1)))
+    ax2.set_xlim([0, len(voted_probabilities)-1])
+    ax2.set_xticks(np.linspace(0, len(voted_probabilities)-1, int(denominator+1)))
     plt.setp(ax2.get_xticklabels(), visible=False)
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
@@ -1204,7 +1213,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30, ha='right', rotation_mode='anchor')
     if endtime.date == starttime.date:
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
@@ -1226,8 +1235,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax.set_xticks([])
 
     # Show figure or export
-    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
-    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if export_path is None:
         fig.show()
         print('Done!')
@@ -2466,10 +2473,6 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
 
 def rotate_NE_to_RT(stream, source_coord):
 
-    # Import necessary packages
-    import pyproj
-    from obspy import Stream
-
     # Calculate incidence angle from source
     geodesic = pyproj.Geod(ellps='WGS84')
     source_azi, _, _ = geodesic.inv(stream[0].stats.longitude, stream[0].stats.latitude, source_coord[1], source_coord[0])
@@ -2511,12 +2514,6 @@ def set_universal_seed(seed_value):
     :param seed_value  (int): desired randomization seed number
     :return: None
     """
-
-    # Import dependencies
-    import os
-    import random
-    import numpy as np
-    import tensorflow as tf
 
     # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
     os.environ['PYTHONHASHSEED']=str(seed_value)
@@ -2589,7 +2586,6 @@ def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=Non
     return train_list, val_list, test_list
 
 def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_ratio,plot_example=False):
-
     """
     Use noise-adding augmentation strategy to generate lists of balanced train, validation and testfile paths.
     :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
@@ -2602,13 +2598,6 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
     :return: list: list of validation set filepaths
     :return: list: list of test set filepaths
     """
-
-    # Import all dependencies
-    import os
-    import glob
-    import shutil
-    import random
-    import numpy as np
 
     # Count the number of samples of each class
     nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
@@ -2731,33 +2720,3 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
         fig.show()
 
     return train_list, val_list, test_list
-
-# def compute_pavlof_rsam(stream_unprocessed):
-#     """
-#     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
-#     :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
-#     :return: dr (list): List of reduced displacement values,
-#     """
-#     # Import geopy
-#     from geopy.distance import geodesic as GD
-#     # Define constants
-#     R = 6372.7976  # km
-#     drm = 3  # cm^2
-#     seisvel = 1500  # m/s
-#     dfrq = 2  # Hz
-#     vlatlon = (55.4173,-161.8937)
-#     # Initialize lists
-#     disteqv = []
-#     sensf = []
-#     rmssta = []
-#     # Compute
-#     for i, tr in enumerate(stream_unprocessed):
-#         slatlon = (tr.stats.latitude,tr.stats.longitude)
-#         disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
-#         sensf.append(tr.stats.response.instrument_sensitivity.value)
-#         rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
-#     rmsstav = np.array(rmssta)*2*np.pi*dfrq
-#     levels_count = rmsstav * sensf
-#     q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
-#     dr = levels_count * q_effect
-#     return dr
