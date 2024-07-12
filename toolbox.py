@@ -809,8 +809,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     running_x_var = saved_meanvar[1]
 
     # Define fixed values
-    spec_height = saved_model.input.shape.as_list()[1]
-    interval = saved_model.input.shape.as_list()[2]
+    spec_height = saved_model.layers[0].input.shape[1]
+    interval = saved_model.layers[0].input.shape[2]
     time_step = int(np.round(interval*(1-overlap)))
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
     pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360

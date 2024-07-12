@@ -5,7 +5,7 @@ from toolbox import check_timeline
 # Define variables for timeline checker function
 source = 'IRIS'
 network = 'AV'
-station = 'PN7A,PS1A,PS4A,PV6A,PVV'
+station = 'CERB,CESW,CEPE,CETU,CEAP,CERA'#'PN7A,PS1A,PS4A,PV6A,PVV'
 location = ''
 overlap = 0.75  # 1 min time step for 4 min interval
 generate_fig = True
@@ -18,12 +18,12 @@ transparent = None
 
 # Check timeline for seismic
 channel = '*HZ'
-starttime = UTCDateTime(2021, 9, 14, 16)
-endtime = starttime + 3*3600
-model_path = './models/voissnet_seismic_model.h5'
-meanvar_path = './models/voissnet_seismic_meanvar.npy'
+starttime = UTCDateTime(2021,7, 30, 8)
+endtime = starttime + 4*3600
+model_path = './models/voissnet_seismic_2min_20240612_seed29_model.keras'  # './models/voissnet_seismic_2min_withpopo_model.h5' or './models/voissnet_seismic_2min_no_popo_model.h5'
+meanvar_path = './models/voissnet_seismic_2min_20240612_seed29_meanvar.npy'
 pnorm_thresh = None
-dr_kwargs = {'reference_station': 'PS1A',    # station code
+dr_kwargs = {'reference_station': 'CERB',    # station code
              'filter_band': (1, 5),          # Hz
              'window_length': 10,            # seconds
              'overlap': 0.5,                 # fraction of window length
