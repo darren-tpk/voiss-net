@@ -344,7 +344,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
         ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30,ha='right',rotation_mode='anchor')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
@@ -355,7 +355,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30)
+        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right',rotation_mode='anchor')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
         if export_path is None:
@@ -515,7 +515,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
     bottom_ax = axs[-1] if len(stream)>1 else axs
     bottom_ax.set_xticks(time_tick_list_mpl)
-    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30)
+    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
     bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
