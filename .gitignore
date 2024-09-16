@@ -1,5 +1,6 @@
 # macOS Finder and Python stuff
-**/.DS_Store
+.DS_Store
+models/.DS_Store
 **/._.DS_Store
 **/__pycache__
 **/__pycache__/*
