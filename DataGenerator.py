@@ -50,18 +50,18 @@ class DataGenerator(keras.utils.Sequence):
             # store label
             y[i] = self.labels[id]
 
-        # normalize the batch if it is training
-        if self.is_training:
-
-            x_mean = np.mean(x, axis=0)
-            x_var = np.var(x, axis=0)
-
-            x = (x - x_mean) / np.sqrt(x_var + 1e-5)
-
-            self.running_x_mean = 0.9 * self.running_x_mean + 0.1 * x_mean
-            self.running_x_var = 0.9 * self.running_x_var + 0.1 * x_var
-        else:
-            x = (x - self.running_x_mean) / np.sqrt(self.running_x_var + 1e-5)
+        ## normalize the batch if it is training
+        #if self.is_training:
+        # 
+        #    x_mean = np.mean(x, axis=0)
+        #    x_var = np.var(x, axis=0)
+#
+        #    x = (x - x_mean) / np.sqrt(x_var + 1e-5)
+#
+#            self.running_x_mean = 0.9 * self.running_x_mean + 0.1 * x_mean
+#            self.running_x_var = 0.9 * self.running_x_var + 0.1 * x_var
+#        else:
+#            x = (x - self.running_x_mean) / np.sqrt(self.running_x_var + 1e-5)
 
         # min-max scale by individual image
         for k in range(self.batch_size):
