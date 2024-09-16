@@ -1685,7 +1685,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .keras file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization will be applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
@@ -1705,9 +1705,13 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     nsubrows = len(station.split(','))
 
     # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
+    if meanvar_path:
+        standardize_spectrograms = True
+        saved_meanvar = np.load(meanvar_path)
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+    else:
+        standardize_spectrograms = False
 
     # Define fixed values
     time_step = int(np.round(interval*(1-overlap)))
@@ -1811,7 +1815,8 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                 continue
 
             # Standardize and min-max scale
-            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+            if standardize_spectrograms:
+                spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
             spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
                          (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
 
