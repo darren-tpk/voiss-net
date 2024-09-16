@@ -1490,7 +1490,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
         plt.savefig(export_path, bbox_inches='tight')
     else:
         fig.show()
-def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20):
+def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20, meanvar_standardization=False):
     """
     Train an iteration VOISS-Net convolutional neural network for classifying spectrogram slices
     :param train_paths (list): List of file paths to training data
@@ -1501,6 +1501,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     :param batch_size (int): Batch size for training (default 100)
     :param learning_rate (float): Learning rate for the optimizer (default 0.0005)
     :param patience (int): Number of epochs to  for early stopping (default 20)
+    :param meanvar_standardization (bool): Whether to standardize spectrograms by mean and variance (default `False`). If `True`, the mean and variance of the training data will be used to standardize the validation and test data, and a output mean and variacne will be saved.
     """
 
     # Initialize model and figure subdirectories if needed
@@ -1511,10 +1512,11 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
 
     # Define filepaths of all model products
     model_filepath = './models/' + model_tag + '_model.keras'
-    meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
     history_filepath = './models/' + model_tag + '_history.npy'
     curve_filepath = './figures/' + model_tag + '_curve.png'
     confusion_filepath = './figures/' + model_tag + '_confusion.png'
+    if meanvar_standardization:
+        meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
 
     # Determine the number of unique classes in training to decide on the number of output nodes in model
     train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
@@ -1550,10 +1552,11 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
 
     # Define a Callback class that allows the validation dataset to adopt the running
     # training mean and variance for spectrogram standardization (by each pixel)
-    #class ExtractMeanVar(Callback):
-    #    def on_epoch_end(self, epoch, logs=None):
-    #        valid_gen.running_x_mean = train_gen.running_x_mean
-    #        valid_gen.running_x_var = train_gen.running_x_var
+    if meanvar_standardization:
+        class ExtractMeanVar(Callback):
+           def on_epoch_end(self, epoch, logs=None):
+               valid_gen.running_x_mean = train_gen.running_x_mean
+               valid_gen.running_x_var = train_gen.running_x_var
 
     # Define the CNN
 
@@ -1596,12 +1599,13 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Implement early stopping, checkpointing, and transference of mean and variance
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
     mc = ModelCheckpoint(model_filepath, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
-    #emv = ExtractMeanVar()
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
-
-    ## Save the final running mean and variance
-    #np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
+    if not meanvar_standardization:
+        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
+    else:
+        emv = ExtractMeanVar()
+        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+        np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
 
     # Save model training history to reproduce learning curves
     np.save(history_filepath, history.history)
@@ -1632,8 +1636,12 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
         "batch_size": len(test_labels),
         "n_classes": len(unique_classes),
         "shuffle": False}
-    test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
-                             running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
+    if not meanvar_standardization:
+        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                                 running_x_mean=None, running_x_var=None)
+    else:
+        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                                 running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
 
     # Use saved model to make predictions
     saved_model = load_model(model_filepath)
