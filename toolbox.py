@@ -780,7 +780,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .keras or .h5 file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param pnorm_thresh (float): Threshold for network-averaged probability
      cutoff. If `None` [default], no threshold is applied
@@ -804,9 +804,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     nsubrows = len(station.split(','))
 
     # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
+    if meanvar_path:
+        standardize_spectrograms = True
+        saved_meanvar = np.load(meanvar_path)
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+    else:
+        standardize_spectrograms = False
 
     # Define fixed values
     spec_height = saved_model.layers[0].input.shape[1]
@@ -902,7 +906,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         spec_ids = spec_ids[keep_index]
 
         # Standardize and min-max scale
-        spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+        if standardize_spectrograms:
+            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
         spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
                      (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
 
@@ -1258,7 +1263,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .keras file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
