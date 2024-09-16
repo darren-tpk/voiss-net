@@ -1526,13 +1526,21 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     eg_spec = np.load(train_paths[0])
 
     # Define parameters to generate the training, testing, validation data
-    params = {
-        "dim": eg_spec.shape,
-        "n_classes": len(unique_classes),
-        "shuffle": True,
-        "running_x_mean": np.mean(eg_spec),
-        "running_x_var": np.var(eg_spec)
-    }
+    if meanvar_standardization:
+        params = {
+            "dim": eg_spec.shape,
+            "n_classes": len(unique_classes),
+            "shuffle": True,
+            "running_x_mean": np.mean(eg_spec),
+            "running_x_var": np.var(eg_spec)
+        }
+    else:
+        params = {
+            "dim": eg_spec.shape,
+            "n_classes": len(unique_classes),
+            "shuffle": True,
+            "running_x_mean": None,
+            "running_x_var": None}
 
     # Configure test and validation lists
     valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
@@ -1581,11 +1589,11 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Flatten and add 20% dropout to inputs
     model.add(layers.Flatten())
     model.add(layers.Dropout(0.2))
-    
+
     # Dense layer, 128 units with 50% dropout
     model.add(layers.Dense(128, activation="relu"))
     model.add(layers.Dropout(0.5))
-    
+
     # Dense layer, 64 units with 50% dropout
     model.add(layers.Dense(64, activation="relu"))
     model.add(layers.Dropout(0.5))
