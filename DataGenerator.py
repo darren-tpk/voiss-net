@@ -13,8 +13,8 @@ class DataGenerator(keras.utils.Sequence):
         batch_size=100,
         shuffle=True,
         is_training=True,
-        running_x_mean=0,
-        running_x_var=0,
+        running_x_mean=None,
+        running_x_var=None,
     ):
 
         self.list_ids = list_ids
