@@ -67,4 +67,5 @@ patience = 20  # epochs
 
 # Train VOISS-Net model
 train_voiss_net(train_paths=train_paths, valid_paths=valid_paths, test_paths=test_paths, label_dict=label_dict,
-                model_tag=model_tag, batch_size=batch_size, learning_rate=learning_rate, patience=patience)
+                model_tag=model_tag, batch_size=batch_size, learning_rate=learning_rate, patience=patience,
+                meanvar_standardization=True)
