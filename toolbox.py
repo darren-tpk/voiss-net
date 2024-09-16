@@ -1541,10 +1541,10 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
 
     # Define a Callback class that allows the validation dataset to adopt the running
     # training mean and variance for spectrogram standardization (by each pixel)
-    class ExtractMeanVar(Callback):
-        def on_epoch_end(self, epoch, logs=None):
-            valid_gen.running_x_mean = train_gen.running_x_mean
-            valid_gen.running_x_var = train_gen.running_x_var
+    #class ExtractMeanVar(Callback):
+    #    def on_epoch_end(self, epoch, logs=None):
+    #        valid_gen.running_x_mean = train_gen.running_x_mean
+    #        valid_gen.running_x_var = train_gen.running_x_var
 
     # Define the CNN
 
@@ -1565,12 +1565,15 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
     # Max pooling layer, 3x3 pool, 3x3 stride
     model.add(layers.MaxPooling2D((3, 3)))
+
     # Flatten and add 20% dropout to inputs
     model.add(layers.Flatten())
     model.add(layers.Dropout(0.2))
+    
     # Dense layer, 128 units with 50% dropout
     model.add(layers.Dense(128, activation="relu"))
     model.add(layers.Dropout(0.5))
+    
     # Dense layer, 64 units with 50% dropout
     model.add(layers.Dense(64, activation="relu"))
     model.add(layers.Dropout(0.5))
@@ -1584,12 +1587,12 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Implement early stopping, checkpointing, and transference of mean and variance
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
     mc = ModelCheckpoint(model_filepath, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
-    emv = ExtractMeanVar()
+    #emv = ExtractMeanVar()
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
 
-    # Save the final running mean and variance
-    np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
+    ## Save the final running mean and variance
+    #np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
 
     # Save model training history to reproduce learning curves
     np.save(history_filepath, history.history)
