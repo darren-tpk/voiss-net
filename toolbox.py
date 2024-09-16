@@ -779,7 +779,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .keras file
+    :param model_path (str): Path to model .keras or .h5 file
     :param meanvar_path (str): path to model's meanvar .npy file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param pnorm_thresh (float): Threshold for network-averaged probability
@@ -958,11 +958,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     matrix_plot = np.concatenate((matrix_plot, np.reshape(voted_labels, (1, np.shape(matrix_plot)[1]))))
 
-    # Return class and probability outputs if figure plotting is not desired
+    # Calculate and return class and probability outputs if figure plotting is not desired
+    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
+    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if not generate_fig:
-        class_mat = np.vstack((matrix_plot[:-2,:],matrix_plot[-1:,:]))
-        prob_mat = np.vstack((np.max(matrix_probs, axis=2),voted_probabilities))
         return class_mat, prob_mat
+
+    # Pad matrix plot and voted probabilities with unclassified columns for plotting
+    matrix_plot = np.repeat(matrix_plot, 2, axis=1)
+    num_columns_to_pad = int(np.round(interval / 2) / time_step)
+    matrix_plot = np.pad(matrix_plot, ((0, 0), (num_columns_to_pad*2-1, num_columns_to_pad*2-1)), 'constant', constant_values=(na_label, na_label))
+    voted_probabilities = np.pad(voted_probabilities, (num_columns_to_pad, num_columns_to_pad), 'constant', constant_values=(np.nan, np.nan))
 
     # If dealing with seismic, use seismic voting scheme
     if not infrasound:
@@ -1093,14 +1099,14 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax1.set_title('Network-Wide Voting', fontsize=font_s + 2)
 
     # Plot probabilities in middle axis
-    prob_xvec = np.arange(0.5, len(voted_probabilities) + 0.5, 1)
+    prob_xvec = np.arange(0, len(voted_probabilities))
     ax2.plot(prob_xvec, voted_probabilities, color='k', linewidth=LW)
     ax2.fill_between(prob_xvec, voted_probabilities, where=voted_probabilities >= 0,
                      interpolate=True, color='gray', alpha=0.5)
     if pnorm_thresh:
         ax2.axhline(pnorm_thresh, color='r', linestyle='-', linewidth=LW+1)
-    ax2.set_xlim([0, len(voted_probabilities)])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities), int(denominator+1)))
+    ax2.set_xlim([0, len(voted_probabilities)-1])
+    ax2.set_xticks(np.linspace(0, len(voted_probabilities)-1, int(denominator+1)))
     plt.setp(ax2.get_xticklabels(), visible=False)
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
@@ -1204,7 +1210,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
     time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
     axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30)
+    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30, ha='right', rotation_mode='anchor')
     if endtime.date == starttime.date:
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
@@ -1226,8 +1232,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax.set_xticks([])
 
     # Show figure or export
-    class_mat = np.vstack((matrix_plot[:-2, :], matrix_plot[-1:, :]))
-    prob_mat = np.vstack((np.max(matrix_probs, axis=2), voted_probabilities))
     if export_path is None:
         fig.show()
         print('Done!')
