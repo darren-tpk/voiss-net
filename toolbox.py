@@ -769,7 +769,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
 
     print('Done.')
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False,n_jobs=1):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -783,8 +783,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param model_path (str): Path to model .keras or .h5 file
     :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
-    :param pnorm_thresh (float): Threshold for network-averaged probability
-     cutoff. If `None` [default], no threshold is applied
+    :param pnorm_thresh (float): Threshold for network-averaged probability cutoff. If `None` [default], no threshold is applied
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
     :param fig_height (float): Figure height [in] (if `None`, figure height = figure width * 0.75)
@@ -793,6 +792,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq, med_filt_kernel, dr_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
     :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
@@ -845,7 +845,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             stream_raw = gather_waveforms(source=source, network=network, station=station,
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
-                                      verbose=False)
+                                      verbose=False, n_jobs=n_jobs)
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
             successfully_loaded = True
@@ -1252,7 +1252,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
                           meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
-                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None):
+                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
     """
     This function checks the voted VOISS-Net timeline using given stations and plots a selected spectrogram alongside results in a binned format.
     :param source (str): Which source to gather waveforms from (e.g. IRIS)
@@ -1273,6 +1273,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param figsize (tuple): figure size
     :param font_s (float): Font size [points]
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: None
     """
 
@@ -1308,7 +1309,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
             stream_raw = gather_waveforms(source=source, network=network, station=spec_station,
                                           location=location, channel=channel,
                                           starttime=starttime - pad, endtime=endtime + pad,
-                                          verbose=False)
+                                          verbose=False, n_jobs=n_jobs)
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
             successfully_loaded = True
