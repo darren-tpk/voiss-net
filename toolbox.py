@@ -1683,7 +1683,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Print text on completion
     print('Done.')
 
-def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None):
+def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,processing_step,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None,n_jobs=1):
 
     """
     Pulls data or leverage npy directory to generate list of timeline indicators
@@ -1694,25 +1694,24 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
+    :param processing_step (int): Time step used for data pull and processing, in seconds.
     :param model_path (str): Path to model .keras file
     :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization will be applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
     """
 
-    # Enforce the duration to be a multiple of 14400s (4 hours) as we process timelines by 4 hour time steps
-    if (endtime - starttime) % 14400 != 0:
-        print('The desired analysis duration (endtime - starttime) is not a multiple of 14400s (4 hours).')
-        endtime = endtime + (14400 - (endtime - starttime) % 14400)
+    # Enforce the duration to be a multiple of the desired time step
+    if (endtime - starttime) % processing_step != 0:
+        print('The desired analysis duration (endtime - starttime) is not a multiple of processing_step (%.2f hours; %.2f days).' % (processing_step/3600,processing_step/86400))
+        endtime = endtime + (processing_step - (endtime - starttime) % processing_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load model
     saved_model = load_model(model_path)
-    spec_height = saved_model.input.shape.as_list()[1]
     interval = saved_model.input.shape.as_list()[2]
-    nclasses = saved_model.layers[-1].get_config()['units']
-    nsubrows = len(station.split(','))
 
     # Extract mean and variance from training
     if meanvar_path:
@@ -1734,24 +1733,24 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     infrasound = True if channel[-1] == 'F' else False
     spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
-    # Split analysis duration into 4h-long chunks and start timer
-    num4h = (endtime - starttime) / 14400
+    # Split analysis duration into chunks with length processing_step and start timer
+    num_processing_step = (endtime - starttime) / processing_step
     process_tstart = time.time()
 
     # Initialize master indicator list
     indicators = []
 
-    # Loop over days and run checker
-    for n in range(int(num4h)):
+    # Loop over processing steps and run checker
+    for n in range(int(num_processing_step)):
 
         # Determine start and end time of current step
-        t1 = starttime + n * 14400 - 2 * 60
-        if n == (num4h-1):
-            t2 = starttime + (n + 1) * 14400 + 2 * 60
+        t1 = starttime + n * processing_step - interval/2
+        if n == (num_processing_step-1):
+            t2 = starttime + (n + 1) * processing_step + interval/2
         else:
-            t2 = starttime + (n + 1) * 14400 + 2 * 60 - time_step
+            t2 = starttime + (n + 1) * processing_step + interval/2 - time_step
         print('Now at %s, time elapsed: %.2f hours' %
-              ((t1+2*60).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
+              ((t1+interval/2).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
 
         # Load data, remove response, and re-order
         successfully_loaded = False
@@ -1761,7 +1760,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                 stream = gather_waveforms(source=source, network=network, station=station,
                                           location=location, channel=channel,
                                           starttime=t1 - pad, endtime=t2 + pad,
-                                          verbose=False)
+                                          verbose=False, n_jobs=n_jobs)
                 stream = process_waveform(stream, remove_response=True, detrend=False,
                                           taper_length=pad, verbose=False)
                 successfully_loaded = True
