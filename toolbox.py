@@ -1699,8 +1699,8 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization will be applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
-    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     """
 
     # Enforce the duration to be a multiple of the desired time step
