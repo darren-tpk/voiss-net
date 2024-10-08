@@ -1711,7 +1711,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
 
     # Load model
     saved_model = load_model(model_path)
-    interval = saved_model.input.shape.as_list()[2]
+    interval = saved_model.input_shape[2]
 
     # Extract mean and variance from training
     if meanvar_path:
