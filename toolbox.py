@@ -2429,9 +2429,8 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
 
     # Initialize all metrics
     window_centers = np.arange(starttime, endtime+time_step, time_step)
+    window_starts = window_centers - window_length/2
     metric_length = len(window_centers)
-    tmpl = np.ones((len(stream_unprocessed), metric_length)) * np.nan
-    # rsam = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     if infrasound:
         rmsp = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     else:
@@ -2441,58 +2440,52 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
     fd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     fsd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
 
-    # Loop over time windows to calculate metrics
-    for i, window_center in enumerate(window_centers):
+    # Get matplotlib date array
+    tmpl = np.array([window_center.matplotlib_date for window_center in window_centers])
+    tmpl = tmpl.reshape((1, len(tmpl)))
 
-        # Compute corresponding window end and slice stream
-        window_start = window_center - window_length/2
-        window_end = window_center + window_length/2
-        stream_processed_segment = stream_processed.copy().trim(window_start, window_end)
-        if not infrasound:
-            stream_disp_segment = stream_disp.copy().trim(window_start, window_end)
+    # Precompute start indices for each window
+    num_samples_per_window = int(window_length / stream_unprocessed[0].stats.delta)
+    first_window_start_index = int((window_starts[0] - stream_unprocessed[0].stats.starttime) * stream_unprocessed[0].stats.sampling_rate)
+    last_window_start_index = int((window_starts[-1] - stream_unprocessed[0].stats.starttime) * stream_unprocessed[0].stats.sampling_rate)
+    start_indices = np.arange(first_window_start_index, last_window_start_index + 1, int(num_samples_per_window*overlap))
+    window_indices = start_indices[:, np.newaxis] + np.arange(num_samples_per_window)
 
-        # Loop over each trace and do computation
-        for j in range(len(stream_processed_segment)):
+    for j, trace_processed in enumerate(stream_processed):
 
-            # Get trace data
-            trace_processed_segment = stream_processed_segment[j].data
-            if not infrasound:
-                trace_disp_segment = stream_disp_segment[j].data
+        # Reshape processed trace data to 2D array
+        trace_processed_matrix = trace_processed.data[window_indices]
 
-            # Store matplotlib date for plotting
-            tmpl[j,i] = window_center.matplotlib_date
+        # Compute permutation entropy for 2D array
+        pe[j, :] = np.apply_along_axis(complexity_entropy, axis=1, arr=trace_processed_matrix, dx=5)[:,0]
 
-            # # Compute RSAM
-            # rsam[j,i] = np.mean(np.abs(trace_disp_segment))
+        # Execute FFT on each row
+        fsamp = rfftfreq(len(trace_processed_matrix[0]), 1 / trace_processed.stats.sampling_rate)
+        fspec = np.abs(rfft(trace_processed_matrix, axis=1))[:, np.flatnonzero(fsamp>1)]
+        fsamp = fsamp[np.flatnonzero(fsamp>1)]
 
-            # If infrasound, compute RMSP
-            if infrasound:
-                rmsp[j,i] = np.sqrt(np.mean(np.square(trace_processed_segment)))
-            # If seismic, compute DR
-            else:
-                rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
-                station_dist = GD((stream_disp_segment[j].stats.latitude, stream_disp_segment[j].stats.longitude), vlatlon).m
-                wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
-                dr[j, i] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+        # Compute central frequency
+        fc[j, :] = np.sum(fspec * fsamp, axis=1) / np.sum(fspec, axis=1)
 
-            # Compute permutation entropy
-            pe[j,i] = complexity_entropy(trace_processed_segment, dx=5)[0]
+        # Compute dominant frequency
+        fd[j, :] = fsamp[np.argmax(fspec, axis=1)]
 
-            # Now execute FFT and trim
-            fsamp = rfftfreq(len(trace_processed_segment), 1 / stream_processed_segment[j].stats.sampling_rate)
-            fspec = np.abs(rfft(trace_processed_segment))[np.flatnonzero(fsamp>1)]
-            fsamp = fsamp[np.flatnonzero(fsamp>1)]
+        # Compute standard deviation of top 30 frequency peaks
+        for k in range(fspec.shape[0]):  # Loop through each row
+            fpeaks_index, _ = find_peaks(fspec[k,:])  # Find peaks in the row
+            fpeaks_top30 = np.sort(fspec[k,:][fpeaks_index])[-30:]  # Get top 30 peaks
+            fsd[j, k] = np.std(fpeaks_top30) / np.mean(fspec[k])  # Calculate std/mean ratio
 
-            # Compute central frequency
-            fc[j,i] = np.sum(fspec * fsamp) / np.sum(fspec)
-
-            # Compute dominant frequency
-            fd[j,i] = fsamp[np.argmax(fspec)]
-
-            # Compute normalized standard deviation of top 30 frequency peaks
-            fpeaks_index, _ = find_peaks(fspec)
-            fpeaks_top30 = np.sort(fspec[fpeaks_index])[-30:]
-            fsd[j,i] = np.std(fpeaks_top30) / np.mean(fspec)
+        # Get corresponding 2D array for displacement to compute DR if not infrasound
+        if infrasound:
+            rmsp = np.sqrt(np.mean(np.square(trace_processed_matrix), axis=1))
+        else:
+            trace_disp = stream_disp[j]
+            trace_disp_matrix = trace_disp.data[window_indices]
+            rms_disp = np.sqrt(np.mean(np.square(trace_disp_matrix), axis=1))
+            station_dist = GD((trace_disp.stats.latitude, trace_disp.stats.longitude), vlatlon).m
+            wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
+            dr[j, :] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
 
     if infrasound:
         return tmpl, rmsp, pe, fc, fd, fsd
