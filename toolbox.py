@@ -1281,7 +1281,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
 
     # Define fixed values
     saved_model = load_model(model_path)
-    model_input_length = saved_model.input.shape.as_list()[2]
+    model_input_length = saved_model.input_shape[2]
     classification_interval = int(np.round(model_input_length * (1 - overlap)))
 
     # Enforce the duration to be a multiple of the model's time step
@@ -2162,8 +2162,10 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
 
     # Determine classification interval using model file and overlap
     saved_model = load_model(model_path)
-    model_input_length = saved_model.input.shape.as_list()[2]
+    model_input_length = saved_model.input_shape[2]
     classification_interval = model_input_length * (1-overlap)
+
+    saved_model = load_model(model_path)
     if abs(classification_interval - int(classification_interval)) < 1e-6:
         classification_interval = int(classification_interval)
 
