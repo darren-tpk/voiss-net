@@ -2771,6 +2771,41 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
 
     return train_list, val_list, test_list
 
+
+
+def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_kwargs):
+    '''
+    Sort station list by distance using inventory
+    param: source: str: source of data
+    param: network: str: network code
+    param: station: str: station code
+    param: starttime: UTCDateTime: start time
+    param: endtime: UTCDateTime: end time
+    param: channel: str: channel code
+    param: dr_kwargs: dict: dictionary of dr_kwargs, need 'volc_lat' and 'volc_lon'
+    return: STA_SORT: str: sorted station list by distance
+    return: DIST_SORT: list: sorted distance list
+    '''
+    from obspy.clients.fdsn import Client
+    from geopy.distance import geodesic as GD
+    
+    print('Sorting stations by distance')
+    client = Client(source)
+    inv = client.get_stations(station=station, network=network, level="chan",
+                              starttime=starttime, endtime=endtime, channel=channel)
+    dist=[]
+    for sta in inv[0].stations[::-1]:
+        dist_tmp=GD((sta.latitude, sta.longitude),
+                    (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).km
+        print(f'{sta.code}: {dist_tmp:.2f} km')
+        dist.append(dist_tmp)
+
+    # sort station name distance and only save station name, put it in a string
+    STA_SORT = ",".join(x.code for _, x in sorted(zip(dist, inv[0].stations)))
+    DIST_SORT = sorted(dist)
+    
+    return STA_SORT, DIST_SORT
+
 # def compute_pavlof_rsam(stream_unprocessed):
 #     """
 #     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
