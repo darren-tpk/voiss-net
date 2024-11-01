@@ -2791,7 +2791,7 @@ def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_
     
     print('Sorting stations by distance')
     client = Client(source)
-    inv = client.get_stations(station=station, network=network, level="chan",
+    inv = client.get_stations(station=station, network=network, level="station",
                               starttime=starttime, endtime=endtime, channel=channel)
     dist=[]
     for sta in inv[0].stations[::-1]:
