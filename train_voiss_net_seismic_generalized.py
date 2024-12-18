@@ -7,8 +7,8 @@ from toolbox import (create_labeled_dataset, set_universal_seed,
 DISABLE_GPU = False 
 
 # Define inputs and parameters for training the model
-NPY_DIR = '/data/generalized_tremor/labeled_npy_2min_20241009/'
-MODEL_TAG = 'voissnet_seismic_2min_20241009'
+NPY_DIR = '/data/generalized_tremor/labeled_npy_generalized/'
+MODEL_TAG = 'voissnet_seismic_generalized'
 BATCH_SIZE = 100
 LEARNING_RATE = 0.00005
 PATIENCE = 20  # epochs
