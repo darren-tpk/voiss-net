@@ -13,8 +13,8 @@ class DataGenerator(keras.utils.Sequence):
         batch_size=100,
         shuffle=True,
         is_training=True,
-        running_x_mean=0,
-        running_x_var=0,
+        running_x_mean=None,
+        running_x_var=None,
     ):
 
         self.list_ids = list_ids
@@ -50,8 +50,9 @@ class DataGenerator(keras.utils.Sequence):
             # store label
             y[i] = self.labels[id]
 
-        # normalize the batch if it is training
-        if self.is_training:
+        # Standardize data if needed
+        # If training with running mean and variance, standardize and update running mean and variance
+        if self.is_training and self.running_x_mean is not None and self.running_x_var is not None:
 
             x_mean = np.mean(x, axis=0)
             x_var = np.var(x, axis=0)
@@ -60,10 +61,16 @@ class DataGenerator(keras.utils.Sequence):
 
             self.running_x_mean = 0.9 * self.running_x_mean + 0.1 * x_mean
             self.running_x_var = 0.9 * self.running_x_var + 0.1 * x_var
-        else:
+
+        # If generating validation and test data generators, standardize with running mean and variance
+        elif not self.is_training and self.running_x_mean is not None and self.running_x_var is not None:
             x = (x - self.running_x_mean) / np.sqrt(self.running_x_var + 1e-5)
 
-        # min-max scale by individual image
+        # If not using running mean and variance, simply pass the data through
+        else:
+            pass
+
+        # Min-max scale by individual image
         for k in range(self.batch_size):
             x[k, :] = (x[k, :] - np.min(x[k, :])) / (np.max(x[k, :]) - np.min(x[k, :]))
 
