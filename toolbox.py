@@ -1,32 +1,32 @@
 # Import dependencies
-import json
-import time
 import os
+import time
 import glob
+import json
 import pickle
+import random
+import pyproj
+import numpy as np
 import pandas as pd
 import colorcet as cc
 import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
+import tensorflow as tf
 import statistics as sts
+import matplotlib.pyplot as plt
+from DataGenerator import DataGenerator
+from geopy.distance import geodesic as GD
 from keras import layers, models, losses, optimizers
-from keras import backend as K
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
-from sklearn import metrics
-from obspy import UTCDateTime, read, Stream, Trace
-from matplotlib import dates
+from matplotlib import dates, rcParams
 from matplotlib.transforms import Bbox
+from matplotlib.colors import ListedColormap
+from obspy import UTCDateTime, read, Stream, Trace
+from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
-from ordpy import complexity_entropy
-from geopy.distance import geodesic as GD
-from matplotlib.colors import ListedColormap
-from DataGenerator import DataGenerator
-from keras.models import load_model
+from sklearn import metrics
 from waveform_collection import gather_waveforms
-from matplotlib import rcParams
 
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
 
@@ -643,6 +643,8 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
 
         # Now loop over annotations to fill
         for annotation in annotations:
+            if annotation['value']['rectanglelabels'] == []:
+                continue
             label = annotation['value']['rectanglelabels'][0]
             x1 = t1 + (annotation['value']['x'] * time_per_percent)
             x2 = t1 + ((annotation['value']['x'] + annotation['value']['width']) * time_per_percent)
@@ -1667,7 +1669,6 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     print(metrics_chunk)
 
     # Confusion matrix
-    import colorcet as cc
     class_labels_raw = list(label_dict.keys())
     class_labels = [cl.replace(' ', '\n') for cl in class_labels_raw]
     confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
@@ -2496,11 +2497,6 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
 
 def rotate_NE_to_RT(stream, source_coord):
 
-    # Import necessary packages
-    import pyproj
-    from math import atan2
-    from obspy import Stream
-
     # Calculate incidence angle from source
     geodesic = pyproj.Geod(ellps='WGS84')
     source_azi, _, _ = geodesic.inv(stream[0].stats.longitude, stream[0].stats.latitude, source_coord[1], source_coord[0])
@@ -2581,11 +2577,6 @@ def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=Non
     :return: list: list of test set filepaths
     """
 
-    # Import all dependencies
-    import glob
-    import random
-    import numpy as np
-
     # Count the number of samples of each class
     nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
     class_paths = [glob.glob(npy_dir + '*_' + str(c) + '.npy') for c in range(nclasses)]
@@ -2628,7 +2619,6 @@ def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=Non
     return train_list, val_list, test_list
 
 def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_ratio,plot_example=False):
-
     """
     Use noise-adding augmentation strategy to generate lists of balanced train, validation and testfile paths.
     :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
@@ -2641,13 +2631,6 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
     :return: list: list of validation set filepaths
     :return: list: list of test set filepaths
     """
-
-    # Import all dependencies
-    import os
-    import glob
-    import shutil
-    import random
-    import numpy as np
 
     # Count the number of samples of each class
     nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
@@ -2770,8 +2753,6 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
         fig.show()
 
     return train_list, val_list, test_list
-
-
 
 def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_kwargs):
     '''
