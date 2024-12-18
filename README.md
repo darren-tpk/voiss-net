@@ -11,9 +11,9 @@ and
 
 and we ask that you cite those manuscripts when using the tool.
 
-We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the model to other volcanoes and eruptions in the Fee et al. (submitted) manuscript and model. We envision most users will want to use the generalized model for detecting and characterizing volcano seismicity.
+We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the model to other volcanoes and eruptions in the Fee et al. (submitted) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
 
-The codes included within the repository can be used to re-create the labeled spectrogram datasets for both models. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. The models used in the paper are also included in the "models" subdirectory for reproducibility and accessibility. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
+The codes included within the repository can also be used to re-create the labeled spectrogram datasets for both models. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
 
 
 Quickstart
@@ -33,13 +33,13 @@ conda env create
 conda activate voiss_net
 ```
 
-3. Run example to check 3 hour seismic and infrasound timeline (Fig. 6 & 7 in Tan et al. (2024))
+3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (submitted))
 
 ```
 python timeline_checker.py
 ```
 
-Train alternate models (skip to step 3 if using labels by Tan et al. (2024))
+(OPTIONAL) Train alternate models (skip to step 3 if using labels by Tan et al. (2024))
 ----------
 
 1. Plot stacked spectrograms in bulk.
@@ -61,6 +61,8 @@ label-studio
 python train_voiss_net_seismic.py
 python train_voiss_net_infrasound.py
 ```
+
+Note that the spectrogram labels for the generalized model are included as a text file: models/labels_generalized.txt
 
 Dependencies
 ------------
