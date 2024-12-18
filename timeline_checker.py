@@ -1,50 +1,53 @@
 # Import dependencies
 from obspy import UTCDateTime
-from toolbox import check_timeline
+from toolbox import check_timeline, sort_sta_distance
 
 # Define variables for timeline checker function
-source = 'IRIS'
-network = 'AV'
-station = 'PN7A,PS1A,PS4A,PV6A,PVV'
-location = ''
-overlap = 0.75  # 1 min time step for 4 min interval
-generate_fig = True
-fig_width = 12
-fig_height = 10
-font_s = 12
-spec_kwargs = None
-export_path = None
-transparent = None
+OVERLAP = 0.5  # 1 min time step for 1 min interval
+GENERATE_FIG = True
+FIG_WIDTH = 8
+FIG_HEIGHT = 6
+FONT_S = 8
+MODEL_PATH = './models/voissnet_seismic_generalized_model.keras'
+MEANVAR_PATH = ''
+PNORM_THRESH = 0.4  # threshold for p-norm, can be None
+SPEC_KWARGS = None
+EXPORT_PATH = None
+TRANSPARENT = None
 
 # Check timeline for seismic
-channel = '*HZ'
-starttime = UTCDateTime(2021, 9, 14, 16)
-endtime = starttime + 3*3600
-model_path = './models/voissnet_seismic_model.h5'
-meanvar_path = './models/voissnet_seismic_meanvar.npy'
-pnorm_thresh = None
-dr_kwargs = {'reference_station': 'PS1A',    # station code
-             'filter_band': (1, 5),          # Hz
-             'window_length': 10,            # seconds
-             'overlap': 0.5,                 # fraction of window length
-             'volc_lat': 55.4173,            # decimal degrees
-             'volc_lon': -161.8937,          # decimal degrees
-             'seis_vel': 1500,               # m/s
-             'dominant_freq': 2}             # Hz
-class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
-                                     model_path, meanvar_path, overlap, pnorm_thresh=pnorm_thresh, generate_fig=generate_fig,
-                                     fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
-                                     dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
+SOURCE = 'IRIS'
+NETWORK = 'AV'
+STATION = 'CERB,CESW,CEPE,CETU,CEAP'
+LOCATION = ''
+CHANNEL = 'BHZ'
+STARTTIME = UTCDateTime(2021, 7, 27, 7, 30)
+ENDTIME = STARTTIME + 3*3600
 
-# Check timeline for infrasound
-channel = 'BDF'
-starttime = UTCDateTime(2021, 8, 6, 10)
-endtime = starttime + 3*3600
-model_path = './models/voissnet_infrasound_model.h5'
-meanvar_path = './models/voissnet_infrasound_meanvar.npy'
-pnorm_thresh = None
-dr_kwargs = None
-class_mat, prob_mat = check_timeline(source, network, station, channel, location, starttime, endtime,
-                                     model_path, meanvar_path, overlap, pnorm_thresh=pnorm_thresh, generate_fig=generate_fig,
-                                     fig_width=fig_width, fig_height=fig_height, font_s=font_s, spec_kwargs=spec_kwargs,
-                                     dr_kwargs=dr_kwargs, export_path=export_path, transparent=transparent)
+# set up the DR kwargs, can leave as None if not using DR
+DR_KWARGS = {'reference_station': 'CERB',       # station code
+             'filter_band': (1, 10),            # Hz
+             'window_length': 120,              # seconds
+             'overlap': 0.5,                    # fraction of window length
+             'volc_lat': 51.926630,             # decimal degrees
+             'volc_lon': 179.591230,            # decimal degrees
+             'seis_vel': 1500,                  # m/s
+             'dominant_freq': 2}                # Hz
+
+# sort the stations by distance from the volcano
+STA_SORT, DIST_SORT = sort_sta_distance(SOURCE, NETWORK, STATION, STARTTIME,
+                                        ENDTIME, CHANNEL, DR_KWARGS)
+
+
+# now create the timeline plot
+class_mat, prob_mat = check_timeline(SOURCE, NETWORK, STA_SORT, CHANNEL,
+                                     LOCATION, STARTTIME, ENDTIME, MODEL_PATH,
+                                     MEANVAR_PATH, OVERLAP,
+                                     pnorm_thresh=PNORM_THRESH,
+                                     generate_fig=GENERATE_FIG,
+                                     fig_width=FIG_WIDTH,
+                                     fig_height=FIG_HEIGHT, font_s=FONT_S,
+                                     spec_kwargs=SPEC_KWARGS,
+                                     dr_kwargs=DR_KWARGS,
+                                     export_path=EXPORT_PATH,
+                                     transparent=TRANSPARENT)

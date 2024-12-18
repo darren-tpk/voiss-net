@@ -1,15 +1,20 @@
 VOISS-Net
 ============
 
-This repository stores the codes and datasets related to **VOlcano Infrasound & Seismic Spectrogram Network (VOISS-Net)**, as described in Tan et al. (2024): 
+The **VOlcano Infrasound & Seismic Spectrogram Network (VOISS-Net)** is a pair of Convolutional Neural Networks (one for seismic, one for acoustic) that can detect volcanic tremor and other relevant signals in near real-time and classify them according to their spectral signature. The models and applications are described in: 
 
-*Tan, D., Fee, D., Witsil, A., Girona, T., Haney, M. M., Wech, A., Waythomas, C. & Lopez, T. (in review). Detection and characterization of seismic and acoustic signals at Pavlof Volcano, Alaska using deep learning. (submitted for review in the Journal of Geophysical Research: Solid Earth)*
+*Tan, D., Fee, D., Witsil, A., Girona, T., Haney, M., Wech, A., Waythomas, C., & Lopez, T. (2024). Detection and Characterization of Seismic and Acoustic Signals at Pavlof Volcano, Alaska, Using Deep Learning. Journal of Geophysical Research: Solid Earth, 129(6), e2024JB029194. https://doi.org/10.1029/2024JB029194.*
 
-VOISS-Net is a pair of Convolutional Neural Networks (one for seismic, one for acoustic) that can detect tremor and other relevant signals in near real-time and classify them according to their spectral signature. We train the models using labeled seismic and infrasonic data from the 2021-2022 eruption of Pavlof Volcano, Alaska. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within the manuscript, we have applied the models successfully to other volcanoes and encourage others to as well.
+and
 
-The codes (and labels) included within the repository can be used to re-create the labeled spectrogram dataset from the 2021-2022 eruption of Pavlof Volcano. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. The models used in the paper are also included in the "models" subdirectory for reproducibility. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
+*Fee, D., Tan, D., Lyons, J., Sciotto, M., Cannata, A., Hotovec-Ellis, A. J., Girona, T., Wech, A. G., Roman, D. C., Haney, M. M., & De Angelis, S. (submitted). A Generalized Deep Learning Model to Detect and Classify Volcano Seismicity. Volcanica.*
 
-Documentation for this package can be found **here**. (Link to be updated)
+and we ask that you cite those manuscripts when using the tool.
+
+We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the model to other volcanoes and eruptions in the Fee et al. (submitted) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
+
+The codes included within the repository can also be used to re-create the labeled spectrogram datasets for both models. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
+
 
 Quickstart
 ----------
@@ -28,13 +33,13 @@ conda env create
 conda activate voiss_net
 ```
 
-3. Run example to check 3 hour seismic and infrasound timeline (Fig. 6 & 7 in Tan et al. (2024))
+3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (submitted))
 
 ```
 python timeline_checker.py
 ```
 
-Train alternate models (skip to step 3 if using labels by Tan et al. (2024))
+(OPTIONAL) Train alternate models (skip to step 3 if using labels by Tan et al. (2024))
 ----------
 
 1. Plot stacked spectrograms in bulk.
@@ -56,6 +61,8 @@ label-studio
 python train_voiss_net_seismic.py
 python train_voiss_net_infrasound.py
 ```
+
+Note that the spectrogram labels for the generalized model are included as a text file: models/labels_generalized.txt
 
 Dependencies
 ------------

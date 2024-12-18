@@ -344,7 +344,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
         ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right', rotation_mode='anchor')
+        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30,ha='right',rotation_mode='anchor')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
@@ -355,7 +355,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels, fontsize=18, rotation=30, ha='right', rotation_mode='anchor')
+        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right',rotation_mode='anchor')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
         if export_path is None:
@@ -586,7 +586,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims, transient_ratio_threshold=0.1):
+def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims, transient_ratio=0.1):
     """
     Create a labeled spectrogram dataset from a json file from label studio
     :param json_filepath (str): File path to the json file from label studio
@@ -602,7 +602,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
     :param pad (float): Padding length [s]
     :param window_duration (float): Window duration for the spectrogram [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
-    :param transient_ratio_threshold (float): Ratio of time samples needed to be occupied by a transient label for it to be prioritized (default = 0.1)
+    :param transient_ratio (float): Ratio of transient-related time samples for transient classes to be prioritized (default: 0.1)
     """
 
     # Check if output directory exists
@@ -757,7 +757,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
                 # Override label with transient label if it is in > 10 % of the time samples
                 if len(set(labels_seen) & set(transient_indices)) != 0:
                     for transient_index in list(set(labels_seen) & set(transient_indices)):
-                        if label_counts[list(labels_seen).index(transient_index)] >= transient_ratio_threshold * len(label_indices):
+                        if label_counts[list(labels_seen).index(transient_index)] >= transient_ratio * len(label_indices):
                             final_label = list(label_dict.keys())[int(transient_index)]
 
                 # If label is still invalid, skip
@@ -771,7 +771,7 @@ def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indi
 
     print('Done.')
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False,n_jobs=1):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -782,11 +782,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param model_path (str): Path to model .keras or .h5 file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
-    :param pnorm_thresh (float): Threshold for network-averaged probability
-     cutoff. If `None` [default], no threshold is applied
+    :param pnorm_thresh (float): Threshold for network-averaged probability cutoff. If `None` [default], no threshold is applied
     :param generate_fig (bool): If `True`, produce timeline figure, if `False`, return outputs without plots
     :param fig_width (float): Figure width [in]
     :param fig_height (float): Figure height [in] (if `None`, figure height = figure width * 0.75)
@@ -795,6 +794,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq, med_filt_kernel, dr_lims)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
     :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
@@ -807,13 +807,17 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     nsubrows = len(station.split(','))
 
     # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
+    if meanvar_path:
+        standardize_spectrograms = True
+        saved_meanvar = np.load(meanvar_path)
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+    else:
+        standardize_spectrograms = False
 
     # Define fixed values
-    spec_height = saved_model.input.shape.as_list()[1]
-    interval = saved_model.input.shape.as_list()[2]
+    spec_height = saved_model.layers[0].input.shape[1]
+    interval = saved_model.layers[0].input.shape[2]
     time_step = int(np.round(interval*(1-overlap)))
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
     pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
@@ -843,7 +847,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             stream_raw = gather_waveforms(source=source, network=network, station=station,
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
-                                      verbose=False)
+                                      verbose=False, n_jobs=n_jobs)
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
             successfully_loaded = True
@@ -905,7 +909,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         spec_ids = spec_ids[keep_index]
 
         # Standardize and min-max scale
-        spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+        if standardize_spectrograms:
+            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
         spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
                      (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
 
@@ -1249,7 +1254,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
                           meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
-                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None):
+                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
     """
     This function checks the voted VOISS-Net timeline using given stations and plots a selected spectrogram alongside results in a binned format.
     :param source (str): Which source to gather waveforms from (e.g. IRIS)
@@ -1260,8 +1265,8 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param model_path (str): Path to model .keras file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
@@ -1270,6 +1275,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param figsize (tuple): figure size
     :param font_s (float): Font size [points]
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: None
     """
 
@@ -1277,7 +1283,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
 
     # Define fixed values
     saved_model = load_model(model_path)
-    model_input_length = saved_model.input.shape.as_list()[2]
+    model_input_length = saved_model.input_shape[2]
     classification_interval = int(np.round(model_input_length * (1 - overlap)))
 
     # Enforce the duration to be a multiple of the model's time step
@@ -1305,7 +1311,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
             stream_raw = gather_waveforms(source=source, network=network, station=spec_station,
                                           location=location, channel=channel,
                                           starttime=starttime - pad, endtime=endtime + pad,
-                                          verbose=False)
+                                          verbose=False, n_jobs=n_jobs)
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
             successfully_loaded = True
@@ -1488,17 +1494,18 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
         plt.savefig(export_path, bbox_inches='tight')
     else:
         fig.show()
-def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20):
+def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20, meanvar_standardization=False):
     """
     Train an iteration VOISS-Net convolutional neural network for classifying spectrogram slices
     :param train_paths (list): List of file paths to training data
     :param valid_paths (list): List of file paths to validation data
     :param test_paths (list): List of file paths to test data
     :param label_dict (dict): Dictionary to convert appended file index to their actual label
-    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.h5')
+    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.keras')
     :param batch_size (int): Batch size for training (default 100)
     :param learning_rate (float): Learning rate for the optimizer (default 0.0005)
     :param patience (int): Number of epochs to  for early stopping (default 20)
+    :param meanvar_standardization (bool): Whether to standardize spectrograms by mean and variance (default `False`). If `True`, the mean and variance of the training data will be used to standardize the validation and test data, and a output mean and variacne will be saved.
     """
 
     # Initialize model and figure subdirectories if needed
@@ -1508,11 +1515,12 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
         os.mkdir('./figures/')
 
     # Define filepaths of all model products
-    model_filepath = './models/' + model_tag + '_model.h5'
-    meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
+    model_filepath = './models/' + model_tag + '_model.keras'
     history_filepath = './models/' + model_tag + '_history.npy'
     curve_filepath = './figures/' + model_tag + '_curve.png'
     confusion_filepath = './figures/' + model_tag + '_confusion.png'
+    if meanvar_standardization:
+        meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
 
     # Determine the number of unique classes in training to decide on the number of output nodes in model
     train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
@@ -1522,13 +1530,21 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     eg_spec = np.load(train_paths[0])
 
     # Define parameters to generate the training, testing, validation data
-    params = {
-        "dim": eg_spec.shape,
-        "n_classes": len(unique_classes),
-        "shuffle": True,
-        "running_x_mean": np.mean(eg_spec),
-        "running_x_var": np.var(eg_spec)
-    }
+    if meanvar_standardization:
+        params = {
+            "dim": eg_spec.shape,
+            "n_classes": len(unique_classes),
+            "shuffle": True,
+            "running_x_mean": np.mean(eg_spec),
+            "running_x_var": np.var(eg_spec)
+        }
+    else:
+        params = {
+            "dim": eg_spec.shape,
+            "n_classes": len(unique_classes),
+            "shuffle": True,
+            "running_x_mean": None,
+            "running_x_var": None}
 
     # Configure test and validation lists
     valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
@@ -1548,10 +1564,11 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
 
     # Define a Callback class that allows the validation dataset to adopt the running
     # training mean and variance for spectrogram standardization (by each pixel)
-    class ExtractMeanVar(Callback):
-        def on_epoch_end(self, epoch, logs=None):
-            valid_gen.running_x_mean = train_gen.running_x_mean
-            valid_gen.running_x_var = train_gen.running_x_var
+    if meanvar_standardization:
+        class ExtractMeanVar(Callback):
+           def on_epoch_end(self, epoch, logs=None):
+               valid_gen.running_x_mean = train_gen.running_x_mean
+               valid_gen.running_x_var = train_gen.running_x_var
 
     # Define the CNN
 
@@ -1572,12 +1589,15 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
     # Max pooling layer, 3x3 pool, 3x3 stride
     model.add(layers.MaxPooling2D((3, 3)))
+
     # Flatten and add 20% dropout to inputs
     model.add(layers.Flatten())
     model.add(layers.Dropout(0.2))
+
     # Dense layer, 128 units with 50% dropout
     model.add(layers.Dense(128, activation="relu"))
     model.add(layers.Dropout(0.5))
+
     # Dense layer, 64 units with 50% dropout
     model.add(layers.Dense(64, activation="relu"))
     model.add(layers.Dropout(0.5))
@@ -1591,12 +1611,13 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Implement early stopping, checkpointing, and transference of mean and variance
     es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
     mc = ModelCheckpoint(model_filepath, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
-    emv = ExtractMeanVar()
     # Fit model
-    history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
-
-    # Save the final running mean and variance
-    np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
+    if not meanvar_standardization:
+        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
+    else:
+        emv = ExtractMeanVar()
+        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
+        np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
 
     # Save model training history to reproduce learning curves
     np.save(history_filepath, history.history)
@@ -1627,8 +1648,12 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
         "batch_size": len(test_labels),
         "n_classes": len(unique_classes),
         "shuffle": False}
-    test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
-                             running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
+    if not meanvar_standardization:
+        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                                 running_x_mean=None, running_x_var=None)
+    else:
+        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
+                                 running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
 
     # Use saved model to make predictions
     saved_model = load_model(model_filepath)
@@ -1659,7 +1684,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     # Print text on completion
     print('Done.')
 
-def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None):
+def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,processing_step,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None,n_jobs=1):
 
     """
     Pulls data or leverage npy directory to generate list of timeline indicators
@@ -1670,30 +1695,33 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
-    :param model_path (str): Path to model .h5 file
-    :param meanvar_path (str): path to model's meanvar .npy file
+    :param processing_step (int): Time step used for data pull and processing, in seconds.
+    :param model_path (str): Path to model .keras file
+    :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization will be applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
+    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     """
 
-    # Enforce the duration to be a multiple of 14400s (4 hours) as we process timelines by 4 hour time steps
-    if (endtime - starttime) % 14400 != 0:
-        print('The desired analysis duration (endtime - starttime) is not a multiple of 14400s (4 hours).')
-        endtime = endtime + (14400 - (endtime - starttime) % 14400)
+    # Enforce the duration to be a multiple of the desired time step
+    if (endtime - starttime) % processing_step != 0:
+        print('The desired analysis duration (endtime - starttime) is not a multiple of processing_step (%.2f hours; %.2f days).' % (processing_step/3600,processing_step/86400))
+        endtime = endtime + (processing_step - (endtime - starttime) % processing_step)
         print('Rounding up endtime to %s.' % str(endtime))
 
     # Load model
     saved_model = load_model(model_path)
-    spec_height = saved_model.input.shape.as_list()[1]
-    interval = saved_model.input.shape.as_list()[2]
-    nclasses = saved_model.layers[-1].get_config()['units']
-    nsubrows = len(station.split(','))
+    interval = saved_model.input_shape[2]
 
     # Extract mean and variance from training
-    saved_meanvar = np.load(meanvar_path)
-    running_x_mean = saved_meanvar[0]
-    running_x_var = saved_meanvar[1]
+    if meanvar_path:
+        standardize_spectrograms = True
+        saved_meanvar = np.load(meanvar_path)
+        running_x_mean = saved_meanvar[0]
+        running_x_var = saved_meanvar[1]
+    else:
+        standardize_spectrograms = False
 
     # Define fixed values
     time_step = int(np.round(interval*(1-overlap)))
@@ -1706,24 +1734,24 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     infrasound = True if channel[-1] == 'F' else False
     spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
-    # Split analysis duration into 4h-long chunks and start timer
-    num4h = (endtime - starttime) / 14400
+    # Split analysis duration into chunks with length processing_step and start timer
+    num_processing_step = (endtime - starttime) / processing_step
     process_tstart = time.time()
 
     # Initialize master indicator list
     indicators = []
 
-    # Loop over days and run checker
-    for n in range(int(num4h)):
+    # Loop over processing steps and run checker
+    for n in range(int(num_processing_step)):
 
         # Determine start and end time of current step
-        t1 = starttime + n * 14400 - 2 * 60
-        if n == (num4h-1):
-            t2 = starttime + (n + 1) * 14400 + 2 * 60
+        t1 = starttime + n * processing_step - interval/2
+        if n == (num_processing_step-1):
+            t2 = starttime + (n + 1) * processing_step + interval/2
         else:
-            t2 = starttime + (n + 1) * 14400 + 2 * 60 - time_step
+            t2 = starttime + (n + 1) * processing_step + interval/2 - time_step
         print('Now at %s, time elapsed: %.2f hours' %
-              ((t1+2*60).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
+              ((t1+interval/2).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
 
         # Load data, remove response, and re-order
         successfully_loaded = False
@@ -1733,7 +1761,7 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                 stream = gather_waveforms(source=source, network=network, station=station,
                                           location=location, channel=channel,
                                           starttime=t1 - pad, endtime=t2 + pad,
-                                          verbose=False)
+                                          verbose=False, n_jobs=n_jobs)
                 stream = process_waveform(stream, remove_response=True, detrend=False,
                                           taper_length=pad, verbose=False)
                 successfully_loaded = True
@@ -1797,7 +1825,8 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
                 continue
 
             # Standardize and min-max scale
-            spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
+            if standardize_spectrograms:
+                spec_stack = (spec_stack - running_x_mean) / np.sqrt(running_x_var + 1e-5)
             spec_stack = (spec_stack - np.min(spec_stack, axis=(1, 2))[:, np.newaxis, np.newaxis]) / \
                          (np.max(spec_stack, axis=(1, 2)) - np.min(spec_stack, axis=(1, 2)))[:, np.newaxis, np.newaxis]
 
@@ -1834,7 +1863,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
     :param time_step (float): time step used to divide plot into columns
     :param type (str): defined as either 'seismic' or 'infrasound' to determine color palette
-    :param model_path (str): path to model .h5 file
+    :param model_path (str): path to model .keras file
     :param indicators_path (str): path to pkl file that stores timeline indicators for plotting
     :param plot_title (str): plot title to use
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
@@ -2099,7 +2128,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for timeline
-    :param model_path (str): path to model .h5 file
+    :param model_path (str): path to model .keras file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices used to generate timeline_input
     :param timeline_input (ndarray or str): input array or path to indicators.pkl
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
@@ -2134,8 +2163,10 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
 
     # Determine classification interval using model file and overlap
     saved_model = load_model(model_path)
-    model_input_length = saved_model.input.shape.as_list()[2]
+    model_input_length = saved_model.input_shape[2]
     classification_interval = model_input_length * (1-overlap)
+
+    saved_model = load_model(model_path)
     if abs(classification_interval - int(classification_interval)) < 1e-6:
         classification_interval = int(classification_interval)
 
@@ -2401,9 +2432,8 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
 
     # Initialize all metrics
     window_centers = np.arange(starttime, endtime+time_step, time_step)
+    window_starts = window_centers - window_length/2
     metric_length = len(window_centers)
-    tmpl = np.ones((len(stream_unprocessed), metric_length)) * np.nan
-    # rsam = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     if infrasound:
         rmsp = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     else:
@@ -2413,58 +2443,52 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
     fd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
     fsd = np.ones((len(stream_unprocessed), metric_length)) * np.nan
 
-    # Loop over time windows to calculate metrics
-    for i, window_center in enumerate(window_centers):
+    # Get matplotlib date array
+    tmpl = np.array([window_center.matplotlib_date for window_center in window_centers])
+    tmpl = tmpl.reshape((1, len(tmpl)))
 
-        # Compute corresponding window end and slice stream
-        window_start = window_center - window_length/2
-        window_end = window_center + window_length/2
-        stream_processed_segment = stream_processed.copy().trim(window_start, window_end)
-        if not infrasound:
-            stream_disp_segment = stream_disp.copy().trim(window_start, window_end)
+    # Precompute start indices for each window
+    num_samples_per_window = int(window_length / stream_unprocessed[0].stats.delta)
+    first_window_start_index = int((window_starts[0] - stream_unprocessed[0].stats.starttime) * stream_unprocessed[0].stats.sampling_rate)
+    last_window_start_index = int((window_starts[-1] - stream_unprocessed[0].stats.starttime) * stream_unprocessed[0].stats.sampling_rate)
+    start_indices = np.arange(first_window_start_index, last_window_start_index + 1, int(num_samples_per_window*overlap))
+    window_indices = start_indices[:, np.newaxis] + np.arange(num_samples_per_window)
 
-        # Loop over each trace and do computation
-        for j in range(len(stream_processed_segment)):
+    for j, trace_processed in enumerate(stream_processed):
 
-            # Get trace data
-            trace_processed_segment = stream_processed_segment[j].data
-            if not infrasound:
-                trace_disp_segment = stream_disp_segment[j].data
+        # Reshape processed trace data to 2D array
+        trace_processed_matrix = trace_processed.data[window_indices]
 
-            # Store matplotlib date for plotting
-            tmpl[j,i] = window_center.matplotlib_date
+        # Compute permutation entropy for 2D array
+        pe[j, :] = np.apply_along_axis(complexity_entropy, axis=1, arr=trace_processed_matrix, dx=5)[:,0]
 
-            # # Compute RSAM
-            # rsam[j,i] = np.mean(np.abs(trace_disp_segment))
+        # Execute FFT on each row
+        fsamp = rfftfreq(len(trace_processed_matrix[0]), 1 / trace_processed.stats.sampling_rate)
+        fspec = np.abs(rfft(trace_processed_matrix, axis=1))[:, np.flatnonzero(fsamp>1)]
+        fsamp = fsamp[np.flatnonzero(fsamp>1)]
 
-            # If infrasound, compute RMSP
-            if infrasound:
-                rmsp[j,i] = np.sqrt(np.mean(np.square(trace_processed_segment)))
-            # If seismic, compute DR
-            else:
-                rms_disp = np.sqrt(np.mean(np.square(trace_disp_segment)))
-                station_dist = GD((stream_disp_segment[j].stats.latitude, stream_disp_segment[j].stats.longitude), vlatlon).m
-                wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
-                dr[j, i] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+        # Compute central frequency
+        fc[j, :] = np.sum(fspec * fsamp, axis=1) / np.sum(fspec, axis=1)
 
-            # Compute permutation entropy
-            pe[j,i] = complexity_entropy(trace_processed_segment, dx=5)[0]
+        # Compute dominant frequency
+        fd[j, :] = fsamp[np.argmax(fspec, axis=1)]
 
-            # Now execute FFT and trim
-            fsamp = rfftfreq(len(trace_processed_segment), 1 / stream_processed_segment[j].stats.sampling_rate)
-            fspec = np.abs(rfft(trace_processed_segment))[np.flatnonzero(fsamp>1)]
-            fsamp = fsamp[np.flatnonzero(fsamp>1)]
+        # Compute standard deviation of top 30 frequency peaks
+        for k in range(fspec.shape[0]):  # Loop through each row
+            fpeaks_index, _ = find_peaks(fspec[k,:])  # Find peaks in the row
+            fpeaks_top30 = np.sort(fspec[k,:][fpeaks_index])[-30:]  # Get top 30 peaks
+            fsd[j, k] = np.std(fpeaks_top30) / np.mean(fspec[k])  # Calculate std/mean ratio
 
-            # Compute central frequency
-            fc[j,i] = np.sum(fspec * fsamp) / np.sum(fspec)
-
-            # Compute dominant frequency
-            fd[j,i] = fsamp[np.argmax(fspec)]
-
-            # Compute normalized standard deviation of top 30 frequency peaks
-            fpeaks_index, _ = find_peaks(fspec)
-            fpeaks_top30 = np.sort(fspec[fpeaks_index])[-30:]
-            fsd[j,i] = np.std(fpeaks_top30) / np.mean(fspec)
+        # Get corresponding 2D array for displacement to compute DR if not infrasound
+        if infrasound:
+            rmsp = np.sqrt(np.mean(np.square(trace_processed_matrix), axis=1))
+        else:
+            trace_disp = stream_disp[j]
+            trace_disp_matrix = trace_disp.data[window_indices]
+            rms_disp = np.sqrt(np.mean(np.square(trace_disp_matrix), axis=1))
+            station_dist = GD((trace_disp.stats.latitude, trace_disp.stats.longitude), vlatlon).m
+            wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
+            dr[j, :] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
 
     if infrasound:
         return tmpl, rmsp, pe, fc, fd, fsd
@@ -2515,6 +2539,14 @@ def set_universal_seed(seed_value):
     :return: None
     """
 
+    # Import dependencies
+    import os
+    import random
+    import numpy as np
+    import tensorflow as tf
+    #from keras import backend as K
+    from tensorflow.python.keras import backend as K
+
     # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
     os.environ['PYTHONHASHSEED']=str(seed_value)
 
@@ -2530,7 +2562,8 @@ def set_universal_seed(seed_value):
     # 5. Configure a new global `tensorflow` session
     session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
     sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
-    tf.compat.v1.keras.backend.set_session(sess)
+    #tf.compat.v1.keras.backend.set_session(sess)
+    K.set_session(sess)
 
 def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None):
     """
@@ -2720,3 +2753,66 @@ def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_r
         fig.show()
 
     return train_list, val_list, test_list
+
+def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_kwargs):
+    '''
+    Sort station list by distance using inventory
+    param: source: str: source of data
+    param: network: str: network code
+    param: station: str: station code
+    param: starttime: UTCDateTime: start time
+    param: endtime: UTCDateTime: end time
+    param: channel: str: channel code
+    param: dr_kwargs: dict: dictionary of dr_kwargs, need 'volc_lat' and 'volc_lon'
+    return: STA_SORT: str: sorted station list by distance
+    return: DIST_SORT: list: sorted distance list
+    '''
+    from obspy.clients.fdsn import Client
+    from geopy.distance import geodesic as GD
+    
+    print('Sorting stations by distance')
+    client = Client(source)
+    inv = client.get_stations(station=station, network=network, level="station",
+                              starttime=starttime, endtime=endtime, channel=channel)
+    dist=[]
+    for sta in inv[0].stations[::-1]:
+        dist_tmp=GD((sta.latitude, sta.longitude),
+                    (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).km
+        print(f'{sta.code}: {dist_tmp:.2f} km')
+        dist.append(dist_tmp)
+
+    # sort station name distance and only save station name, put it in a string
+    STA_SORT = ",".join(x.code for _, x in sorted(zip(dist, inv[0].stations)))
+    DIST_SORT = sorted(dist)
+    
+    return STA_SORT, DIST_SORT
+
+# def compute_pavlof_rsam(stream_unprocessed):
+#     """
+#     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
+#     :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
+#     :return: dr (list): List of reduced displacement values,
+#     """
+#     # Import geopy
+#     from geopy.distance import geodesic as GD
+#     # Define constants
+#     R = 6372.7976  # km
+#     drm = 3  # cm^2
+#     seisvel = 1500  # m/s
+#     dfrq = 2  # Hz
+#     vlatlon = (55.4173,-161.8937)
+#     # Initialize lists
+#     disteqv = []
+#     sensf = []
+#     rmssta = []
+#     # Compute
+#     for i, tr in enumerate(stream_unprocessed):
+#         slatlon = (tr.stats.latitude,tr.stats.longitude)
+#         disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
+#         sensf.append(tr.stats.response.instrument_sensitivity.value)
+#         rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
+#     rmsstav = np.array(rmssta)*2*np.pi*dfrq
+#     levels_count = rmsstav * sensf
+#     q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
+#     dr = levels_count * q_effect
+#     return dr
