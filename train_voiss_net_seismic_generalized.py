@@ -7,7 +7,7 @@ from toolbox import (create_labeled_dataset, set_universal_seed,
 DISABLE_GPU = False 
 
 # Define inputs and parameters for training the model
-NPY_DIR = '/data/generalized_tremor/labeled_npy_generalized/'
+NPY_DIR = './labeled_npy_files/generalized/'
 MODEL_TAG = 'voissnet_seismic_generalized'
 BATCH_SIZE = 100
 LEARNING_RATE = 0.00005
@@ -32,7 +32,7 @@ LABEL_DICT = {'Broadband Tremor': 0,
 CREATE_LABELED_DATASET = False
 
 if CREATE_LABELED_DATASET:
-    JSON_FILEPATH = './labels/voissnet_labels_seismic.json'
+    JSON_FILEPATH = './labels/voissnet_labels_generalized.json'
     TRANSIENT_INDICES = [3, 4, 5]  # indices of transient classes
     TIME_STEP = 2 * 60  # s
     SOURCE = 'IRIS'
