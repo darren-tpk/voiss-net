@@ -2775,7 +2775,7 @@ def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_
     inv = client.get_stations(station=station, network=network, level="station",
                               starttime=starttime, endtime=endtime, channel=channel)
     dist=[]
-    for sta in inv[0].stations[::-1]:
+    for sta in inv[0].stations:
         dist_tmp=GD((sta.latitude, sta.longitude),
                     (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).km
         print(f'{sta.code}: {dist_tmp:.2f} km')
