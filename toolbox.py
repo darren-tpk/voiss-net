@@ -1519,6 +1519,7 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     history_filepath = './models/' + model_tag + '_history.npy'
     curve_filepath = './figures/' + model_tag + '_curve.png'
     confusion_filepath = './figures/' + model_tag + '_confusion.png'
+    predictions_filepath = './models/' + model_tag + '_predictions.npy'
     if meanvar_standardization:
         meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
 
@@ -1660,6 +1661,9 @@ def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag,
     test = saved_model.predict(test_gen)
     pred_labs = np.argmax(test, axis=1)
     true_labs = np.array([test_gen.labels[id] for id in test_gen.list_ids])
+
+    # Save predictions
+    np.save(predictions_filepath, (true_labs, pred_labs))
 
     # Print evaluation on test data
     acc = metrics.accuracy_score(true_labs, pred_labs)
