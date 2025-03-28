@@ -1,6 +1,6 @@
 # Import all dependencies
 import tensorflow as tf
-from toolbox import (create_labeled_dataset, set_universal_seed,
+from ml_training import (create_labeled_dataset, set_universal_seed,
                      augment_labeled_dataset, train_voiss_net)
 
 # Disable GPU for model training if desired
@@ -10,14 +10,14 @@ DISABLE_GPU = False
 NPY_DIR = './labeled_npy_files/generalized/'
 MODEL_TAG = 'voissnet_seismic_generalized'
 BATCH_SIZE = 100
-LEARNING_RATE = 0.00005
+LEARNING_RATE = 0.0002
 PATIENCE = 20  # epochs
 
 # Define inputs and parameters for augment_labeled_dataset
 OMIT_INDEX = [0, 3]  # do not include in class count determination
 NOISE_INDEX = 6  # use noise samples to augment
 TESTVAL_RATIO = 0.2  # use this ratio of sparse-est class to pull test and validation sets
-NOISE_RATIO = 0.2  # weight of noise sample added for augmentation
+NOISE_RATIO = 0.35  # weight of noise sample added for augmentation
 
 LABEL_DICT = {'Broadband Tremor': 0,
               'Harmonic Tremor': 1,
