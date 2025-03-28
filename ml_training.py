@@ -27,7 +27,7 @@ from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
 from sklearn import metrics
 from waveform_collection import gather_waveforms
-from toolbox import process_waveforms, calculate_spectrogram
+from toolbox import process_waveform, calculate_spectrogram
 
 def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims, transient_ratio=0.1):
     """
