@@ -587,7 +587,7 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
     return spec_db, utc_times
 
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False,n_jobs=1):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False,n_jobs=1):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -608,6 +608,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param font_s (float): Font size [points]
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq, med_filt_kernel, dr_lims)
+    :param fi_kwargs (dict): Dictionary of frequency index plotting parameters (reference_station, window_length, overlap, filomin, filomax, fiupmin, fiupmax, med_filt_kernel)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
     :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
@@ -862,8 +863,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 'aspect': 40}
 
     # Define plotting parameters based on reduced displacement kwargs
-    header_panels = 3 if dr_kwargs is not None else 2
-    top_space = 0.905 if dr_kwargs is not None else 0.89
+    header_panels = 3 if any([dr_kwargs, fi_kwargs]) else 2
+    top_space = 0.905 if any([dr_kwargs, fi_kwargs]) else 0.89
 
     LW = 0.75
     LW_LABEL = 2
@@ -896,7 +897,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax = fig.add_subplot(gs_top[:, 1])
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
-    ax2b = fig.add_subplot(gs_top[2, 0]) if dr_kwargs is not None else None
+    ax2b = fig.add_subplot(gs_top[2, 0]) if any([dr_kwargs, fi_kwargs]) else None
     ax3 = fig.add_subplot(gs_base[header_panels, 0])
     other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in
                   range(header_panels + 1, len(station.split(',')) + header_panels)]
@@ -937,41 +938,157 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2.set_yticks([0, 0.5, 1])
     ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
 
-    # If dr_kwargs is not None, plot reduced displacement in middle axis
+    # If dr_kwargs is defined, plot reduced displacement in middle axis
     if dr_kwargs is not None:
-        # Calculate reduce displacement
-        print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
-        tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
-                                   remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
-                                   taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
-        tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
-                                       endtime=endtime + dr_kwargs['window_length'] / 2)
-        window_samples = int(dr_kwargs['window_length'] * tr_disp.stats.sampling_rate)
-        tr_disp_segments = [tr_disp_trimmed.data[i:i + window_samples] for i in
-                            range(0, len(tr_disp_trimmed.data) - window_samples + 1,
-                                  int(window_samples * dr_kwargs['overlap']))]
-        rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
-        station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
-                          (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
-        wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
-        dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
-        if 'med_filt_kernel' in dr_kwargs:
-            dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
 
-        # Plot reduced displacement
-        dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
-        ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
-        ax2b.set_xlim(0, len(dr))
-        ax2b.set_xticks(np.linspace(0, len(dr), int(denominator+1)))
-        plt.setp(ax2b.get_xticklabels(), visible=False)
-        if 'dr_lims' in dr_kwargs:
-            ax2b.set_ylim(dr_kwargs['dr_lims'])
-            ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+        # If fi_kwargs is also defined, default to plotting dr_kwargs
+        if fi_kwargs is not None:
+            print('Only one of dr_kwargs and fi_kwargs can be used at a time -- defaulting to dr_kwargs.')
+
+        # Calculate reduce displacement for reference station
+        if dr_kwargs['reference_station'] != 'all':
+            print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
+            tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
+                                       remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+                                       taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
+            tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
+                                           endtime=endtime + dr_kwargs['window_length'] / 2)
+            window_samples = int(dr_kwargs['window_length'] * tr_disp.stats.sampling_rate)
+            tr_disp_segments = [tr_disp_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_disp_trimmed.data) - window_samples + 1,
+                                      int(window_samples * dr_kwargs['overlap']))]
+            rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
+            station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
+                              (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
+            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            if 'med_filt_kernel' in dr_kwargs:
+                dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
+
+            # Plot reduced displacement
+            dr_tvec = np.arange(0, len(dr), 1)
+            ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
+            ax2b.set_xlim(0, len(dr)-1)
+            ax2b.set_xticks(np.linspace(0, len(dr)-1, int(denominator+1)))
+            plt.setp(ax2b.get_xticklabels(), visible=False)
+            if 'dr_lims' in dr_kwargs:
+                ax2b.set_ylim(dr_kwargs['dr_lims'])
+                ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+            else:
+                ax2b.set_ylim([0, np.ceil(np.max(dr))])
+                ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+
+        # If all stations are to be used for reduced displacement, calculate and plot mean
         else:
-            ax2b.set_ylim([0, np.ceil(np.max(dr))])
-            ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
-        ax2b.tick_params(axis='y', labelsize=font_s)
-        ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+            print(f"Calculating DR for all available stations")
+            st_disp = process_waveform(stream_raw, remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+                                       taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
+            st_disp_trimmed = st_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
+                                           endtime=endtime + dr_kwargs['window_length'] / 2)
+            window_samples = int(dr_kwargs['window_length'] * st_disp_trimmed[0].stats.sampling_rate)
+            st_disp_segments = [[tr_disp_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_disp_trimmed.data) - window_samples + 1,
+                                      int(window_samples * dr_kwargs['overlap']))] for tr_disp_trimmed in st_disp_trimmed]
+            rms_disp_all = [[np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in station_segments]
+                            for station_segments in st_disp_segments]
+            station_dists = [GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
+                                (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m for tr_disp in st_disp_trimmed]
+            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr_all = [[rms_disp * np.sqrt(station_dists[i]) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+                       for rms_disp in station_rms] for i, station_rms in enumerate(rms_disp_all)]
+            if 'med_filt_kernel' in dr_kwargs:
+                dr_all = [medfilt(dr_station, dr_kwargs['med_filt_kernel']) for dr_station in dr_all]
+
+            # Plot reduced displacement
+            dr_tvec = np.arange(0, np.shape(dr_all)[1], 1)
+            for dr in dr_all:
+                ax2b.plot(dr_tvec, dr, color='k', linewidth=LW, alpha=0.3)
+            ax2b.plot(dr_tvec, np.mean(dr_all, axis=0), color='k')
+            ax2b.set_xlim(0, len(dr_all[0])-1)
+            ax2b.set_xticks(np.linspace(0, len(dr_all[0])-1, int(denominator + 1)))
+            plt.setp(ax2b.get_xticklabels(), visible=False)
+            if 'dr_lims' in dr_kwargs:
+                ax2b.set_ylim(dr_kwargs['dr_lims'])
+                ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+            else:
+                ax2b.set_ylim([0, np.ceil(np.max(dr_all))])
+                ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr_all)), 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+
+    # If fi_kwargs is defined, plot frequency index in middle axis
+    elif fi_kwargs is not None:
+
+        # Calculate windowed frequency index for reference station
+        if fi_kwargs['reference_station'] != 'all':
+            print(f"Calculating FI for {stream_raw[stream_stations.index(fi_kwargs['reference_station'])].id}")
+            tr_vel = process_waveform(stream_raw[stream_stations.index(fi_kwargs['reference_station'])].copy(),
+                                        remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+                                        taper_percentage=None, verbose=False)
+            tr_vel_trimmed = tr_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
+                                        endtime=endtime + fi_kwargs['window_length'] / 2)
+            window_samples = int(fi_kwargs['window_length'] * tr_vel.stats.sampling_rate)
+            tr_vel_segments = [tr_vel_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_vel_trimmed.data) - window_samples + 1,
+                                int(window_samples * fi_kwargs['overlap']))]
+
+            # FI is the log10 of the ratio of the mean of spectral amplitude in the upper frequency band to the mean in the lower frequency band
+            tr_spectra_segments = [np.abs(rfft(tr_vel_segment)) for tr_vel_segment in tr_vel_segments]
+            freq_vector = rfftfreq(len(tr_vel_segments[0]), 1 / tr_vel.stats.sampling_rate)
+            fi = [np.log10(np.mean(tr_spectra_segment[(freq_vector >= fi_kwargs['fiupmin']) & (freq_vector <= fi_kwargs['fiupmax'])]) /
+                  np.mean(tr_spectra_segment[(freq_vector >= fi_kwargs['filomin']) & (freq_vector <= fi_kwargs['filomax'])]))
+                  for tr_spectra_segment in tr_spectra_segments]
+            if 'med_filt_kernel' in fi_kwargs:
+                fi = medfilt(fi, fi_kwargs['med_filt_kernel'])
+
+            # Plot windowed frequency index
+            fi_tvec = np.arange(0, len(fi), 1)
+            ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW)
+            ax2b.set_xlim(0, len(fi)-1)
+            ax2b.set_xticks(np.linspace(0, len(fi)-1, int(denominator + 1)))
+            plt.setp(ax2b.get_xticklabels(), visible=False)
+            if 'fi_lims' in fi_kwargs:
+                ax2b.set_ylim(fi_kwargs['fi_lims'])
+                ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('FI\n' + fi_kwargs['reference_station'], fontsize=font_s)
+
+        # If all stations are to be used for frequency index, calculate and plot mean
+        else:
+            print(f"Calculating FI for all available stations")
+            st_vel = process_waveform(stream_raw, remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+                                      taper_percentage=None, verbose=False)
+            st_vel_trimmed = st_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
+                                         endtime=endtime + fi_kwargs['window_length'] / 2)
+            window_samples = int(fi_kwargs['window_length'] * st_vel_trimmed[0].stats.sampling_rate)
+            st_vel_segments = [[tr_vel_trimmed.data[i:i + window_samples] for i in
+                               range(0, len(tr_vel_trimmed.data) - window_samples + 1,
+                            int(window_samples * fi_kwargs['overlap']))] for tr_vel_trimmed in st_vel_trimmed]
+
+            # FI is the log10 of the ratio of the mean of spectral amplitude in the upper frequency band to the mean in the lower frequency band
+            st_spectra_segments = [[np.abs(rfft(segment)) for segment in station_segments] for station_segments in st_vel_segments]
+            freq_vector = rfftfreq(window_samples, 1 / st_vel_trimmed[0].stats.sampling_rate)
+            fi_all = [[np.log10(np.mean(np.square(spectrum[(freq_vector >= fi_kwargs['fiupmin']) & (freq_vector <= fi_kwargs['fiupmax'])])) /
+                       np.mean(np.square(spectrum[(freq_vector >= fi_kwargs['filomin']) & (freq_vector <= fi_kwargs['filomax'])])))
+                       for spectrum in station_spectra] for station_spectra in st_spectra_segments]
+            if 'med_filt_kernel' in fi_kwargs:
+                fi_all = [medfilt(fi_station, fi_kwargs['med_filt_kernel']) for fi_station in fi_all]
+
+            # Plot windowed frequency index
+            fi_tvec = np.arange(0, np.shape(fi_all)[1], 1)
+            for fi in fi_all:
+                ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW, alpha=0.3)
+            ax2b.plot(fi_tvec, np.mean(fi_all, axis=0), color='maroon')
+            ax2b.set_xlim(0, len(fi_all[0])-1)
+            ax2b.set_xticks(np.linspace(0, len(fi_all[0])-1, int(denominator + 1)))
+            plt.setp(ax2b.get_xticklabels(), visible=False)
+            if 'fi_lims' in fi_kwargs:
+                ax2b.set_ylim(fi_kwargs['fi_lims'])
+                ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('FI\n' + fi_kwargs['reference_station'], fontsize=font_s)
 
     # Loop over input stations and plot spectrograms on lower axes
     for axs_index, stn in enumerate(station.split(',')):
@@ -1067,7 +1184,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     transparent=transparent)
         print('Done!')
     return class_mat, prob_mat
-
+    
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
                           meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
                           spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
