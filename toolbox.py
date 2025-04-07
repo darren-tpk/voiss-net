@@ -510,13 +510,20 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         target_ax.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         target_ax.tick_params(axis='y', labelsize=18)
         target_ax.set_ylabel(trace.id, fontsize=22, fontweight='bold')
-    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
-    time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
-    bottom_ax = axs[-1] if len(stream)>1 else axs
-    bottom_ax.set_xticks(time_tick_list_mpl)
-    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
-    bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
+    # time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
+    # time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
+    # time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
+    # bottom_ax = axs[-1] if len(stream)>1 else axs
+    # bottom_ax.set_xticks(time_tick_list_mpl)
+    # bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
+    #
+    # let matplotlib choose the xtick and xticklabels
+    #bottom_ax.xaxis.set_major_locator(dates.AutoDateLocator())
+    bottom_ax.xaxis_date()
+    bottom_ax.tick_params(axis='x',labelbottom='on', fontsize=22, rotation=30,
+                          ha='right', rotation_mode='anchor')
+    
+    bottom_ax.set_xlabel('UTC1 Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
     else:
@@ -665,8 +672,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
                                       verbose=False, n_jobs=n_jobs)
+            stream_raw
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
+            stream
             successfully_loaded = True
         except:
             print('Data pull failed, trying again in 10 seconds...')
@@ -869,20 +878,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     LW = 0.75
     LW_LABEL = 2
 
-    # Configure shared x-axis ticks and labels
-    if (endtime - starttime) >= (6 * 86400):
-        denominator = (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (2 * 86400) <= (endtime - starttime) < (6 * 86400):
-        denominator = 2 * (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
-        fmt = '%m/%d %H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
-    else:
-        fmt = '%H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
-
     # Initialize figure and craft axes
     fig_height = fig_height if fig_height else (fig_width * .75)
     fig = plt.figure(figsize=(fig_width, fig_height))
@@ -931,8 +926,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     if pnorm_thresh:
         ax2.axhline(pnorm_thresh, color='r', linestyle='-', linewidth=LW+1)
     ax2.set_xlim([0, len(voted_probabilities)-1])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities)-1, int(denominator+1)))
-    plt.setp(ax2.get_xticklabels(), visible=False)
+    ax2.xaxis_date()
+    ax2.set_xticklabels([])
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
     ax2.set_yticks([0, 0.5, 1])
@@ -969,8 +964,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             dr_tvec = np.arange(0, len(dr), 1)
             ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
             ax2b.set_xlim(0, len(dr)-1)
-            ax2b.set_xticks(np.linspace(0, len(dr)-1, int(denominator+1)))
-            plt.setp(ax2b.get_xticklabels(), visible=False)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
             if 'dr_lims' in dr_kwargs:
                 ax2b.set_ylim(dr_kwargs['dr_lims'])
                 ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
@@ -1007,8 +1002,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 ax2b.plot(dr_tvec, dr, color='k', linewidth=LW, alpha=0.3)
             ax2b.plot(dr_tvec, np.mean(dr_all, axis=0), color='k')
             ax2b.set_xlim(0, len(dr_all[0])-1)
-            ax2b.set_xticks(np.linspace(0, len(dr_all[0])-1, int(denominator + 1)))
-            plt.setp(ax2b.get_xticklabels(), visible=False)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
             if 'dr_lims' in dr_kwargs:
                 ax2b.set_ylim(dr_kwargs['dr_lims'])
                 ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
@@ -1047,8 +1042,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             fi_tvec = np.arange(0, len(fi), 1)
             ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW)
             ax2b.set_xlim(0, len(fi)-1)
-            ax2b.set_xticks(np.linspace(0, len(fi)-1, int(denominator + 1)))
-            plt.setp(ax2b.get_xticklabels(), visible=False)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
+            #plt.setp(ax2b.get_xticklabels(), visible=False)
             if 'fi_lims' in fi_kwargs:
                 ax2b.set_ylim(fi_kwargs['fi_lims'])
                 ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
@@ -1082,8 +1078,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW, alpha=0.3)
             ax2b.plot(fi_tvec, np.mean(fi_all, axis=0), color='maroon')
             ax2b.set_xlim(0, len(fi_all[0])-1)
-            ax2b.set_xticks(np.linspace(0, len(fi_all[0])-1, int(denominator + 1)))
-            plt.setp(ax2b.get_xticklabels(), visible=False)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
             if 'fi_lims' in fi_kwargs:
                 ax2b.set_ylim(fi_kwargs['fi_lims'])
                 ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
@@ -1146,16 +1142,19 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[axs_index].tick_params(axis='y', labelsize=font_s)
 
     # Format time ticks
-    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) \
-                               / denominator)
-    time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
-    axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30, ha='right', rotation_mode='anchor')
+    axs[-1].xaxis_date()
+    axs[-1].tick_params(axis='x', labelbottom='on', labelsize=font_s,
+                        rotation=30)
     if endtime.date == starttime.date:
+        # format for hour:minute ticks
+        date_format = dates.DateFormatter('%H:%M')
+        axs[-1].xaxis.set_major_formatter(date_format)
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
+
     elif (endtime - starttime) < (2 * 86400):
+        date_format = dates.DateFormatter('%H:%M')
+        axs[-1].xaxis.set_major_formatter(date_format)
         axs[-1].set_xlabel('UTC Time starting from ' +
                            starttime.date.strftime('%b %d, %Y'),
                            fontsize=font_s)
@@ -1171,6 +1170,30 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax.set_ylim([0, len(rgb_ratios)])
     cbar_ax.invert_yaxis()
     cbar_ax.set_xticks([])
+
+    # Redo the xticks in absolute space for the upper rows to align with specrograms
+    tick_data_ax1 = axs[-1].get_xticks()
+    # Convert ax1 data coords to display coords
+    tick_disp_coords = axs[-1].transData.transform([(x, 0) for x in tick_data_ax1])
+
+    # Convert display coords to data coords in ax* and set them
+    tick_data_ax1 = ax1.transData.inverted().transform(tick_disp_coords)[:, 0]
+    ax1.set_xticks(tick_data_ax1)
+    ax1.set_xticklabels([])
+    # turn off xtick grid lines
+    ax1.xaxis.grid(False)
+
+    tick_data_ax2 = ax2.transData.inverted().transform(tick_disp_coords)[:, 0]
+    ax2.set_xticks(tick_data_ax2)
+    ax2.set_xticklabels([])
+
+    # do the same for ax2b if it exists
+    ax2b = locals().get('ax2b', None)
+    if ax2b is not None:
+        tick_data_ax2b = ax2b.transData.inverted().transform(tick_disp_coords)[:, 0]
+        ax2b.set_xticks(tick_data_ax2b)
+        ax2b.set_xticklabels([])
+
 
     # Show figure or export
     if export_path is None:
