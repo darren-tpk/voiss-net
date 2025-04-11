@@ -17,7 +17,7 @@ PATIENCE = 20  # epochs
 OMIT_INDEX = [0, 3]  # do not include in class count determination
 NOISE_INDEX = 6  # use noise samples to augment
 TESTVAL_RATIO = 0.2  # use this ratio of sparse-est class to pull test and validation sets
-NOISE_RATIO = 0.35  # weight of noise sample added for augmentation
+NOISE_RATIO = 0.2  # weight of noise sample added for augmentation
 
 LABEL_DICT = {'Broadband Tremor': 0,
               'Harmonic Tremor': 1,
