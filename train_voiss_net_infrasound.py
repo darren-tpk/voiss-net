@@ -1,6 +1,7 @@
 # Import all dependencies
 import tensorflow as tf
-from toolbox import create_labeled_dataset, set_universal_seed, augment_labeled_dataset, train_voiss_net
+from ml_training import (create_labeled_dataset, set_universal_seed,
+                     augment_labeled_dataset, train_voiss_net)
 
 # Disable GPU for model training if desired
 DISABLE_GPU = True
