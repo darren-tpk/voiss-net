@@ -1,21 +1,14 @@
 # Import dependencies
-import os
 import time
 import glob
-import json
 import pickle
-import random
 import pyproj
 import numpy as np
 import pandas as pd
 import colorcet as cc
 import seaborn as sns
-import tensorflow as tf
-import statistics as sts
 import matplotlib.pyplot as plt
-from DataGenerator import DataGenerator
 from geopy.distance import geodesic as GD
-from keras import layers, models, losses, optimizers
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from matplotlib import dates, rcParams
@@ -25,7 +18,6 @@ from obspy import UTCDateTime, read, Stream, Trace
 from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
-from sklearn import metrics
 from waveform_collection import gather_waveforms
 
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
