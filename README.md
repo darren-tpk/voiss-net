@@ -7,11 +7,11 @@ The **VOlcano Infrasound & Seismic Spectrogram Network (VOISS-Net)** is a pair o
 
 and
 
-*Fee, D., Tan, D., Lyons, J., Sciotto, M., Cannata, A., Hotovec-Ellis, A. J., Girona, T., Wech, A. G., Roman, D. C., Haney, M. M., & De Angelis, S. (submitted). A Generalized Deep Learning Model to Detect and Classify Volcano Seismicity. Volcanica.*
+*Fee, D., Tan, D., Lyons, J., Sciotto, M., Cannata, A., Hotovec-Ellis, A. J., Girona, T., Wech, A. G., Roman, D. C., Haney, M. M., & De Angelis, S. (in review). A Generalized Deep Learning Model to Detect and Classify Volcano Seismicity. Volcanica.*
 
 and we ask that you cite those manuscripts when using the tool.
 
-We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the model to other volcanoes and eruptions in the Fee et al. (submitted) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
+We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the seismic model to other volcanoes and eruptions in the Fee et al. (in review) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
 
 The codes included within the repository can also be used to re-create the labeled spectrogram datasets for both models. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
 
@@ -60,9 +60,11 @@ label-studio
 ```
 python train_voiss_net_seismic.py
 python train_voiss_net_infrasound.py
+or
+python train_voiss_net_seismic_generalized.py
 ```
 
-Note that the spectrogram labels for the generalized model are included as a text file: models/labels_generalized.txt
+Note that the spectrogram labels for the generalized model are included as a text file: models/labels_generalized.txt. Retraining the generalized model requires creating the npy files from the times and stations in the labels_generalized.txt file.
 
 Dependencies
 ------------

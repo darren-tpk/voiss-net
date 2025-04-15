@@ -1,21 +1,14 @@
 # Import dependencies
-import os
 import time
 import glob
-import json
 import pickle
-import random
 import pyproj
 import numpy as np
 import pandas as pd
 import colorcet as cc
 import seaborn as sns
-import tensorflow as tf
-import statistics as sts
 import matplotlib.pyplot as plt
-from DataGenerator import DataGenerator
 from geopy.distance import geodesic as GD
-from keras import layers, models, losses, optimizers
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from matplotlib import dates, rcParams
@@ -25,7 +18,6 @@ from obspy import UTCDateTime, read, Stream, Trace
 from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
-from sklearn import metrics
 from waveform_collection import gather_waveforms
 
 def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
@@ -510,13 +502,20 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         target_ax.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         target_ax.tick_params(axis='y', labelsize=18)
         target_ax.set_ylabel(trace.id, fontsize=22, fontweight='bold')
-    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
-    time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
-    bottom_ax = axs[-1] if len(stream)>1 else axs
-    bottom_ax.set_xticks(time_tick_list_mpl)
-    bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
-    bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
+    # time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
+    # time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
+    # time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
+    # bottom_ax = axs[-1] if len(stream)>1 else axs
+    # bottom_ax.set_xticks(time_tick_list_mpl)
+    # bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
+    #
+    # let matplotlib choose the xtick and xticklabels
+    #bottom_ax.xaxis.set_major_locator(dates.AutoDateLocator())
+    bottom_ax.xaxis_date()
+    bottom_ax.tick_params(axis='x',labelbottom='on', fontsize=22, rotation=30,
+                          ha='right', rotation_mode='anchor')
+    
+    bottom_ax.set_xlabel('UTC1 Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
     else:
@@ -586,192 +585,8 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def create_labeled_dataset(json_filepath, output_dir, label_dict, transient_indices, time_step, source, network, station, location, channel, pad, window_duration, freq_lims, transient_ratio=0.1):
-    """
-    Create a labeled spectrogram dataset from a json file from label studio
-    :param json_filepath (str): File path to the json file from label studio
-    :param output_dir (str): Directory to save the npy files
-    :param label_dict (dict): Dictionary to convert labels to appended file index
-    :param transient_indices (list): List of indices for transients (these will be prioritized in assigning labels, and the higher index number will be prioritized)
-    :param time_step (float): Time step for the 2D matrices
-    :param source (str): Source of the data
-    :param network (str or list): SEED network code(s)
-    :param station (str or list): SEED station code(s)
-    :param channel (str or list): SEED channel code(s)
-    :param location (str or list): SEED location code(s)
-    :param pad (float): Padding length [s]
-    :param window_duration (float): Window duration for the spectrogram [s]
-    :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
-    :param transient_ratio (float): Ratio of transient-related time samples for transient classes to be prioritized (default: 0.1)
-    """
 
-    # Check if output directory exists
-    if not os.path.exists(output_dir):
-        raise ValueError('Output directory does not exist')
-
-    # Parse json file from label studio
-    f = open(json_filepath)
-    labeled_images = json.load(f)
-    f.close()
-
-    # Loop over all labeled images:
-    for labeled_image in labeled_images:
-
-        # Extract out file name, and define starttime, endtime and stations covered by spectrogram image
-        filename = labeled_image['file_upload'].split('-')[1]
-        chunks = filename.split('_')
-        t1 = UTCDateTime(chunks[0] + chunks[1])
-        t2 = UTCDateTime(chunks[3] + chunks[4])
-        stations = chunks[5:-1]
-
-        # Extract all annotations
-        annotations = labeled_image['annotations'][0]['result']
-
-        # If no annotations exist, skip
-        if len(annotations) == 0:
-            print('No annotations on image')
-            continue
-        # Otherwise define original width and height of image in pixels and determine pixels indicating each station
-        else:
-            time_per_percent = (t2 - t1) / 100
-            y_span = annotations[0]['original_height']
-            y_per_percent = y_span / 100
-            station_indicators = np.arange(y_span / (len(stations) * 2), y_span, y_span / (len(stations)))
-
-        # Initialize time bound list
-        time_bounds = []
-
-        # Now loop over annotations to fill
-        for annotation in annotations:
-            if annotation['value']['rectanglelabels'] == []:
-                continue
-            label = annotation['value']['rectanglelabels'][0]
-            x1 = t1 + (annotation['value']['x'] * time_per_percent)
-            x2 = t1 + ((annotation['value']['x'] + annotation['value']['width']) * time_per_percent)
-            y1 = (annotation['value']['y'] * y_per_percent)
-            y2 = ((annotation['value']['y'] + annotation['value']['height']) * y_per_percent)
-            stations_observed = [stations[i] for i in range(len(stations))
-                                 if (station_indicators[i] > y1 and station_indicators[i] < y2)]
-            for station_observed in stations_observed:
-                time_bound = [station_observed, x1, x2, label]
-                time_bounds.append(time_bound)
-
-        # Load data using waveform_collection tool
-        successfully_loaded = False
-        while not successfully_loaded:
-            try:
-                # Gather waveforms
-                stream = gather_waveforms(source=source, network=network, station=station, location=location,
-                                          channel=channel, starttime=t1 - pad, endtime=t2 + pad, verbose=False)
-
-                # Process waveform
-                stream = process_waveform(stream, remove_response=True, detrend=False, taper_length=pad,
-                                          taper_percentage=None, filter_band=None, verbose=False)
-                successfully_loaded = True
-            except:
-                print('gather_waveforms failed to retrieve response')
-                pass
-
-        # Loop over stations that have data
-        stream_stations = [tr.stats.station for tr in stream]
-        for i, stream_station in enumerate(stream_stations):
-
-            # Choose trace corresponding to station
-            trace = stream[i]
-
-            # Calculate spectrogram power matrix
-            spec_db, utc_times = calculate_spectrogram(trace, t1, t2, window_duration, freq_lims, demean=False)
-
-            # Get label time bounds that are observed on station
-            time_bounds_station = [tb for tb in time_bounds if tb[0] == stream_station]
-
-            # Define array of time steps for spectrogram slicing
-            step_bounds = np.arange(t1, t2 + time_step, time_step)
-
-            # Loop over time steps
-            for j in range(len(step_bounds) - 1):
-
-                # Slice spectrogram
-                sb1 = step_bounds[j]
-                sb2 = step_bounds[j + 1]
-                spec_slice_indices = np.flatnonzero([sb1 < t < sb2 for t in utc_times])
-                spec_slice = spec_db[:, spec_slice_indices]
-
-                # Enforce spectrogram length
-                if np.shape(spec_slice)[1] != time_step:
-                    # Try inclusive slicing time span (<= sb2)
-                    spec_slice_indices = np.flatnonzero([sb1 < t <= sb2 for t in utc_times])
-                    spec_slice = spec_db[:, spec_slice_indices]
-                    # If it still doesn't fit our shape, try double inclusive time bounds
-                    if np.shape(spec_slice)[1] != time_step:
-                        spec_slice_indices = np.flatnonzero([sb1 <= t <= sb2 for t in utc_times])
-                        spec_slice = spec_db[:, spec_slice_indices]
-                        # Otherwise, raise error
-                        if np.shape(spec_slice)[1] != time_step:
-                            raise ValueError('THE SHAPE IS NOT RIGHT.')
-
-                # Skip matrices that have a spectrogram data gap
-                amplitude_threshold = 0 if channel[-2:] == 'DF' else -220
-                if np.sum(spec_slice.flatten() < amplitude_threshold) > (0.2 * time_step):
-                    print('Skipping due to data gap, %d elements failed the check' % np.sum(spec_slice.flatten() < amplitude_threshold))
-                    continue
-
-                # Obtain corresponding time samples for spectrogram slice
-                time_slice = utc_times[spec_slice_indices]
-
-                # Check for overlaps and fill a vector with labels to decide final label
-                label_indices = np.ones(len(time_slice)) * -1
-                for time_bound_station in time_bounds_station:
-
-                    # Labeled time bound starts in slice and ends in slice
-                    if time_bound_station[1] >= sb1 and time_bound_station[2] <= sb2:
-                        valid_indices = np.flatnonzero(
-                            np.logical_and(time_slice >= time_bound_station[1], time_slice <= time_bound_station[2]))
-                        label_indices[valid_indices] = label_dict[time_bound_station[3]]
-
-                    # Labeled time bound starts before slice and ends after slice
-                    elif time_bound_station[1] < sb1 and time_bound_station[2] > sb2:
-                        label_indices[:] = label_dict[time_bound_station[3]]
-
-                    # Labeled time bound starts before slice and ends in slice
-                    elif time_bound_station[1] < sb1 and (sb1 <= time_bound_station[2] <= sb2):
-                        label_indices[np.flatnonzero(time_slice <= time_bound_station[2])] = label_dict[
-                            time_bound_station[3]]
-
-                    # Labeled time bound starts in slice and ends after slice
-                    elif (sb1 <= time_bound_station[1] <= sb2) and time_bound_station[2] > sb2:
-                        label_indices[np.flatnonzero(time_slice >= time_bound_station[1])] = label_dict[
-                            time_bound_station[3]]
-
-                # Count how many time samples correspond to each label
-                labels_seen, label_counts = np.unique(label_indices, return_counts=True)
-
-                # Define dummy label
-                final_label = -1
-
-                # Check for tremor or noise label in > 50 % of the time samples
-                if np.max(label_counts) > 0.5 * len(label_indices) and sts.mode(label_indices) != -1:
-                    final_label_value = int(labels_seen[np.argmax(label_counts)])
-                    final_label = next(key for key, value in label_dict.items() if value == final_label_value)
-
-                # Override label with transient label if it is in > 10 % of the time samples
-                if len(set(labels_seen) & set(transient_indices)) != 0:
-                    for transient_index in list(set(labels_seen) & set(transient_indices)):
-                        if label_counts[list(labels_seen).index(transient_index)] >= transient_ratio * len(label_indices):
-                            final_label = list(label_dict.keys())[int(transient_index)]
-
-                # If label is still invalid, skip
-                if final_label == -1:
-                    continue
-
-                # Construct file name and save
-                file_name = stream_station + '_' + sb1.strftime('%Y%m%d%H%M') + '_' + \
-                            sb2.strftime('%Y%m%d%H%M') + '_' + str(label_dict[final_label]) + '.npy'
-                np.save(output_dir + file_name, spec_slice)
-
-    print('Done.')
-
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,export_path=None,transparent=False,n_jobs=1):
+def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False,n_jobs=1):
 
     """
     Pulls data, then loads a trained model to predict the timeline of classes
@@ -792,6 +607,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param font_s (float): Font size [points]
     :param spec_kwargs (dict): Dictionary of spectrogram plotting parameters (pad, window_duration, freq_lims, v_percent_lims)
     :param dr_kwargs (dict): Dictionary of reduced displacement plotting parameters (reference_station, filter_band, window_length, overlap, volc_lat, volc_lon, seis_vel, dominant_freq, med_filt_kernel, dr_lims)
+    :param fi_kwargs (dict): Dictionary of frequency index plotting parameters (reference_station, window_length, overlap, filomin, filomax, fiupmin, fiupmax, med_filt_kernel)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
     :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
@@ -848,8 +664,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
                                       verbose=False, n_jobs=n_jobs)
+            stream_raw
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
+            stream
             successfully_loaded = True
         except:
             print('Data pull failed, trying again in 10 seconds...')
@@ -1046,25 +864,11 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                 'aspect': 40}
 
     # Define plotting parameters based on reduced displacement kwargs
-    header_panels = 3 if dr_kwargs is not None else 2
-    top_space = 0.905 if dr_kwargs is not None else 0.89
+    header_panels = 3 if any([dr_kwargs, fi_kwargs]) else 2
+    top_space = 0.905 if any([dr_kwargs, fi_kwargs]) else 0.89
 
     LW = 0.75
     LW_LABEL = 2
-
-    # Configure shared x-axis ticks and labels
-    if (endtime - starttime) >= (6 * 86400):
-        denominator = (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (2 * 86400) <= (endtime - starttime) < (6 * 86400):
-        denominator = 2 * (endtime - starttime) / 86400
-        fmt = '%m/%d %H:%M'
-    elif (endtime - starttime) < (2 * 86400) and endtime.date != starttime.date:
-        fmt = '%m/%d %H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
-    else:
-        fmt = '%H:%M'
-        denominator = 12 if ((endtime - starttime) % 1800 == 0) else 10
 
     # Initialize figure and craft axes
     fig_height = fig_height if fig_height else (fig_width * .75)
@@ -1080,7 +884,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax = fig.add_subplot(gs_top[:, 1])
     ax1 = fig.add_subplot(gs_top[0, 0])
     ax2 = fig.add_subplot(gs_top[1, 0])
-    ax2b = fig.add_subplot(gs_top[2, 0]) if dr_kwargs is not None else None
+    ax2b = fig.add_subplot(gs_top[2, 0]) if any([dr_kwargs, fi_kwargs]) else None
     ax3 = fig.add_subplot(gs_base[header_panels, 0])
     other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in
                   range(header_panels + 1, len(station.split(',')) + header_panels)]
@@ -1114,48 +918,165 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     if pnorm_thresh:
         ax2.axhline(pnorm_thresh, color='r', linestyle='-', linewidth=LW+1)
     ax2.set_xlim([0, len(voted_probabilities)-1])
-    ax2.set_xticks(np.linspace(0, len(voted_probabilities)-1, int(denominator+1)))
-    plt.setp(ax2.get_xticklabels(), visible=False)
+    ax2.xaxis_date()
+    ax2.set_xticklabels([])
     ax2.set_ylim([0, 1])
     ax2.tick_params(axis='y', labelsize=font_s)
     ax2.set_yticks([0, 0.5, 1])
     ax2.set_ylabel('$P_{norm}$', fontsize=font_s)
 
-    # If dr_kwargs is not None, plot reduced displacement in middle axis
+    # If dr_kwargs is defined, plot reduced displacement in middle axis
     if dr_kwargs is not None:
-        # Calculate reduce displacement
-        print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
-        tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
-                                   remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
-                                   taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
-        tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
-                                       endtime=endtime + dr_kwargs['window_length'] / 2)
-        window_samples = int(dr_kwargs['window_length'] * tr_disp.stats.sampling_rate)
-        tr_disp_segments = [tr_disp_trimmed.data[i:i + window_samples] for i in
-                            range(0, len(tr_disp_trimmed.data) - window_samples + 1,
-                                  int(window_samples * dr_kwargs['overlap']))]
-        rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
-        station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
-                          (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
-        wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
-        dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
-        if 'med_filt_kernel' in dr_kwargs:
-            dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
 
-        # Plot reduced displacement
-        dr_tvec = np.arange(0.5, len(dr) + 0.5, 1)
-        ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
-        ax2b.set_xlim(0, len(dr))
-        ax2b.set_xticks(np.linspace(0, len(dr), int(denominator+1)))
-        plt.setp(ax2b.get_xticklabels(), visible=False)
-        if 'dr_lims' in dr_kwargs:
-            ax2b.set_ylim(dr_kwargs['dr_lims'])
-            ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+        # If fi_kwargs is also defined, default to plotting dr_kwargs
+        if fi_kwargs is not None:
+            print('Only one of dr_kwargs and fi_kwargs can be used at a time -- defaulting to dr_kwargs.')
+
+        # Calculate reduce displacement for reference station
+        if dr_kwargs['reference_station'] != 'all':
+            print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
+            tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
+                                       remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+                                       taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
+            tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
+                                           endtime=endtime + dr_kwargs['window_length'] / 2)
+            window_samples = int(dr_kwargs['window_length'] * tr_disp.stats.sampling_rate)
+            tr_disp_segments = [tr_disp_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_disp_trimmed.data) - window_samples + 1,
+                                      int(window_samples * dr_kwargs['overlap']))]
+            rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
+            station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
+                              (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
+            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            if 'med_filt_kernel' in dr_kwargs:
+                dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
+
+            # Plot reduced displacement
+            dr_tvec = np.arange(0, len(dr), 1)
+            ax2b.plot(dr_tvec, dr, color='k', linewidth=LW)
+            ax2b.set_xlim(0, len(dr)-1)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
+            if 'dr_lims' in dr_kwargs:
+                ax2b.set_ylim(dr_kwargs['dr_lims'])
+                ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+            else:
+                ax2b.set_ylim([0, np.ceil(np.max(dr))])
+                ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+
+        # If all stations are to be used for reduced displacement, calculate and plot mean
         else:
-            ax2b.set_ylim([0, np.ceil(np.max(dr))])
-            ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr)), 3))
-        ax2b.tick_params(axis='y', labelsize=font_s)
-        ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+            print(f"Calculating DR for all available stations")
+            st_disp = process_waveform(stream_raw, remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+                                       taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
+            st_disp_trimmed = st_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
+                                           endtime=endtime + dr_kwargs['window_length'] / 2)
+            window_samples = int(dr_kwargs['window_length'] * st_disp_trimmed[0].stats.sampling_rate)
+            st_disp_segments = [[tr_disp_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_disp_trimmed.data) - window_samples + 1,
+                                      int(window_samples * dr_kwargs['overlap']))] for tr_disp_trimmed in st_disp_trimmed]
+            rms_disp_all = [[np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in station_segments]
+                            for station_segments in st_disp_segments]
+            station_dists = [GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
+                                (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m for tr_disp in st_disp_trimmed]
+            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr_all = [[rms_disp * np.sqrt(station_dists[i]) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+                       for rms_disp in station_rms] for i, station_rms in enumerate(rms_disp_all)]
+            if 'med_filt_kernel' in dr_kwargs:
+                dr_all = [medfilt(dr_station, dr_kwargs['med_filt_kernel']) for dr_station in dr_all]
+
+            # Plot reduced displacement
+            dr_tvec = np.arange(0, np.shape(dr_all)[1], 1)
+            for dr in dr_all:
+                ax2b.plot(dr_tvec, dr, color='k', linewidth=LW, alpha=0.3)
+            ax2b.plot(dr_tvec, np.mean(dr_all, axis=0), color='k')
+            ax2b.set_xlim(0, len(dr_all[0])-1)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
+            if 'dr_lims' in dr_kwargs:
+                ax2b.set_ylim(dr_kwargs['dr_lims'])
+                ax2b.set_yticks(np.linspace(dr_kwargs['dr_lims'][0], dr_kwargs['dr_lims'][-1], 3))
+            else:
+                ax2b.set_ylim([0, np.ceil(np.max(dr_all))])
+                ax2b.set_yticks(np.linspace(0, np.ceil(np.max(dr_all)), 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('$D_R (cm^2)$\n' + dr_kwargs['reference_station'], fontsize=font_s)
+
+    # If fi_kwargs is defined, plot frequency index in middle axis
+    elif fi_kwargs is not None:
+
+        # Calculate windowed frequency index for reference station
+        if fi_kwargs['reference_station'] != 'all':
+            print(f"Calculating FI for {stream_raw[stream_stations.index(fi_kwargs['reference_station'])].id}")
+            tr_vel = process_waveform(stream_raw[stream_stations.index(fi_kwargs['reference_station'])].copy(),
+                                        remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+                                        taper_percentage=None, verbose=False)
+            tr_vel_trimmed = tr_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
+                                        endtime=endtime + fi_kwargs['window_length'] / 2)
+            window_samples = int(fi_kwargs['window_length'] * tr_vel.stats.sampling_rate)
+            tr_vel_segments = [tr_vel_trimmed.data[i:i + window_samples] for i in
+                                range(0, len(tr_vel_trimmed.data) - window_samples + 1,
+                                int(window_samples * fi_kwargs['overlap']))]
+
+            # FI is the log10 of the ratio of the mean of spectral amplitude in the upper frequency band to the mean in the lower frequency band
+            tr_spectra_segments = [np.abs(rfft(tr_vel_segment)) for tr_vel_segment in tr_vel_segments]
+            freq_vector = rfftfreq(len(tr_vel_segments[0]), 1 / tr_vel.stats.sampling_rate)
+            fi = [np.log10(np.mean(tr_spectra_segment[(freq_vector >= fi_kwargs['fiupmin']) & (freq_vector <= fi_kwargs['fiupmax'])]) /
+                  np.mean(tr_spectra_segment[(freq_vector >= fi_kwargs['filomin']) & (freq_vector <= fi_kwargs['filomax'])]))
+                  for tr_spectra_segment in tr_spectra_segments]
+            if 'med_filt_kernel' in fi_kwargs:
+                fi = medfilt(fi, fi_kwargs['med_filt_kernel'])
+
+            # Plot windowed frequency index
+            fi_tvec = np.arange(0, len(fi), 1)
+            ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW)
+            ax2b.set_xlim(0, len(fi)-1)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
+            #plt.setp(ax2b.get_xticklabels(), visible=False)
+            if 'fi_lims' in fi_kwargs:
+                ax2b.set_ylim(fi_kwargs['fi_lims'])
+                ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('FI\n' + fi_kwargs['reference_station'], fontsize=font_s)
+
+        # If all stations are to be used for frequency index, calculate and plot mean
+        else:
+            print(f"Calculating FI for all available stations")
+            st_vel = process_waveform(stream_raw, remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+                                      taper_percentage=None, verbose=False)
+            st_vel_trimmed = st_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
+                                         endtime=endtime + fi_kwargs['window_length'] / 2)
+            window_samples = int(fi_kwargs['window_length'] * st_vel_trimmed[0].stats.sampling_rate)
+            st_vel_segments = [[tr_vel_trimmed.data[i:i + window_samples] for i in
+                               range(0, len(tr_vel_trimmed.data) - window_samples + 1,
+                            int(window_samples * fi_kwargs['overlap']))] for tr_vel_trimmed in st_vel_trimmed]
+
+            # FI is the log10 of the ratio of the mean of spectral amplitude in the upper frequency band to the mean in the lower frequency band
+            st_spectra_segments = [[np.abs(rfft(segment)) for segment in station_segments] for station_segments in st_vel_segments]
+            freq_vector = rfftfreq(window_samples, 1 / st_vel_trimmed[0].stats.sampling_rate)
+            fi_all = [[np.log10(np.mean(np.square(spectrum[(freq_vector >= fi_kwargs['fiupmin']) & (freq_vector <= fi_kwargs['fiupmax'])])) /
+                       np.mean(np.square(spectrum[(freq_vector >= fi_kwargs['filomin']) & (freq_vector <= fi_kwargs['filomax'])])))
+                       for spectrum in station_spectra] for station_spectra in st_spectra_segments]
+            if 'med_filt_kernel' in fi_kwargs:
+                fi_all = [medfilt(fi_station, fi_kwargs['med_filt_kernel']) for fi_station in fi_all]
+
+            # Plot windowed frequency index
+            fi_tvec = np.arange(0, np.shape(fi_all)[1], 1)
+            for fi in fi_all:
+                ax2b.plot(fi_tvec, fi, color='maroon', linewidth=LW, alpha=0.3)
+            ax2b.plot(fi_tvec, np.mean(fi_all, axis=0), color='maroon')
+            ax2b.set_xlim(0, len(fi_all[0])-1)
+            ax2b.xaxis_date()
+            ax2b.set_xticklabels([])
+            if 'fi_lims' in fi_kwargs:
+                ax2b.set_ylim(fi_kwargs['fi_lims'])
+                ax2b.set_yticks(np.linspace(fi_kwargs['fi_lims'][0], fi_kwargs['fi_lims'][-1], 3))
+            ax2b.tick_params(axis='y', labelsize=font_s)
+            ax2b.set_ylabel('FI\n' + fi_kwargs['reference_station'], fontsize=font_s)
 
     # Loop over input stations and plot spectrograms on lower axes
     for axs_index, stn in enumerate(station.split(',')):
@@ -1213,16 +1134,19 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         axs[axs_index].tick_params(axis='y', labelsize=font_s)
 
     # Format time ticks
-    time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) \
-                               / denominator)
-    time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    time_tick_labels = [time.strftime(fmt) for time in time_tick_list]
-    axs[-1].set_xticks(time_tick_list_mpl)
-    axs[-1].set_xticklabels(time_tick_labels, fontsize=font_s, rotation=30, ha='right', rotation_mode='anchor')
+    axs[-1].xaxis_date()
+    axs[-1].tick_params(axis='x', labelbottom='on', labelsize=font_s,
+                        rotation=30)
     if endtime.date == starttime.date:
+        # format for hour:minute ticks
+        date_format = dates.DateFormatter('%H:%M')
+        axs[-1].xaxis.set_major_formatter(date_format)
         axs[-1].set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), \
                            fontsize=font_s)
+
     elif (endtime - starttime) < (2 * 86400):
+        date_format = dates.DateFormatter('%H:%M')
+        axs[-1].xaxis.set_major_formatter(date_format)
         axs[-1].set_xlabel('UTC Time starting from ' +
                            starttime.date.strftime('%b %d, %Y'),
                            fontsize=font_s)
@@ -1239,6 +1163,30 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     cbar_ax.invert_yaxis()
     cbar_ax.set_xticks([])
 
+    # Redo the xticks in absolute space for the upper rows to align with specrograms
+    tick_data_ax1 = axs[-1].get_xticks()
+    # Convert ax1 data coords to display coords
+    tick_disp_coords = axs[-1].transData.transform([(x, 0) for x in tick_data_ax1])
+
+    # Convert display coords to data coords in ax* and set them
+    tick_data_ax1 = ax1.transData.inverted().transform(tick_disp_coords)[:, 0]
+    ax1.set_xticks(tick_data_ax1)
+    ax1.set_xticklabels([])
+    # turn off xtick grid lines
+    ax1.xaxis.grid(False)
+
+    tick_data_ax2 = ax2.transData.inverted().transform(tick_disp_coords)[:, 0]
+    ax2.set_xticks(tick_data_ax2)
+    ax2.set_xticklabels([])
+
+    # do the same for ax2b if it exists
+    ax2b = locals().get('ax2b', None)
+    if ax2b is not None:
+        tick_data_ax2b = ax2b.transData.inverted().transform(tick_disp_coords)[:, 0]
+        ax2b.set_xticks(tick_data_ax2b)
+        ax2b.set_xticklabels([])
+
+
     # Show figure or export
     if export_path is None:
         fig.show()
@@ -1251,7 +1199,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     transparent=transparent)
         print('Done!')
     return class_mat, prob_mat
-
+    
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
                           meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
                           spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
@@ -1494,195 +1442,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
         plt.savefig(export_path, bbox_inches='tight')
     else:
         fig.show()
-def train_voiss_net(train_paths, valid_paths, test_paths, label_dict, model_tag, batch_size=100, learning_rate=0.0005, patience=20, meanvar_standardization=False):
-    """
-    Train an iteration VOISS-Net convolutional neural network for classifying spectrogram slices
-    :param train_paths (list): List of file paths to training data
-    :param valid_paths (list): List of file paths to validation data
-    :param test_paths (list): List of file paths to test data
-    :param label_dict (dict): Dictionary to convert appended file index to their actual label
-    :param model_tag (str): Tag for model and plot file names (e.g., model will be saved as './models/[model_tag]_model.keras')
-    :param batch_size (int): Batch size for training (default 100)
-    :param learning_rate (float): Learning rate for the optimizer (default 0.0005)
-    :param patience (int): Number of epochs to  for early stopping (default 20)
-    :param meanvar_standardization (bool): Whether to standardize spectrograms by mean and variance (default `False`). If `True`, the mean and variance of the training data will be used to standardize the validation and test data, and a output mean and variacne will be saved.
-    """
 
-    # Initialize model and figure subdirectories if needed
-    if not os.path.isdir('./models/'):
-        os.mkdir('./models/')
-    if not os.path.isdir('./figures/'):
-        os.mkdir('./figures/')
-
-    # Define filepaths of all model products
-    model_filepath = './models/' + model_tag + '_model.keras'
-    history_filepath = './models/' + model_tag + '_history.npy'
-    curve_filepath = './figures/' + model_tag + '_curve.png'
-    confusion_filepath = './figures/' + model_tag + '_confusion.png'
-    if meanvar_standardization:
-        meanvar_filepath = './models/' + model_tag + '_meanvar.npy'
-
-    # Determine the number of unique classes in training to decide on the number of output nodes in model
-    train_classes = [int(i.split("_")[-1][0]) for i in train_paths]
-    unique_classes = np.unique(train_classes)
-
-    # Read in example file to determine spectrogram shape
-    eg_spec = np.load(train_paths[0])
-
-    # Define parameters to generate the training, testing, validation data
-    if meanvar_standardization:
-        params = {
-            "dim": eg_spec.shape,
-            "n_classes": len(unique_classes),
-            "shuffle": True,
-            "running_x_mean": np.mean(eg_spec),
-            "running_x_var": np.var(eg_spec)
-        }
-    else:
-        params = {
-            "dim": eg_spec.shape,
-            "n_classes": len(unique_classes),
-            "shuffle": True,
-            "running_x_mean": None,
-            "running_x_var": None}
-
-    # Configure test and validation lists
-    valid_classes = [int(i.split("_")[-1][0]) for i in valid_paths]
-    test_classes = [int(i.split("_")[-1][0]) for i in test_paths]
-
-    # Create a dictionary holding labels for all filepaths in the training, testing, and validation data
-    train_labels = [np.where(i == unique_classes)[0][0] for i in train_classes]
-    train_label_dict = dict(zip(train_paths, train_labels))
-    valid_labels = [np.where(i == unique_classes)[0][0] for i in valid_classes]
-    valid_label_dict = dict(zip(valid_paths, valid_labels))
-    test_labels = [np.where(i == unique_classes)[0][0] for i in test_classes]
-    test_label_dict = dict(zip(test_paths, test_labels))
-
-    # Initialize the training and validation generators
-    train_gen = DataGenerator(train_paths, train_label_dict, batch_size=batch_size, **params, is_training=True)
-    valid_gen = DataGenerator(valid_paths, valid_label_dict, batch_size=len(valid_paths), **params, is_training=False)
-
-    # Define a Callback class that allows the validation dataset to adopt the running
-    # training mean and variance for spectrogram standardization (by each pixel)
-    if meanvar_standardization:
-        class ExtractMeanVar(Callback):
-           def on_epoch_end(self, epoch, logs=None):
-               valid_gen.running_x_mean = train_gen.running_x_mean
-               valid_gen.running_x_var = train_gen.running_x_var
-
-    # Define the CNN
-
-    # Add singular channel to conform with tensorflow input dimensions
-    input_shape = [*eg_spec.shape, 1]
-
-    # Build a sequential model
-    model = models.Sequential()
-    # Convolutional layer, 32 filters, 3x3 kernel, 1x1 stride, padded to retain shape
-    model.add(layers.Conv2D(32, (3, 3), activation="relu", input_shape=input_shape, padding="same"))
-    # Max pooling layer, 3x3 pool, 3x3 stride
-    model.add(layers.MaxPooling2D((3, 3)))
-    # Convolutional layer, 64 filters, 3x3 kernel, 1x1 stride, padded to retain shape
-    model.add(layers.Conv2D(64, (3, 3), activation="relu", padding="same"))
-    # Max pooling layer, 3x3 pool, 3x3 stride
-    model.add(layers.MaxPooling2D((3, 3)))
-    # Convolutional layer, 128 filters, 3x3 kernel, 1x1 stride, padded to retain shape
-    model.add(layers.Conv2D(128, (3, 3), activation="relu", padding="same"))
-    # Max pooling layer, 3x3 pool, 3x3 stride
-    model.add(layers.MaxPooling2D((3, 3)))
-
-    # Flatten and add 20% dropout to inputs
-    model.add(layers.Flatten())
-    model.add(layers.Dropout(0.2))
-
-    # Dense layer, 128 units with 50% dropout
-    model.add(layers.Dense(128, activation="relu"))
-    model.add(layers.Dropout(0.5))
-
-    # Dense layer, 64 units with 50% dropout
-    model.add(layers.Dense(64, activation="relu"))
-    model.add(layers.Dropout(0.5))
-    # Dense layer, 6 units, one per class
-    model.add(layers.Dense(params["n_classes"], activation="softmax"))
-    # Compile model
-    optimizer = optimizers.Adam(learning_rate=learning_rate)
-    model.compile(optimizer=optimizer, loss=losses.categorical_crossentropy, metrics=["accuracy"])
-    # Print out model summary
-    model.summary()
-    # Implement early stopping, checkpointing, and transference of mean and variance
-    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=patience)
-    mc = ModelCheckpoint(model_filepath, monitor='val_loss', mode='min', verbose=1, save_best_only=True)
-    # Fit model
-    if not meanvar_standardization:
-        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc])
-    else:
-        emv = ExtractMeanVar()
-        history = model.fit(train_gen, validation_data=valid_gen, epochs=200, callbacks=[es, mc, emv])
-        np.save(meanvar_filepath, [train_gen.running_x_mean, train_gen.running_x_var])
-
-    # Save model training history to reproduce learning curves
-    np.save(history_filepath, history.history)
-
-    # Plot loss and accuracy curves
-    fig_curves, axs = plt.subplots(1, 2, figsize=(8, 5))
-    axs[0].plot(history.history["accuracy"], label="Training", lw=1)
-    axs[0].plot(history.history["val_accuracy"], label="Validation", lw=1)
-    axs[0].axvline(len(history.history["val_accuracy"]) - es.patience - 1, color='k', linestyle='--', alpha=0.5,
-                   label='Early Stop')
-    axs[0].set_ylim([0, 1])
-    axs[0].set_ylabel("Accuracy")
-    axs[0].set_xlabel("Epoch")
-    axs[1].plot(history.history["loss"], label="Training", lw=1)
-    axs[1].plot(history.history["val_loss"], label="Validation", lw=1)
-    axs[1].axvline(len(history.history["val_loss"]) - es.patience - 1, color='k', linestyle='--', alpha=0.5,
-                   label='Early Stop')
-    axs[1].set_ylabel("Loss")
-    axs[1].set_xlabel("Epoch")
-    axs[0].legend()
-    fig_curves.suptitle(model_tag, fontweight='bold')
-    fig_curves.savefig(curve_filepath, bbox_inches='tight')
-    fig_curves.show()
-
-    # Create data generator for test data
-    test_params = {
-        "dim": eg_spec.shape,
-        "batch_size": len(test_labels),
-        "n_classes": len(unique_classes),
-        "shuffle": False}
-    if not meanvar_standardization:
-        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
-                                 running_x_mean=None, running_x_var=None)
-    else:
-        test_gen = DataGenerator(test_paths, test_label_dict, **test_params, is_training=False,
-                                 running_x_mean=train_gen.running_x_mean, running_x_var=train_gen.running_x_var)
-
-    # Use saved model to make predictions
-    saved_model = load_model(model_filepath)
-    test = saved_model.predict(test_gen)
-    pred_labs = np.argmax(test, axis=1)
-    true_labs = np.array([test_gen.labels[id] for id in test_gen.list_ids])
-
-    # Print evaluation on test data
-    acc = metrics.accuracy_score(true_labs, pred_labs)
-    pre, rec, f1, _ = metrics.precision_recall_fscore_support(true_labs, pred_labs, average='macro')
-    metrics_chunk = model_filepath + '\n' + ('Accuracy: %.3f' % acc) + '\n' + ('Precision: %.3f' % pre) + '\n' + (
-                'Recall: %.3f' % rec) + '\n' + ('F1 Score: %.3f' % f1)
-    print(metrics_chunk)
-
-    # Confusion matrix
-    class_labels_raw = list(label_dict.keys())
-    class_labels = [cl.replace(' ', '\n') for cl in class_labels_raw]
-    confusion_matrix = metrics.confusion_matrix(true_labs, pred_labs, normalize='true')
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_labels)
-    cm_display.plot(xticks_rotation=30, cmap=cc.cm.blues, values_format='.2f', im_kw=dict(vmin=0, vmax=1))
-    fig_cm = plt.gcf()
-    fig_cm.set_size_inches(8, 6.25)
-    plt.title(model_tag + '\nAccuracy: %.3f, Precision :%.3f,\nRecall:%.3f, F1 Score:%.3f' % (acc, pre, rec, f1),
-              fontweight='bold')
-    fig_cm.savefig(confusion_filepath, bbox_inches='tight')
-    fig_cm.show()
-
-    # Print text on completion
-    print('Done.')
 
 def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,processing_step,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None,n_jobs=1):
 
@@ -2532,227 +2292,6 @@ def rotate_NE_to_RT(stream, source_coord):
     else:
         return Stream([trace_T, trace_R])
 
-def set_universal_seed(seed_value):
-    """
-    Reset seed for all applicable randomizers
-    :param seed_value  (int): desired randomization seed number
-    :return: None
-    """
-
-    # Import dependencies
-    import os
-    import random
-    import numpy as np
-    import tensorflow as tf
-    #from keras import backend as K
-    from tensorflow.python.keras import backend as K
-
-    # 1. Set `PYTHONHASHSEED` environment variable at a fixed value
-    os.environ['PYTHONHASHSEED']=str(seed_value)
-
-    # 2. Set `python` built-in pseudo-random generator at a fixed value
-    random.seed(seed_value)
-
-    # 3. Set `numpy` pseudo-random generator at a fixed value
-    np.random.seed(seed_value)
-
-    # 4. Set the `tensorflow` pseudo-random generator at a fixed value
-    tf.compat.v1.set_random_seed(seed_value)
-
-    # 5. Configure a new global `tensorflow` session
-    session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-    sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
-    #tf.compat.v1.keras.backend.set_session(sess)
-    K.set_session(sess)
-
-def split_labeled_dataset(npy_dir,testval_ratio,stratified,max_train_samples=None):
-    """
-    Split labeled filepaths using the given test/validation set ratio by class proportions
-    :param npy_dir (str): directory to retrieve raw labeled files
-    :param testval_ratio (float): ratio of file counts set aside for the test set and validation set, each
-    :param stratified (bool): if `True`, testval_ratio will be applied to each class independently, otherwise the sparse-est class will be the reference
-    :param max_train_samples (int): if not `None`, impose a maximum sample count for the training set per class (to toss out excessive samples))
-    :return: list: list of training set filepaths
-    :return: list: list of validation set filepaths
-    :return: list: list of test set filepaths
-    """
-
-    # Count the number of samples of each class
-    nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
-    class_paths = [glob.glob(npy_dir + '*_' + str(c) + '.npy') for c in range(nclasses)]
-    class_counts = np.array([len(paths) for paths in class_paths])
-    print('\nInitial class counts:')
-    print(''.join(['%d: %d\n' % (c, class_counts[c]) for c in range(nclasses)]))
-
-    # Determine number of samples set aside for validation set and test set (each)
-    print('Train-val-test split (%.1f-%.1f-%.1f) with stratified=%s and max_train_samples=%s:' % ((1-testval_ratio*2)*100,testval_ratio*100,testval_ratio*100,stratified,str(max_train_samples)))
-    if stratified:
-        testval_numbers = [int(n) for n in (np.floor(class_counts * testval_ratio))]
-    else:
-        testval_number = int(np.floor(np.min(class_counts)/(1/testval_ratio)))
-
-    # Return random sampled list
-    train_list = []
-    val_list = []
-    test_list = []
-    for c in range(nclasses):
-        if stratified:
-            testval_number = testval_numbers[c]
-        test_list = test_list + list(np.random.choice(class_paths[c], testval_number, replace=False))
-        leftover_list = [filepath for filepath in class_paths[c] if filepath not in test_list]
-        val_list = val_list + list(np.random.choice(leftover_list, testval_number, replace=False))
-        leftover_list = [filepath for filepath in leftover_list if filepath not in val_list]
-        if max_train_samples and len(leftover_list)>max_train_samples:
-            train_list = train_list + list(np.random.choice(leftover_list, max_train_samples, replace=False))
-            train_number = max_train_samples
-        else:
-            train_list = train_list + leftover_list
-            train_number = len(leftover_list)
-        print('%d: %d train, %d val, %d test' % (c, train_number, testval_number, testval_number))
-    print('Total: %d train, %d val, %d test' % (len(train_list),len(val_list),len(test_list)))
-
-    # Shuffle before returning for good measure
-    random.shuffle(train_list)
-    random.shuffle(val_list)
-    random.shuffle(test_list)
-
-    return train_list, val_list, test_list
-
-def augment_labeled_dataset(npy_dir,omit_index,noise_index,testval_ratio,noise_ratio,plot_example=False):
-    """
-    Use noise-adding augmentation strategy to generate lists of balanced train, validation and testfile paths.
-    :param npy_dir (str): directory to retrieve raw labeled files and create nested augmented file directory
-    :param omit_index (list of int): class index to omit when calculating augmented number (extras will be discarded)
-    :param noise_index (int): class index pointing to the noise class. Files with this class index will be randomly sampled for augmentation.
-    :param testval_ratio (float): ratio of file counts set aside for the test set and validation set, each (note this will be calculated on the sparsest class count)
-    :param noise_ratio (float): ratio of noise used to generated augmented samples [augmented_image = (1-noise_ratio) * augment_image) + (noise_ratio * noise_image)]
-    :param plot_example (bool): if set to `True`, generate a plot showing examples of augmented images
-    :return: list: list of training set filepaths (combining both raw and augmented filepaths)
-    :return: list: list of validation set filepaths
-    :return: list: list of test set filepaths
-    """
-
-    # Count the number of samples of each class
-    nclasses = len(np.unique([filepath[-5] for filepath in glob.glob(npy_dir + '*.npy')]))
-    class_paths = [glob.glob(npy_dir + '*_' + str(c) + '.npy') for c in range(nclasses)]
-    class_counts = np.array([len(paths) for paths in class_paths])
-    print('\nInitial class counts:')
-    print(''.join(['%d: %d\n' % (c,class_counts[c]) for c in range(nclasses)]))
-
-    # Determine number of samples set aside for validation set and test set (each)
-    testval_number = int(np.floor(np.min(class_counts)/(1/testval_ratio)))
-    print('Setting aside samples for validation and test set (%.1f%% of sparsest class count each)' % (testval_ratio*100))
-    print('%d samples kept for validation set (%d per class)' % (nclasses*testval_number,testval_number))
-    print('%d samples kept for test set (%d per class)' % (nclasses*testval_number,testval_number))
-
-    # Calculate augmented number
-    print('\nCalculating augmented number...')
-    leftover_counts = class_counts - 2*testval_number
-    augmented_number = np.mean(leftover_counts[[i for i in range(nclasses) if i not in omit_index]])
-    augmented_number = int(np.min([augmented_number] + list(leftover_counts[omit_index])))
-    print('Class index %s are omitted and class index %d will be used as noise samples...' % (str(','.join([str(i) for i in omit_index])),noise_index))
-    print('%d samples will be gathered for training set (%d per class)' % (nclasses*augmented_number,augmented_number))
-
-    # Determine test and validation sample list
-    test_list = []
-    val_list = []
-    keep_list = []
-    for c in range(nclasses):
-        test_list = test_list + list(np.random.choice(class_paths[c], testval_number, replace=False))
-        leftover_list = [filepath for filepath in class_paths[c] if filepath not in test_list]
-        val_list = val_list + list(np.random.choice(leftover_list, testval_number, replace=False))
-        leftover_list = [filepath for filepath in leftover_list if filepath not in val_list]
-        if c in omit_index:
-            keep_list = keep_list + list(np.random.choice(leftover_list, augmented_number, replace=False))
-        elif c == noise_index:
-            keep_list = keep_list + list(np.random.choice(leftover_list, augmented_number, replace=False))
-            noise_list = [filepath for filepath in leftover_list if filepath not in keep_list]
-        elif len(leftover_list) <= augmented_number:
-            keep_list = keep_list + leftover_list
-        else:
-            raise ValueError('Class index %d has more samples than the augment number. Check class counts!' % c)
-
-    # Commence augmentation
-    print('\nCreating nested augmented directory and commencing augmentation...')
-
-    # Create a temporary directory if it does not exist
-    if not os.path.exists(npy_dir + 'augmented/'):
-        os.mkdir(npy_dir + 'augmented/')
-
-    # Clear all existing files in augmented subfolder if any
-    for f in glob.glob(npy_dir + 'augmented/*.npy'):
-        os.remove(f)
-
-    # Randomly sample based on count difference
-    aug_list = []
-    for c in range(nclasses):
-        if c in omit_index or c == noise_index:
-            continue
-        else:
-            keep_sublist = [f for f in keep_list if int(f.split('_')[-1][0]) == c]
-            count_difference = augmented_number - len(keep_sublist)
-            aug_list = aug_list + list(np.random.choice(keep_sublist, count_difference, replace=True))
-
-    # Check if augment list and noise list have the same length
-    if len(aug_list) == len(noise_list):
-        print('Augmentation list and noise list match in length. Proceeding...\n')
-    else:
-        print('Augmentation list and noise list do NOT match in length. Noise list will be trimmed.')
-        noise_list = list(np.random.choice(noise_list, len(aug_list), replace=False))
-
-    # Shuffle and add noise to augment samples
-    print('Shuffling and adding noise samples to augment samples...')
-    random.shuffle(aug_list)
-    random.shuffle(noise_list)
-    for augment_sample, noise_sample in zip(aug_list,noise_list):
-
-        # Load both images and sum them using noise ratio
-        augment_image = np.load(augment_sample)
-        noise_image = np.load(noise_sample)
-        augmented_image = ((1-noise_ratio) * augment_image) + (noise_ratio * noise_image)
-
-        # Determine filepath by checking for uniqueness
-        n = 0
-        augmented_filepath = npy_dir + 'augmented/' + augment_sample.split('/')[-1][:-4] + 'aug' + str(n) + '.npy'
-        while os.path.isfile(augmented_filepath):
-            n += 1
-            augmented_filepath = npy_dir + 'augmented/' + augment_sample.split('/')[-1][:-4] + 'aug' + str(n) + '.npy'
-        # Save augmented image as a unique file
-        np.save(augmented_filepath, augmented_image)
-
-    # Compile train list
-    train_list = glob.glob(npy_dir + 'augmented/*.npy') + keep_list
-    print('Done!')
-
-    # Plot examples if desired
-    if plot_example:
-        import matplotlib.pyplot as plt
-        import colorcet as cc
-        indices = np.random.choice(range(len(aug_list)), 5)
-        fig, ax = plt.subplots(5, 3, figsize=(4.2, 10))
-        for i, n in enumerate(indices):
-            augment_image = np.load(aug_list[n])
-            noise_image = np.load(noise_list[n])
-            augmented_image = ((1 - noise_ratio) * augment_image) + (noise_ratio * noise_image)
-            ax[i,0].imshow(augment_image, vmin=np.percentile(augment_image, 20), vmax=np.percentile(augment_image, 97.5),
-                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
-            ax[i,0].set_xticks([])
-            ax[i,0].set_yticks([])
-            ax[i,0].set_title('Class ' + str(aug_list[n].split('_')[-1][0]) + '', fontsize=10)
-            ax[i,1].imshow(noise_image, vmin=np.percentile(noise_image, 20), vmax=np.percentile(noise_image, 97.5),
-                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
-            ax[i,1].set_xticks([])
-            ax[i,1].set_yticks([])
-            ax[i,1].set_title('Noise ' + str('%.2f' % noise_ratio), fontsize=10)
-            ax[i,2].imshow(augmented_image, vmin=np.percentile(augmented_image, 20),
-                         vmax=np.percentile(augmented_image, 97.5),
-                         origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
-            ax[i,2].set_xticks([])
-            ax[i,2].set_yticks([])
-            ax[i,2].set_title('Augmented ', fontsize=10)
-        fig.show()
-
-    return train_list, val_list, test_list
 
 def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_kwargs):
     '''
