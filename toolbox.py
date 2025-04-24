@@ -514,7 +514,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     bottom_ax.xaxis_date()
     bottom_ax.tick_params(axis='x',labelbottom='on', fontsize=22, rotation=30,
                           ha='right', rotation_mode='anchor')
-    
+
     bottom_ax.set_xlabel('UTC1 Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
@@ -849,19 +849,8 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Craft color map
     rgb_ratios = rgb_values / 255
-    colors = np.concatenate((rgb_ratios, np.ones((np.shape(rgb_values)[0], 1))),
-                            axis=1)
+    colors = np.concatenate((rgb_ratios, 0.8*np.ones((np.shape(rgb_values)[0], 1))), axis=1)
     cmap = ListedColormap(colors)
-
-    # Define colorbar keywords for plotting
-    real_cbar_tick_interval = 2 * nclasses / (2 * np.shape(rgb_values)[0])
-    real_cbar_ticks = np.arange(real_cbar_tick_interval / 2, nclasses,
-                                real_cbar_tick_interval)
-    cbar_kws = {'ticks': real_cbar_ticks,
-                'drawedges': True,
-                'location': 'top',
-                'fraction': 0.15,
-                'aspect': 40}
 
     # Define plotting parameters based on reduced displacement kwargs
     header_panels = 3 if any([dr_kwargs, fi_kwargs]) else 2
@@ -893,8 +882,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         plt.setp(ax.get_xticklabels(), visible=False)
 
     # Plot prediction heatmap in top axis
-    sns.heatmap(matrix_plot, cmap=cmap, cbar=False, cbar_kws=cbar_kws,
-                alpha=0.8, vmin=0, vmax=nclasses, ax=ax1)
+    sns.heatmap(matrix_plot, cmap=cmap, cbar=False, vmin=0, vmax=nclasses, ax=ax1)
     ax1.set_xticks([])
     ax1.axhline(nsubrows, color='black')
     ax1.axhline(nsubrows + 1, color='black')
@@ -1155,7 +1143,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
     # Plot colorbar
     for i, rgb_ratio in enumerate(rgb_ratios):
-        cbar_ax.axhspan(i, i + 1, color=rgb_ratio)
+        cbar_ax.axhspan(i, i + 1, color=rgb_ratio, alpha=0.8)
     cbar_ax.set_yticks(np.arange(0.5, len(rgb_ratios) + 0.5, 1))
     cbar_ax.set_yticklabels(rgb_keys, fontsize=font_s)
     cbar_ax.yaxis.tick_right()
@@ -1199,7 +1187,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                     transparent=transparent)
         print('Done!')
     return class_mat, prob_mat
-    
+
 def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
                           meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
                           spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
@@ -1759,7 +1747,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                     'Electronic\nNoise',
                     'N/A']
     rgb_ratios = rgb_values / 255
-    colors = np.concatenate((rgb_ratios, np.ones((np.shape(rgb_values)[0], 1))), axis=1)
+    colors = np.concatenate((rgb_ratios, 0.8*np.ones((np.shape(rgb_values)[0], 1))), axis=1)
     cmap = ListedColormap(colors)
     if plot_labels:
         colors[-1][-1] = 0
@@ -1780,7 +1768,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     fig_width = fig_width if fig_width else 20
     fig_height = fig_height if fig_height else (nmonths * nsubrows / 3)
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    sns.heatmap(matrix_plot, cmap=cmap, cbar=True, cbar_kws=cbar_kws, alpha=0.8, vmin=0, vmax=nclasses)
+    sns.heatmap(matrix_plot, cmap=cmap, cbar=True, cbar_kws=cbar_kws, vmin=0, vmax=nclasses)
     if plot_labels:
         sns.heatmap(labeled_matrix_plot, cmap=labeled_cmap, cbar=False)
     cbar = ax.collections[0].colorbar
@@ -1851,7 +1839,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
                 'aspect': 30}
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    sns.heatmap(matrix_condensed, cmap=cmap, cbar=True, cbar_kws=cbar_kws, alpha=0.8)
+    sns.heatmap(matrix_condensed, cmap=cmap, cbar=True, cbar_kws=cbar_kws)
     if plot_labels:
         sns.heatmap(labeled_matrix_condensed, cmap=labeled_cmap, cbar=False)
     cbar = ax.collections[0].colorbar
@@ -2308,7 +2296,7 @@ def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_
     '''
     from obspy.clients.fdsn import Client
     from geopy.distance import geodesic as GD
-    
+
     print('Sorting stations by distance')
     client = Client(source)
     inv = client.get_stations(station=station, network=network, level="station",
@@ -2323,7 +2311,7 @@ def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_
     # sort station name distance and only save station name, put it in a string
     STA_SORT = ",".join(x.code for _, x in sorted(zip(dist, inv[0].stations)))
     DIST_SORT = sorted(dist)
-    
+
     return STA_SORT, DIST_SORT
 
 # def compute_pavlof_rsam(stream_unprocessed):
