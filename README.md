@@ -30,7 +30,7 @@ cd voiss-net
 
 ```
 conda env create
-conda activate voiss_net
+conda activate voiss-net
 ```
 
 3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (submitted))
