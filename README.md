@@ -22,7 +22,7 @@ Quickstart
 1. Obtain
 
 ```
-git clone https://github.com/darren-tpk/voiss-net.git
+git clone --depth 1 https://github.com/darren-tpk/voiss-net.git
 cd voiss-net
 ```
 
