@@ -7,11 +7,11 @@ The **VOlcano Infrasound & Seismic Spectrogram Network (VOISS-Net)** is a pair o
 
 and
 
-*Fee, D., Tan, D., Lyons, J., Sciotto, M., Cannata, A., Hotovec-Ellis, A. J., Girona, T., Wech, A. G., Roman, D. C., Haney, M. M., & De Angelis, S. (in review). A Generalized Deep Learning Model to Detect and Classify Volcano Seismicity. Volcanica.*
+*Fee, D., Tan, D., Lyons, J., Sciotto, M., Cannata, A., Hotovec-Ellis, A., Girona, T., Wech, A., Roman, D., Haney, M. and De Angelis, S. (2025) “A generalized deep learning model to detect and classify volcano seismicity”, Volcanica, 8(1), pp. 305–323. https://doi.org/10.30909/vol/rjss1878.*
 
 and we ask that you cite those manuscripts when using the tool.
 
-We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the seismic model to other volcanoes and eruptions in the Fee et al. (in review) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
+We train the models using labeled seismic and infrasonic data from various volcanoes. Although we demonstrate its applicability to the Pavlof seismoacoustic network across different Pavlof eruptions within Tan et al. (2024), we have generalized the seismic model to other volcanoes and eruptions in the Fee et al. (2025) manuscript and model. We envision most users will want to use the generalized model (voissnet_seismic_generalized_model.keras) for detecting and characterizing volcano seismicity.
 
 The codes included within the repository can also be used to re-create the labeled spectrogram datasets for both models. Using the labeled spectrogram dataset, users are able to split and augment the dataset according to their preferences, and re-train separate iterations of the VOISS-Net models for each data type. Once users have selected a model, they can explore model implementations in both short and long timescales using the different functions detailed within the repository. 
 
@@ -33,7 +33,7 @@ conda env create
 conda activate voiss-net
 ```
 
-3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (submitted))
+3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (2025))
 
 ```
 python timeline_checker.py
