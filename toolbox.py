@@ -24,7 +24,7 @@ from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
 from waveform_collection import gather_waveforms, read_local
 
-def download_data(source,network,station,location,channel,starttime,endtime,data_dir='./miniseed/',metadata_filename='metadata.xml',coord_filename='coord.json',n_jobs=1):
+def download_data(source,network,station,location,channel,starttime,endtime,data_dir='./miniseed/',metadata_filename='metadata.xml',coord_filename='coords.json',n_jobs=1):
 
     """
     Downloads data across a user-defined duration from an FDSN Client and saves data as miniseed files.
@@ -77,7 +77,7 @@ def download_data(source,network,station,location,channel,starttime,endtime,data
             fname = f"{tr_hour.stats.network}.{tr_hour.stats.station}.{tr_hour.stats.location}." \
                     f"{tr_hour.stats.channel}.{current.year}." \
                     f"{str(current.julday).zfill(3)}." \
-                    f"{str(current.hour).zfill(2)}"
+                    f"{str(current.hour).zfill(2)}.mseed"
 
             # Write to miniSEED
             filepath = os.path.join(data_dir, fname)
