@@ -60,7 +60,7 @@ download_data(SOURCE,
               coord_filepath=COORD_FILEPATH,
               n_jobs=N_JOBS)
 
-# Read data from local miniseed directory
+# Read data from local miniseed directory and sort by station-source distance
 stream = read_local(DATA_DIR,
                     COORD_FILEPATH,
                     NETWORK,
@@ -71,6 +71,8 @@ stream = read_local(DATA_DIR,
                     ENDTIME + PAD,
                     pattern=PATTERN)
 stream_sort = Stream([stream.select(station=sta)[0] for sta in sta_sort.split(",")])
+
+# Attach response information
 inventory = read_inventory(METADATA_FILEPATH)
 stream_sort.attach_response(inventory)
 
