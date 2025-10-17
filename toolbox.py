@@ -2252,44 +2252,6 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
     else:
         return tmpl, dr, pe, fc, fd, fsd
 
-def rotate_NE_to_RT(stream, source_coord):
-
-    # Calculate incidence angle from source
-    geodesic = pyproj.Geod(ellps='WGS84')
-    source_azi, _, _ = geodesic.inv(stream[0].stats.longitude, stream[0].stats.latitude, source_coord[1], source_coord[0])
-
-    # Extract components observed in stream
-    all_comps = [tr.stats.channel[-1] for tr in stream]
-    if len(set(all_comps)) not in [2, 3]:
-        raise ValueError('The input stream does have a valid number of unique components. Either input a 2 (N,E) or 3 (N,E,Z) component stream.')
-    trace_E = stream[all_comps.index('E')]
-    trace_N = stream[all_comps.index('N')]
-    if len(all_comps) == 3:
-        trace_Z = stream[all_comps.index('Z')]
-
-    # Get amplitude and azimuth of horizontal motion
-    horiz_amp = np.linalg.norm(np.row_stack([trace_E.data, trace_N.data]), axis=0)
-    azi_diff = (-1*np.arctan2(trace_N.data, trace_E.data)) + np.pi/2 - (source_azi * np.pi/180)
-
-    # Now resolve to radial and tangential motion
-    data_T = horiz_amp * np.sin(azi_diff)
-    data_R = horiz_amp * np.cos(azi_diff) * -1  # take outward as positive
-
-    # Create traces
-    trace_T = trace_N.copy()
-    trace_T.stats.channel = trace_N.stats.channel[:-1] + 'T'
-    trace_T.data = data_T
-    trace_R = trace_E.copy()
-    trace_R.stats.channel = trace_E.stats.channel[:-1] + 'R'
-    trace_R.data = data_R
-
-    # Export stream
-    if len(all_comps) == 3:
-        return Stream([trace_Z, trace_T, trace_R])
-    else:
-        return Stream([trace_T, trace_R])
-
-
 def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_kwargs):
     '''
     Sort station list by distance using inventory
