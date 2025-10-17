@@ -166,7 +166,7 @@ def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,t
             print('Waveform demeaned.')
     if taper_length is not None and taper_percentage is None:
         #stream.taper(max_percentage=.02)
-        stream.taper(max_percentage=None, max_length=taper_length/2)
+        stream.taper(max_percentage=None, max_length=taper_length)
         if verbose:
             print('Waveform tapered by pad length.')
     elif taper_length is None and taper_percentage is not None:
