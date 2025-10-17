@@ -1,48 +1,63 @@
 # Import dependencies
-from obspy import UTCDateTime
+from obspy import UTCDateTime, Stream
+from waveform_collection import gather_waveforms
 from toolbox import check_timeline, sort_sta_distance
 
-# Define variables for timeline checker function
+# Define variables for data pull
+SOURCE = "IRIS"
+NETWORK = "AV"
+STATION = "CERB,CESW,CEPE,CETU,CEAP"
+LOCATION = ""
+CHANNEL = "BHZ"
+STARTTIME = UTCDateTime(2021, 7, 27, 7, 30)
+ENDTIME = STARTTIME + 3*3600
+PAD = 360  # s
+N_JOBS = 1  # number of parallel jobs for data pull, can be -1 for all cores
+
+# Define variables for check_timeline function
 OVERLAP = 0.5  # 1 min time step for 1 min interval
 GENERATE_FIG = True
 FIG_WIDTH = 8
 FIG_HEIGHT = 6
 FONT_S = 8
-MODEL_PATH = './models/voissnet_seismic_generalized_model.keras'
-MEANVAR_PATH = ''
+MODEL_PATH = "./models/voissnet_seismic_generalized_model.keras"
+MEANVAR_PATH = ""
 PNORM_THRESH = 0.4  # threshold for p-norm, can be None
 SPEC_KWARGS = None
 EXPORT_PATH = None
 TRANSPARENT = None
 
-# Check timeline for seismic
-SOURCE = 'IRIS'
-NETWORK = 'AV'
-STATION = 'CERB,CESW,CEPE,CETU,CEAP'
-LOCATION = ''
-CHANNEL = 'BHZ'
-STARTTIME = UTCDateTime(2021, 7, 27, 7, 30)
-ENDTIME = STARTTIME + 3*3600
+# Set up the DR kwargs, can leave as None if not using DR
+DR_KWARGS = {"reference_station": "CERB",       # station code
+             "filter_band": (1, 10),            # Hz
+             "window_length": 120,              # seconds
+             "overlap": 0.5,                    # fraction of window length
+             "volc_lat": 51.926630,             # decimal degrees
+             "volc_lon": 179.591230,            # decimal degrees
+             "seis_vel": 1500,                  # m/s
+             "dominant_freq": 2}                # Hz
 
-# set up the DR kwargs, can leave as None if not using DR
-DR_KWARGS = {'reference_station': 'CERB',       # station code
-             'filter_band': (1, 10),            # Hz
-             'window_length': 120,              # seconds
-             'overlap': 0.5,                    # fraction of window length
-             'volc_lat': 51.926630,             # decimal degrees
-             'volc_lon': 179.591230,            # decimal degrees
-             'seis_vel': 1500,                  # m/s
-             'dominant_freq': 2}                # Hz
-
-# sort the stations by distance from the volcano
-STA_SORT, DIST_SORT = sort_sta_distance(SOURCE, NETWORK, STATION, STARTTIME,
+# Sort the stations by distance from the volcano
+sta_sort, dist_sort = sort_sta_distance(SOURCE, NETWORK, STATION, STARTTIME,
                                         ENDTIME, CHANNEL, DR_KWARGS)
 
+# Pull data and sort by station-source distance
+stream = gather_waveforms(SOURCE,
+                          NETWORK,
+                          STATION,
+                          LOCATION,
+                          CHANNEL,
+                          STARTTIME - PAD,
+                          ENDTIME + PAD,
+                          n_jobs=N_JOBS)
+stream_sort = Stream([stream.select(station=sta)[0] for sta in sta_sort.split(",")])
 
-# now create the timeline plot
-class_mat, prob_mat = check_timeline(SOURCE, NETWORK, STA_SORT, CHANNEL,
-                                     LOCATION, STARTTIME, ENDTIME, MODEL_PATH,
-                                     MEANVAR_PATH, OVERLAP,
+class_mat, prob_mat = check_timeline(stream_sort,
+                                     STARTTIME,
+                                     ENDTIME,
+                                     MODEL_PATH,
+                                     MEANVAR_PATH,
+                                     OVERLAP,
                                      pnorm_thresh=PNORM_THRESH,
                                      generate_fig=GENERATE_FIG,
                                      fig_width=FIG_WIDTH,
