@@ -2323,32 +2323,3 @@ def sort_sta_distance(source, network, station, starttime, endtime, channel, dr_
 
     return STA_SORT, DIST_SORT
 
-# def compute_pavlof_rsam(stream_unprocessed):
-#     """
-#     Pavlof rsam calculation function, written by Matt Haney and adapted by Darren Tan
-#     :param stream_unprocessed (:class:`~obspy.core.stream.Stream`): Input data (unprocessed -- response is removed within)
-#     :return: dr (list): List of reduced displacement values,
-#     """
-#     # Import geopy
-#     from geopy.distance import geodesic as GD
-#     # Define constants
-#     R = 6372.7976  # km
-#     drm = 3  # cm^2
-#     seisvel = 1500  # m/s
-#     dfrq = 2  # Hz
-#     vlatlon = (55.4173,-161.8937)
-#     # Initialize lists
-#     disteqv = []
-#     sensf = []
-#     rmssta = []
-#     # Compute
-#     for i, tr in enumerate(stream_unprocessed):
-#         slatlon = (tr.stats.latitude,tr.stats.longitude)
-#         disteqv.append(GD((tr.stats.latitude,tr.stats.longitude),vlatlon).km)
-#         sensf.append(tr.stats.response.instrument_sensitivity.value)
-#         rmssta.append(drm / (np.sqrt(disteqv[i]*1000) * np.sqrt(seisvel/dfrq)*100*100))  # in m
-#     rmsstav = np.array(rmssta)*2*np.pi*dfrq
-#     levels_count = rmsstav * sensf
-#     q_effect = np.exp(-(np.pi*dfrq*np.array(disteqv)*1000)/(seisvel*200))
-#     dr = levels_count * q_effect
-#     return dr
