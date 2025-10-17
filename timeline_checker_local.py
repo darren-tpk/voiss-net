@@ -76,6 +76,7 @@ stream_sort = Stream([stream.select(station=sta)[0] for sta in sta_sort.split(",
 inventory = read_inventory(METADATA_FILEPATH)
 stream_sort.attach_response(inventory)
 
+# Run VOISS-Net
 class_mat, prob_mat = check_timeline(stream_sort,
                                      STARTTIME,
                                      ENDTIME,

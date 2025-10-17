@@ -52,6 +52,7 @@ stream = gather_waveforms(SOURCE,
                           n_jobs=N_JOBS)
 stream_sort = Stream([stream.select(station=sta)[0] for sta in sta_sort.split(",")])
 
+# Run VOISS-Net
 class_mat, prob_mat = check_timeline(stream_sort,
                                      STARTTIME,
                                      ENDTIME,
