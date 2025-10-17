@@ -1,4 +1,6 @@
 # Import dependencies
+import os
+import json
 import time
 import glob
 import pickle
@@ -14,139 +16,118 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from matplotlib import dates, rcParams
 from matplotlib.transforms import Bbox
 from matplotlib.colors import ListedColormap
-from obspy import UTCDateTime, read, Stream, Trace
+from obspy import UTCDateTime, Stream, Trace, Inventory
+from obspy.clients.fdsn import Client as FDSN_Client
+from obspy.clients.fdsn.header import FDSNNoDataException
 from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
-from waveform_collection import gather_waveforms
+from waveform_collection import gather_waveforms, read_local
 
-def load_data(network,station,channel,location,starttime,endtime,pad=None,local=None,data_dir=None,client=None):
+def download_data(source,network,station,location,channel,starttime,endtime,data_dir='./miniseed/',metadata_filename='metadata.xml',coord_filename='coord.json',n_jobs=1):
 
     """
-    Load data from local miniseed repository or query data from server
-    :param network (str or list): SEED network code(s)
-    :param station (str or list): SEED station code(s)
-    :param channel (str or list): SEED channel code(s)
-    :param location (str or list): SEED location code(s)
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): start time for desired data
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): end time for desired data
-    :param pad (float): Number of seconds to add on to the start and end times for desired data [s]. This should be greater than or equal to the taper length if tapering is needed.
-    :param local (bool): If `True`, pull local data from data_dir. If `False`, query client for data.
-    :param data_dir (str): Full file path for data directory
-    :param client (str): Name of desired FDSN client (e.g., IRIS)
-    :return: Stream (:class:`~obspy.core.stream.Stream`) data object
+    Downloads data across a user-defined duration from an FDSN Client and saves data as miniseed files.
+    :param source (str): Which source to gather waveforms from. Any ObsPy-supported FDSN is valid. (e.g., `'IRIS'`, `'NCEDC'`)
+    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
+    :param station (str): SEED station code [wildcards (``*``, ``?``) accepted]
+    :param location (str): SEED location code [wildcards (``*``, ``?``) accepted]
+    :param channel (str): SEED channel code [wildcards (``*``, ``?``) accepted]
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): start time for desired data pull
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): end time for desired data pull
+    :param data_dir (str): miniseed output path. Defaults to `./miniseed/`
+    :param coord_filename (str): Filename for the output JSON file containing station coordinates. Defaults to `coord.json`.
+    :param n_jobs (int): Number of CPUs to use for parallel processing.
+        If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used.
+        Default is 1 (a single processor).
+    :return: N/A
     """
 
-    # Sanity check to see if data needs to be pulled from local directory of queried from client
-    if (local==True and data_dir!=None and client==None) or (local==False and data_dir==None and client!=None):
-        pass
-    else:
-        raise ValueError('Either set local=True and provide data_dir, or set local=False and provide client.')
+    # Check if data_dir exists, if not create it
+    if not os.path.exists(data_dir):
+        print('Data directory %s does not exist, creating...' % data_dir)
+        os.makedirs(data_dir)
 
-    # Edit starttime and endtime if padding is required
-    if pad is not None:
-        starttime = starttime - pad
-        endtime = endtime + pad
+    # Gather waveforms
+    print("\nCommencing data fetch...")
+    time_start = time.time()
+    st = gather_waveforms(source=source, network=network, station=station, location=location, channel=channel,
+                          starttime=starttime, endtime=endtime, verbose=False, n_jobs=n_jobs)
 
-    # If we are pulling data from local
-    if local:
+    # Loop through station traces and save
+    for tr in st:
 
-        # Floor the start and end times, construct a list of UTCDateTimes marking the start of each day
-        starttime_floor = UTCDateTime(starttime.date)
-        endtime_floor = UTCDateTime(endtime.date)
-        num_days = int((endtime_floor - starttime_floor) / 86400)
-        time_list = [starttime_floor + i*86400 for i in range(num_days+1)]
+        # Start and end times rounded to the hour
+        start = tr.stats.starttime.replace(minute=0, second=0, microsecond=0)
+        end = tr.stats.endtime.replace(minute=0, second=0, microsecond=0)
 
-        # Initialize list for all station channel data filenames
-        data_filenames = []
+        current = start
+        while current <= end:
+            next_hour = current + 3600
 
-        # If only one station-channel input is given,
-        if type(network) == str and type(station) == str and type(channel) == str and type(location) == str:
+            # Slice trace for current hour
+            tr_hour = tr.slice(starttime=current, endtime=next_hour - 0.001)
 
-            # Loop over time list, craft file string and append
-            for time in time_list:
-                data_filename = data_dir + station + '.' + channel + '.' + str(time.year) + ':' + f'{time.julday:03}' + ':*'
-                data_filenames.append(data_filename)
+            # Skip empty traces
+            if tr_hour is None or tr_hour.stats.npts == 0:
+                current = next_hour
+                continue
 
-        # If multiple station-channel inputs are given,
-        elif type(network) == list and type(station) == list and type(channel) == list and type(location) == list and len(network) == len(station) == len(channel) == len(location):
+            # Build IRIS-style filename
+            fname = f"{tr_hour.stats.network}.{tr_hour.stats.station}.{tr_hour.stats.location}." \
+                    f"{tr_hour.stats.channel}.{current.year}." \
+                    f"{str(current.julday).zfill(3)}." \
+                    f"{str(current.hour).zfill(2)}"
 
-            # Loop over station-channel inputs
-            for i in range(len(network)):
+            # Write to miniSEED
+            filepath = os.path.join(data_dir, fname)
+            tr_hour.write(filepath, format="MSEED")
 
-                # Loop over time list, craft file string and append
-                for time in time_list:
-                    data_filename = data_dir + station[i] + '.' + channel[i] + '.' + str(time.year) + ':' + f'{time.julday:03}' + ':*'
-                    data_filenames.append(data_filename)
+            current = next_hour
 
-        # If the checks fail,
-        else:
+    # Also save IRIS inventory info for each trace
+    print("Fetching station metadata...")
+    client = FDSN_Client(source)
+    try:
+        inv = client.get_stations(network=network, station=station, location=location, channel=channel,
+                                  starttime=starttime, endtime=endtime, level='response')
+    except FDSNNoDataException:
+        print(f'No metadata found for {network}.{station}.{location}.{channel} in the specified time range.')
+        inv = Inventory()
 
-            # Raise error
-            raise ValueError('Inputs are in the wrong format. Either input a string (one station) or a lists of the same length (multiple stations) for network/station/channel/location.')
+    # Export inventory with response information
+    inv.write(data_dir + metadata_filename, format="STATIONXML")
 
-        # Now permutate the list of filenames and times to glob and load data
-        stream = Stream()
-        for data_filename in data_filenames:
-            matching_filenames = (glob.glob(data_filename))
-            for matching_filename in matching_filenames:
-                try:
-                    stream_contribution = read(matching_filename)
-                    stream = stream + stream_contribution
-                except:
-                    continue
+    # Initialize coord_dict
+    coord_dict = {}
 
-        # Trim and merge stream
-        stream = stream.trim(starttime=starttime,endtime=endtime)
-        stream = stream.merge()
+    # Loop over traces to save coordinates
+    for tr in st:
 
-        return stream
+        # Get station code
+        sta = tr.stats.station
 
-    # If user provides a client,
-    elif not local and client is not None:
+        # Avoid overwriting if already added
+        if sta in coord_dict:
+            continue
 
-        # Prepare client
-        from obspy.clients.fdsn import Client
-        client = Client(client)
+        try:
+            coord = inv.get_coordinates(tr.id)
+            coord_dict[sta] = {
+                "latitude": coord["latitude"],
+                "longitude": coord["longitude"],
+                "elevation": coord["elevation"]
+            }
+        except Exception as e:
+            print(f"Could not get coordinates for {tr.id}: {e}")
 
-        # Initialize stream
-        stream = Stream()
+    # Export to JSON
+    with open(data_dir + coord_filename, "w") as f:
+        json.dump(coord_dict, f, indent=2)
 
-        # If only one station-channel input is given,
-        if type(network) == str and type(station) == str and type(channel) == str and type(location) == str:
-
-            # Grab stream
-            stream_contribution = client.get_waveforms(network, station, location, channel, starttime, endtime, attach_response=True)
-            stream = stream + stream_contribution
-
-        # If multiple station-channel inputs are given,
-        elif type(network) == list and type(station) == list and type(channel) == list and type(
-                location) == list and len(network) == len(station) == len(channel) == len(location):
-
-            # Loop over station-channel inputs
-            for i in range(len(network)):
-
-                # Grab stream
-                stream_contribution = client.get_waveforms(network[i], station[i], location[i], channel[i], starttime, endtime, attach_response=True)
-                stream = stream + stream_contribution
-
-        # If the checks fail,
-        else:
-
-            # Raise error
-            raise ValueError('Inputs are in the wrong format. Either input a string (one station) or a lists of the same length (multiple stations) for network/station/channel/location.')
-
-        # Trim and merge stream
-        stream = stream.trim(starttime=starttime,endtime=endtime)
-        stream = stream.merge()
-
-        return stream
-
-    # If not no client is provided
-    else:
-
-        # Raise error
-        raise ValueError('Please provide an input client (e.g. "IRIS").')
+    # Conclude process
+    time_end = time.time()
+    print('Data & metadata collection complete. Time taken: %.2f minutes.' % ((time_end - time_start) / 60))
 
 def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,taper_length=None,taper_percentage=None,filter_band=None,verbose=True):
 
@@ -208,7 +189,7 @@ def process_waveform(stream,remove_response=True,rr_output='VEL',detrend=False,t
     else:
         return stream
 
-def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,figsize=(32,9),export_path=None):
+def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=False,demean=False,v_percent_lims=(20,100),cmap=cc.cm.rainbow,earthquake_times=None,db_hist=False,wavefilt=None,figsize=(32,9),export_path=None):
 
     """
     Plot all traces in a stream and their corresponding spectrograms in separate plots using matplotlib
@@ -222,6 +203,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
     :param cmap (str or :class:`matplotlib.colors.LinearSegmentedColormap`): Colormap for spectrogram plot. Default is colorcet.cm.rainbow.
     :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
     :param db_hist (bool): If `True`, plot a db histogram (spanning the plotted timespan) on the right side of the spectrogram across the sample frequencies
+    :param wavefilt (tuple): Tuple of length 2 storing minimum and maximum frequency for the waveform filter. If `None`, no filtering is applied to the waveform in the waveform plot.
     :param figsize (tuple): Tuple of length 2 storing output figure size. Default is (32,9).
     :param export_path (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     """
@@ -232,6 +214,18 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
 
     # Loop over each trace in the stream
     for trace in stream:
+
+        # If filtering waveform in waveform plot, duplicate stream and process
+        if wavefilt is not None:
+
+            # Process waveform trace
+            trace_wavefilt = process_waveform(trace.copy(),
+                                              remove_response=False,
+                                              detrend=False,
+                                              taper_length=None,
+                                              taper_percentage=5,
+                                              filter_band=wavefilt,
+                                              verbose=False)
 
         # Check if input trace is infrasound (SEED channel name ends with 'DF'). Else, assume seismic.
         if trace.stats.channel[1:] == 'DF':
@@ -247,7 +241,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             REFERENCE_VALUE = 1  # Velocity, in m/s
             SPEC_THRESH = -220  # Power value indicative of gap
             colorbar_label = f'Power (dB rel. {REFERENCE_VALUE:g} [m s$^{{-1}}$]$^2$ Hz$^{{-1}}$)'
-            rescale_factor = 10**-6  # Plot waveform in micrometer/s
+            rescale_factor = 10**6  # Plot waveform in micrometer/s
 
         # Extract trace information for FFT
         sampling_rate = trace.stats.sampling_rate
@@ -275,16 +269,6 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
         else:
             earthquake_times_matplotlib = []
 
-        # Prepare time ticks for spectrogram and waveform figure (Note that we divide the duration into 10 equal increments and 11 uniform ticks)
-        if ((endtime-starttime)%1800) == 0:
-            denominator = 12
-            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/denominator)
-        else:
-            denominator = 10
-            time_tick_list = np.arange(starttime,endtime+1,(endtime-starttime)/denominator)
-        time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-        time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
-
         # Craft figure
         fig, (ax1,ax2) = plt.subplots(2,1,figsize=figsize,constrained_layout=True)
 
@@ -302,7 +286,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             if db_hist:
                 spec_db_hist = np.sum(spec_db_plot,axis=1)
                 spec_db_hist = (spec_db_hist-np.min(spec_db_hist)) / (np.max(spec_db_hist)-np.min(spec_db_hist))
-                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_range = (1/10) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
                 sample_frequencies_plot = sample_frequencies[np.flatnonzero((sample_frequencies>freq_min) & (sample_frequencies<freq_max))]
                 ax1.plot(hist_plotting_points, sample_frequencies_plot, 'k-', linewidth=10, alpha=0.6)
@@ -320,7 +304,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             if db_hist:
                 spec_db_hist = np.sum(spec_db, axis=1)
                 spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
-                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_range = (1/10) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
                 ax1.plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=10, alpha=0.6)
                 ax1.plot([trace_time_matplotlib[-1],trace_time_matplotlib[-1]-hist_plotting_range],
@@ -335,21 +319,48 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
             ax1.set_ylim([freq_min,freq_max])
         ax1.tick_params(axis='y',labelsize=18)
         ax1.set_xlim([starttime.matplotlib_date,endtime.matplotlib_date])
-        ax1.set_xticks(time_tick_list_mpl)
-        ax1.set_xticklabels(time_tick_labels,fontsize=18,rotation=30,ha='right',rotation_mode='anchor')
         ax1.set_title(trace.id, fontsize=24, fontweight='bold')
         cbar = fig.colorbar(c, aspect=10, pad=0.005, ax=ax1, location='right')
         cbar.set_label(colorbar_label, fontsize=18)
         cbar.ax.tick_params(labelsize=16)
-        ax2.plot(trace.times('matplotlib'), trace.data * rescale_factor,'k-',linewidth=1)
+        if wavefilt:
+            ax2.plot(trace_wavefilt.times('matplotlib'), trace_wavefilt.data * rescale_factor, 'k-', linewidth=1)
+            trace_upper_ylim = 1.5*np.percentile(abs(trace_wavefilt.trim(starttime,endtime).data * rescale_factor),99.9)
+            trace_lower_ylim = -1.5*np.percentile(abs(trace_wavefilt.trim(starttime,endtime).data * rescale_factor),99.9)
+            ax2.set_ylim(trace_lower_ylim, trace_upper_ylim)
+            ax2.text(0.99, 0.95, '[%.1f, %.1f] Hz' % wavefilt, transform=ax2.transAxes, fontsize=18, color='k', va='top', ha='right', fontweight='bold')
+        else:
+            ax2.plot(trace.times('matplotlib'), trace.data * rescale_factor,'k-',linewidth=1)
+            trace_upper_ylim = 1.5*np.percentile(abs(trace.trim(starttime,endtime).data * rescale_factor),99.9)
+            trace_lower_ylim = -1.5*np.percentile(abs(trace.trim(starttime,endtime).data * rescale_factor),99.9)
+            ax2.set_ylim(trace_lower_ylim, trace_upper_ylim)
         ax2.set_ylabel(y_axis_label, fontsize=22)
         ax2.tick_params(axis='y',labelsize=18)
         ax2.yaxis.offsetText.set_fontsize(18)
         ax2.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
-        ax2.set_xticks(time_tick_list_mpl)
-        ax2.set_xticklabels(time_tick_labels,fontsize=18,rotation=30, ha='right',rotation_mode='anchor')
         ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
         ax2.grid()
+
+        # Format time ticks
+        ax2.xaxis_date()
+        ax2.tick_params(axis='x', labelbottom='on', labelsize=18,rotation=30)
+        if endtime.date == starttime.date:
+            # format for hour:minute ticks
+            date_format = dates.DateFormatter('%H:%M')
+            ax2.xaxis.set_major_formatter(date_format)
+            ax2.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
+        elif (endtime - starttime) < (2 * 86400):
+            date_format = dates.DateFormatter('%H:%M')
+            ax2.xaxis.set_major_formatter(date_format)
+            ax2.set_xlabel('UTC Time starting from ' + starttime.date.strftime('%b %d, %Y'), fontsize=22)
+        else:
+            ax2.set_xlabel('UTC Time in %s' % starttime.date.strftime('%Y'), fontsize=22)
+
+        # Give ax1 the same ticks as ax2
+        ax1.xaxis.set_major_locator(ax2.xaxis.get_major_locator())
+        ax1.xaxis.set_major_formatter(ax2.xaxis.get_major_formatter())
+        ax1.tick_params(axis='x', labelsize=18, rotation=30)
+
         if export_path is None:
             fig.show()
         else:
@@ -369,6 +380,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     :param window_duration (float): Duration of spectrogram window [s]
     :param freq_lims (tuple): Tuple of length 2 storing minimum frequency and maximum frequency for the spectrogram plot ([Hz],[Hz])
     :param log (bool): If `True`, plot spectrogram with logarithmic y-axis
+    :param demean (bool): If `True`, demean the spectrogram matrix before plotting
     :param v_percent_lims (tuple): Tuple of length 2 storing the percentile values in the spectrogram matrix used as colorbar limits. Default is (20,100).
     :param cmap (str or :class:`matplotlib.colors.LinearSegmentedColormap`): Colormap for spectrogram plot. Default is colorcet.cm.rainbow.
     :param earthquake_times (list of :class:`~obspy.core.utcdatetime.UTCDateTime`): List of UTCDateTimes storing earthquake origin times to be plotted as vertical black dashed lines.
@@ -426,12 +438,6 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         # Convert trace times to matplotlib dates
         trace_time_matplotlib = trace.stats.starttime.matplotlib_date + (segment_times / dates.SEC_PER_DAY)
 
-        # Determine number of ticks smartly
-        if ((endtime - starttime) % 1800) == 0:
-            denominator = 12
-        else:
-            denominator = 10
-
         # If earthquake times are provided, convert them from UTCDateTime to matplotlib dates
         if earthquake_times:
             earthquake_times_matplotlib = [eq.matplotlib_date for eq in earthquake_times]
@@ -462,7 +468,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
             if db_hist:
                 spec_db_hist = np.sum(spec_db_plot, axis=1)
                 spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
-                hist_plotting_range = (1/denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_range = (1/10) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
                 sample_frequencies_plot = sample_frequencies[
                     np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max))]
@@ -484,7 +490,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
             if db_hist:
                 spec_db_hist = np.sum(spec_db, axis=1)
                 spec_db_hist = (spec_db_hist - np.min(spec_db_hist)) / (np.max(spec_db_hist) - np.min(spec_db_hist))
-                hist_plotting_range = (1 / denominator) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
+                hist_plotting_range = (1/10) * (trace_time_matplotlib[-1] - trace_time_matplotlib[0])
                 hist_plotting_points = trace_time_matplotlib[-1] - (spec_db_hist * hist_plotting_range)
                 target_ax.plot(hist_plotting_points, sample_frequencies, 'k-', linewidth=8, alpha=0.6)
                 target_ax.plot([trace_time_matplotlib[-1], trace_time_matplotlib[-1] - hist_plotting_range],
@@ -502,18 +508,14 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         target_ax.set_xlim([starttime.matplotlib_date, endtime.matplotlib_date])
         target_ax.tick_params(axis='y', labelsize=18)
         target_ax.set_ylabel(trace.id, fontsize=22, fontweight='bold')
-    # time_tick_list = np.arange(starttime, endtime + 1, (endtime - starttime) / denominator)
-    # time_tick_list_mpl = [t.matplotlib_date for t in time_tick_list]
-    # time_tick_labels = [time.strftime('%H:%M') for time in time_tick_list]
-    # bottom_ax = axs[-1] if len(stream)>1 else axs
-    # bottom_ax.set_xticks(time_tick_list_mpl)
-    # bottom_ax.set_xticklabels(time_tick_labels, fontsize=22, rotation=30, ha='right', rotation_mode='anchor')
-    #
-    # let matplotlib choose the xtick and xticklabels
-    #bottom_ax.xaxis.set_major_locator(dates.AutoDateLocator())
+
+    # Format x ticks
+    bottom_ax = axs[-1] if len(stream)>1 else axs
     bottom_ax.xaxis_date()
-    bottom_ax.tick_params(axis='x',labelbottom='on', fontsize=22, rotation=30,
-                          ha='right', rotation_mode='anchor')
+    bottom_ax.tick_params(axis='x', labelbottom=True, labelsize=22, rotation=30)
+    for label in bottom_ax.get_xticklabels():
+        label.set_ha('right')
+        label.set_rotation_mode('anchor')
 
     bottom_ax.set_xlabel('UTC1 Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
@@ -584,7 +586,6 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
         spec_db = spec_db[np.flatnonzero((sample_frequencies > freq_min) & (sample_frequencies < freq_max)), :]
 
     return spec_db, utc_times
-
 
 def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False,n_jobs=1):
 
@@ -659,15 +660,24 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     successfully_loaded = False
     load_starttime = time.time()
     while not successfully_loaded:
+
+        # # Check if it is a local directory
+        # if os.path.exists(source):
+        #     source = source if source.endswith(os.sep) else source + os.sep
+        #
+        #
+        #     read_local(source, None, network, station, location, channel,
+        #                starttime, endtime, merge=True, verbose=True)
+        #
+        # # Otherwise, assume it is a valid FDSN key and pull data
+        # else:
         try:
             stream_raw = gather_waveforms(source=source, network=network, station=station,
                                       location=location, channel=channel,
                                       starttime=starttime - pad, endtime=endtime + pad,
                                       verbose=False, n_jobs=n_jobs)
-            stream_raw
             stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
                                       taper_length=pad, verbose=False)
-            stream
             successfully_loaded = True
         except:
             print('Data pull failed, trying again in 10 seconds...')
@@ -1139,7 +1149,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                            starttime.date.strftime('%b %d, %Y'),
                            fontsize=font_s)
     else:
-        axs[-1].set_xlabel('UTC Time', fontsize=font_s)
+        axs[-1].set_xlabel('UTC Time in %s' % starttime.date.strftime('%Y'), fontsize=font_s)
 
     # Plot colorbar
     for i, rgb_ratio in enumerate(rgb_ratios):
@@ -1173,7 +1183,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         tick_data_ax2b = ax2b.transData.inverted().transform(tick_disp_coords)[:, 0]
         ax2b.set_xticks(tick_data_ax2b)
         ax2b.set_xticklabels([])
-
 
     # Show figure or export
     if export_path is None:
@@ -1423,7 +1432,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
                        starttime.date.strftime('%b %d, %Y'),
                        fontsize=font_s)
     else:
-        ax1.set_xlabel('UTC Time', fontsize=font_s)
+        ax1.set_xlabel('UTC Time in %s' % starttime.date.strftime('%Y'), fontsize=font_s)
 
     # Plot or save figure
     if export_path:
