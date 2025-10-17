@@ -113,11 +113,7 @@ def download_data(source,network,station,location,channel,starttime,endtime,data
 
         try:
             coord = inv.get_coordinates(tr.id)
-            coord_dict[sta] = {
-                "latitude": coord["latitude"],
-                "longitude": coord["longitude"],
-                "elevation": coord["elevation"]
-            }
+            coord_dict[sta] = (coord["latitude"], coord["longitude"], coord["elevation"])
         except Exception as e:
             print(f"Could not get coordinates for {tr.id}: {e}")
 
