@@ -583,17 +583,13 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(source,network,station,channel,location,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False,n_jobs=1):
+def check_timeline(stream,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False):
 
     """
-    Pulls data, then loads a trained model to predict the timeline of classes
-    :param source (str): Which source to gather waveforms from (e.g. IRIS)
-    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
-    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
-    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
-    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
+    Calculates spectrograms from an input stream and runs it through a VOISS-Net model to predict the timeline of classes.
+    :param stream (:class:`~obspy.core.stream.Stream`): Input data, with response attached
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for model run (must be within stream's time range)
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for model run (must be within stream's time range)
     :param model_path (str): Path to model .keras or .h5 file
     :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization is applied.
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices
@@ -607,17 +603,31 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     :param fi_kwargs (dict): Dictionary of frequency index plotting parameters (reference_station, window_length, overlap, filomin, filomax, fiupmin, fiupmax, med_filt_kernel)
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
     :param transparent (bool): If `True`, export with transparent background
-    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: numpy.ndarray: 2D matrix storing all predicted classes (only returns if generate_fig==False or export_path==None)
     :return: numpy.ndarray: 2D matrix storing all predicted probabilities (only returns if generate_fig==False or export_path==None)
     """
 
     rcParams['font.size'] = font_s
 
-    # Load model
+    # Check if starttime and endtime are within the time bounds of the input stream
+    if len(stream) == 0:
+        raise ValueError("Input stream is empty.")
+    stream_start = np.min([trace.stats.starttime for trace in stream])
+    stream_end = np.max([trace.stats.endtime for trace in stream])
+
+    # Check if starttime and endtime are within the time bounds of the input stream
+    if not ((starttime < endtime) and (starttime >= stream_start) and (endtime <= stream_end)):
+        raise ValueError("Input starttime and endtime must be within the input stream's time bounds.")
+
+    # Raise warning in case of exact match, that spectrogram edge effects might influence classification
+    if (abs(starttime - stream_start) < 240) or (abs(endtime == stream_end) < 240):
+        warnings.warn("Starttime or endtime are close to the stream bounds. Spectrogram edge effects may influence classification.",UserWarning)
+
+    # Extract station list and load model
+    stations = [trace.stats.station for trace in stream]
     saved_model = load_model(model_path)
     nclasses = saved_model.layers[-1].get_config()['units']
-    nsubrows = len(station.split(','))
+    nsubrows = len(stations)
 
     # Extract mean and variance from training
     if meanvar_path:
@@ -633,7 +643,6 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     interval = saved_model.layers[0].input.shape[2]
     time_step = int(np.round(interval*(1-overlap)))
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
-    pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
     window_duration = spec_kwargs['window_duration'] if 'window_duration' in\
         spec_kwargs else 10
     freq_lims = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else \
@@ -642,57 +651,25 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         spec_kwargs else (20, 97.5)
 
     # Determine if infrasound
-    infrasound = True if channel[-1] == 'F' else False
+    infrasound = True if stream[0].stats.channel[-1] == 'F' else False
     reference_value = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
     spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
     # Enforce the duration to be a multiple of the model's time step
     if (endtime - starttime - interval) % time_step != 0:
         print('The desired analysis duration is not a multiple of the inbuilt time step.')
-        endtime = endtime + (time_step - (endtime - starttime - interval) % time_step)
-        print('Rounding up endtime to %s.' % str(endtime))
+        endtime = endtime - (endtime - starttime - interval) % time_step
+        print('Rounding down endtime to %s.' % str(endtime))
 
-    # Load data, remove response, and re-order
-    successfully_loaded = False
-    load_starttime = time.time()
-    while not successfully_loaded:
-
-        # # Check if it is a local directory
-        # if os.path.exists(source):
-        #     source = source if source.endswith(os.sep) else source + os.sep
-        #
-        #
-        #     read_local(source, None, network, station, location, channel,
-        #                starttime, endtime, merge=True, verbose=True)
-        #
-        # # Otherwise, assume it is a valid FDSN key and pull data
-        # else:
-        try:
-            stream_raw = gather_waveforms(source=source, network=network, station=station,
-                                      location=location, channel=channel,
-                                      starttime=starttime - pad, endtime=endtime + pad,
-                                      verbose=False, n_jobs=n_jobs)
-            stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
-                                      taper_length=pad, verbose=False)
-            successfully_loaded = True
-        except:
-            print('Data pull failed, trying again in 10 seconds...')
-            time.sleep(10)
-            load_currenttime = time.time()
-            if load_currenttime-load_starttime < 60:
-                pass
-            else:
-                raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime),str(endtime)))
-
-    # reorder both raw and processed streams
-    stream_default_order = [tr.stats.station for tr in stream]
-    desired_index_order = [stream_default_order.index(stn) for stn in
-                           station.split(',') if stn in stream_default_order]
-    stream = Stream([stream[i] for i in desired_index_order])
-    stream_raw = Stream([stream_raw[i] for i in desired_index_order])
+    # Taper data and remove response
+    duration_allowance = np.min([abs(starttime - stream_start), abs(endtime - stream_end)])
+    taper_length = np.max([int(duration_allowance/2/window_duration)*window_duration, window_duration])
+    # NOTE: for 1:1 compatability with version 1's check_timline, use pad=360
+    stream_processed = process_waveform(stream.copy(), remove_response=True, detrend=False,
+                                        taper_length=taper_length, verbose=False)
 
     # If stream sampling rate is not an integer, fix
-    for tr in stream:
+    for tr in stream_processed:
         if tr.stats.sampling_rate != np.round(tr.stats.sampling_rate):
             tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
 
@@ -701,11 +678,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     spec_ids = []
 
     # Loop over stations that have data
-    stream_stations = [tr.stats.station for tr in stream]
-    for j, stream_station in enumerate(stream_stations):
+    for j, station in enumerate(stations):
 
         # Choose trace corresponding to station
-        trace = stream[j]
+        trace = stream_processed[j]
 
         # Calculate spectrogram power matrix
         spec_db, utc_times = calculate_spectrogram(trace, starttime, endtime,
@@ -715,7 +691,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         # Reshape spectrogram into stack of desired spectrogram slices
         spec_slices = [spec_db[:, t:(t + interval)] for t in
                        range(0, spec_db.shape[-1] - interval + 1, time_step)]
-        spec_tags = [stream_station + '_' + step_bound.strftime('%Y%m%d%H%M%S') + '_' + \
+        spec_tags = [station + '_' + step_bound.strftime('%Y%m%d%H%M%S') + '_' + \
                      (step_bound + interval).strftime('%Y%m%d%H%M%S') \
                      for step_bound in np.arange(starttime,endtime-interval+1,time_step)]
         spec_stack += spec_slices
@@ -763,7 +739,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     matrix_plot = np.ones((matrix_height, matrix_length)) * nclasses
     matrix_probs = np.zeros((matrix_height, matrix_length, np.shape(spec_predictions)[1]))
     for indicator in indicators:
-        row_index = station.split(',').index(indicator[0])
+        row_index = stations.index(indicator[0])
         col_index = int((indicator[1] - np.round(interval / 2) - starttime) / time_step)
         matrix_plot[row_index, col_index] = indicator[2]
         matrix_probs[row_index, col_index, :] = indicator[3]
@@ -868,12 +844,12 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     # Initialize figure and craft axes
     fig_height = fig_height if fig_height else (fig_width * .75)
     fig = plt.figure(figsize=(fig_width, fig_height))
-    height_ratios = np.ones(len(station.split(',')) + header_panels)
+    height_ratios = np.ones(len(stations) + header_panels)
     height_ratios[1:header_panels] = 0.5
-    gs_top = plt.GridSpec(len(station.split(',')) + header_panels, 2, top=top_space,
+    gs_top = plt.GridSpec(len(stations) + header_panels, 2, top=top_space,
                           height_ratios=height_ratios, width_ratios=[35, 1],
                           wspace=0.05)
-    gs_base = plt.GridSpec(len(station.split(',')) + header_panels, 2, hspace=0,
+    gs_base = plt.GridSpec(len(stations) + header_panels, 2, hspace=0,
                            height_ratios=height_ratios, width_ratios=[35, 1],
                            wspace=0.05)
     cbar_ax = fig.add_subplot(gs_top[:, 1])
@@ -882,7 +858,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     ax2b = fig.add_subplot(gs_top[2, 0]) if any([dr_kwargs, fi_kwargs]) else None
     ax3 = fig.add_subplot(gs_base[header_panels, 0])
     other_axes = [fig.add_subplot(gs_base[i, 0], sharex=ax3) for i in
-                  range(header_panels + 1, len(station.split(',')) + header_panels)]
+                  range(header_panels + 1, len(stations) + header_panels)]
     axs = [ax3] + other_axes
     for ax in axs[:-1]:
         plt.setp(ax.get_xticklabels(), visible=False)
@@ -896,10 +872,10 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
     yticks = np.concatenate((np.arange(0.5, nsubrows, 1),
                              np.array([nsubrows + 1.5])))
     ax1.set_yticks(yticks)
-    yticklabels = station.split(',').copy()
+    yticklabels = stations.copy()
     yticklabels.append('VOTE')
     ax1.set_yticklabels(yticklabels, rotation=0, fontsize=font_s)
-    ax1.set_ylim([len(station.split(',')) + 2, 0])
+    ax1.set_ylim([len(stations) + 2, 0])
     ax1.patch.set_edgecolor('black')
     ax1.patch.set_linewidth(LW)
     ax1.set_title('Network-Wide Voting', fontsize=font_s + 2)
@@ -928,9 +904,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
         # Calculate reduce displacement for reference station
         if dr_kwargs['reference_station'] != 'all':
-            print(f"Calculating DR for {stream_raw[stream_stations.index(dr_kwargs['reference_station'])].id}")
-            tr_disp = process_waveform(stream_raw[stream_stations.index(dr_kwargs['reference_station'])].copy(),
-                                       remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+            print(f"Calculating DR for {stream[stations.index(dr_kwargs['reference_station'])].id}")
+            tr_disp = process_waveform(stream[stations.index(dr_kwargs['reference_station'])].copy(),
+                                       remove_response=True, rr_output='DISP', detrend=False, taper_length=taper_length,
                                        taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
             tr_disp_trimmed = tr_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
                                            endtime=endtime + dr_kwargs['window_length'] / 2)
@@ -964,7 +940,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         # If all stations are to be used for reduced displacement, calculate and plot mean
         else:
             print(f"Calculating DR for all available stations")
-            st_disp = process_waveform(stream_raw, remove_response=True, rr_output='DISP', detrend=False, taper_length=60,
+            st_disp = process_waveform(stream, remove_response=True, rr_output='DISP', detrend=False, taper_length=taper_length,
                                        taper_percentage=None, filter_band=dr_kwargs['filter_band'], verbose=False)
             st_disp_trimmed = st_disp.trim(starttime=starttime - dr_kwargs['window_length'] / 2,
                                            endtime=endtime + dr_kwargs['window_length'] / 2)
@@ -1004,9 +980,9 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
 
         # Calculate windowed frequency index for reference station
         if fi_kwargs['reference_station'] != 'all':
-            print(f"Calculating FI for {stream_raw[stream_stations.index(fi_kwargs['reference_station'])].id}")
-            tr_vel = process_waveform(stream_raw[stream_stations.index(fi_kwargs['reference_station'])].copy(),
-                                        remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+            print(f"Calculating FI for {stream[stations.index(fi_kwargs['reference_station'])].id}")
+            tr_vel = process_waveform(stream[stations.index(fi_kwargs['reference_station'])].copy(),
+                                        remove_response=True, rr_output='VEL', detrend=False, taper_length=taper_length,
                                         taper_percentage=None, verbose=False)
             tr_vel_trimmed = tr_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
                                         endtime=endtime + fi_kwargs['window_length'] / 2)
@@ -1040,7 +1016,7 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
         # If all stations are to be used for frequency index, calculate and plot mean
         else:
             print(f"Calculating FI for all available stations")
-            st_vel = process_waveform(stream_raw, remove_response=True, rr_output='VEL', detrend=False, taper_length=60,
+            st_vel = process_waveform(stream, remove_response=True, rr_output='VEL', detrend=False, taper_length=taper_length,
                                       taper_percentage=None, verbose=False)
             st_vel_trimmed = st_vel.trim(starttime=starttime - fi_kwargs['window_length'] / 2,
                                          endtime=endtime + fi_kwargs['window_length'] / 2)
@@ -1073,13 +1049,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
             ax2b.set_ylabel('FI\n' + fi_kwargs['reference_station'], fontsize=font_s)
 
     # Loop over input stations and plot spectrograms on lower axes
-    for axs_index, stn in enumerate(station.split(',')):
+    for axs_index, station in enumerate(stations):
 
         # If corresponding trace exists, plot spectrogram
-        if stn in stream_stations:
+        if station in stations:
 
             # Extract trace information for FFT
-            trace = stream[stream_stations.index(stn)]
+            trace = stream_processed[stations.index(station)]
             sampling_rate = trace.stats.sampling_rate
             samples_per_segment = int(window_duration * sampling_rate)
 
@@ -1112,13 +1088,13 @@ def check_timeline(source,network,station,channel,location,starttime,endtime,mod
                                   origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
             # Label y-axis with trace information
-            stn_label = stn + '\n' + stream[stream_stations.index(stn)].stats.channel
-            axs[axs_index].set_ylabel(stn_label, fontsize=font_s, fontweight='bold')
-            # axs[axs_index].set_ylabel(stream[stream_stations.index(stn)].id, fontsize=font_s, fontweight='bold')
+            station_label = station + '\n' + stream_processed[stations.index(station)].stats.channel
+            axs[axs_index].set_ylabel(station_label, fontsize=font_s, fontweight='bold')
+            # axs[axs_index].set_ylabel(stream_processed[stations.index(station)].id, fontsize=font_s, fontweight='bold')
 
         else:
             # If corresponding trace does not exist, label station as 'No Data'
-            axs[axs_index].set_ylabel(stn + '\n(No Data)', fontsize=font_s, fontweight='bold')
+            axs[axs_index].set_ylabel(station + '\n(No Data)', fontsize=font_s, fontweight='bold')
 
         # Tidy up axes
         axs[axs_index].set_ylim([freq_lims[0], freq_lims[1]])
