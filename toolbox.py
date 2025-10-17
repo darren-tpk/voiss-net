@@ -5,6 +5,7 @@ import time
 import glob
 import pickle
 import pyproj
+import warnings
 import numpy as np
 import pandas as pd
 import colorcet as cc
@@ -24,7 +25,7 @@ from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
 from waveform_collection import gather_waveforms, read_local
 
-def download_data(source,network,station,location,channel,starttime,endtime,data_dir='./miniseed/',metadata_filename='metadata.xml',coord_filename='coords.json',n_jobs=1):
+def download_data(source,network,station,location,channel,starttime,endtime,data_dir='./miniseed/',metadata_filepath='./metadata.xml',coord_filepath='./coords.json',n_jobs=1):
 
     """
     Downloads data across a user-defined duration from an FDSN Client and saves data as miniseed files.
@@ -36,7 +37,8 @@ def download_data(source,network,station,location,channel,starttime,endtime,data
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): start time for desired data pull
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): end time for desired data pull
     :param data_dir (str): miniseed output path. Defaults to `./miniseed/`
-    :param coord_filename (str): Filename for the output JSON file containing station coordinates. Defaults to `coord.json`.
+    :param metadata_filepath (str): path to metadata file. Defaults to `./metadata.xml`
+    :param coord_filepath (str): path for the output JSON file containing station coordinates. Defaults to `./coord.json`.
     :param n_jobs (int): Number of CPUs to use for parallel processing.
         If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used.
         Default is 1 (a single processor).
@@ -96,7 +98,7 @@ def download_data(source,network,station,location,channel,starttime,endtime,data
         inv = Inventory()
 
     # Export inventory with response information
-    inv.write(data_dir + metadata_filename, format="STATIONXML")
+    inv.write(metadata_filepath, format="STATIONXML")
 
     # Initialize coord_dict
     coord_dict = {}
@@ -118,7 +120,7 @@ def download_data(source,network,station,location,channel,starttime,endtime,data
             print(f"Could not get coordinates for {tr.id}: {e}")
 
     # Export to JSON
-    with open(data_dir + coord_filename, "w") as f:
+    with open(coord_filepath, "w") as f:
         json.dump(coord_dict, f, indent=2)
 
     # Conclude process
