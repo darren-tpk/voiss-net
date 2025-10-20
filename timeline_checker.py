@@ -1,5 +1,6 @@
 # Import dependencies
 from obspy import UTCDateTime, Stream
+from obspy.geodetics import gps2dist_azimuth
 from waveform_collection import gather_waveforms
 from toolbox import check_timeline, sort_sta_distance
 
@@ -28,18 +29,16 @@ EXPORT_PATH = None
 TRANSPARENT = None
 
 # Set up the DR kwargs, can leave as None if not using DR
-DR_KWARGS = {"reference_station": "CERB",       # station code
+DR_STATION = STATION.split(',')[0]
+VOLC_COORDS = (51.926630, 179.591230)
+DR_KWARGS = {"reference_station": DR_STATION,       # station code
              "filter_band": (1, 10),            # Hz
              "window_length": 120,              # seconds
              "overlap": 0.5,                    # fraction of window length
-             "volc_lat": 51.926630,             # decimal degrees
-             "volc_lon": 179.591230,            # decimal degrees
+             "volc_lat": VOLC_COORDS[0],             # decimal degrees
+             "volc_lon": VOLC_COORDS[1],            # decimal degrees
              "seis_vel": 1500,                  # m/s
              "dominant_freq": 2}                # Hz
-
-# Sort the stations by distance from the volcano
-sta_sort, dist_sort = sort_sta_distance(SOURCE, NETWORK, STATION, STARTTIME,
-                                        ENDTIME, CHANNEL, DR_KWARGS)
 
 # Pull data and sort by station-source distance
 stream = gather_waveforms(SOURCE,
@@ -50,10 +49,12 @@ stream = gather_waveforms(SOURCE,
                           STARTTIME - PAD,
                           ENDTIME + PAD,
                           n_jobs=N_JOBS)
-stream_sort = Stream([stream.select(station=sta)[0] for sta in sta_sort.split(",")])
+
+# Sort stream by distance to volcano
+stream.traces.sort(key=lambda tr: gps2dist_azimuth(VOLC_COORDS[0], VOLC_COORDS[1], tr.stats.latitude, tr.stats.longitude)[0])
 
 # Run VOISS-Net
-class_mat, prob_mat = check_timeline(stream_sort,
+class_mat, prob_mat = check_timeline(stream,
                                      STARTTIME,
                                      ENDTIME,
                                      MODEL_PATH,
@@ -62,7 +63,8 @@ class_mat, prob_mat = check_timeline(stream_sort,
                                      pnorm_thresh=PNORM_THRESH,
                                      generate_fig=GENERATE_FIG,
                                      fig_width=FIG_WIDTH,
-                                     fig_height=FIG_HEIGHT, font_s=FONT_S,
+                                     fig_height=FIG_HEIGHT,
+                                     font_s=FONT_S,
                                      spec_kwargs=SPEC_KWARGS,
                                      dr_kwargs=DR_KWARGS,
                                      export_path=EXPORT_PATH,
