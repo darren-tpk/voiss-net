@@ -1173,17 +1173,14 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
         print('Done!')
     return class_mat, prob_mat
 
-def check_timeline_binned(source, network, station, spec_station, channel, location, starttime, endtime, model_path,
-                          meanvar_path, overlap, pnorm_thresh, binning_interval, xtick_interval, xtick_format,
-                          spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None, n_jobs=1):
+
+def check_timeline_binned(stream, spec_station, starttime, endtime, model_path, meanvar_path, overlap, pnorm_thresh,
+                          binning_interval,
+                          xtick_interval, xtick_format, spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None):
     """
-    This function checks the voted VOISS-Net timeline using given stations and plots a selected spectrogram alongside results in a binned format.
-    :param source (str): Which source to gather waveforms from (e.g. IRIS)
-    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
-    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
+    Runs VOISS-Net on an input stream and plots a selected spectrogram alongside VOISS-Net "VOTE" results in a binned format.
+    :param stream (:class:`~obspy.core.stream.Stream`): Input data, with response attached
     :param spec_station (str): SEED station code of the station for which the spectrogram will be plotted
-    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
-    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
     :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
     :param model_path (str): Path to model .keras file
@@ -1196,54 +1193,46 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     :param figsize (tuple): figure size
     :param font_s (float): Font size [points]
     :param export_path (str): (str or `None`): If str, export plotted figures as '.png' files, named by the trace id and time. If `None`, show figure in interactive python.
-    :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     :return: None
     """
 
     rcParams['font.size'] = font_s
 
-    # Define fixed values
-    saved_model = load_model(model_path)
-    model_input_length = saved_model.input_shape[2]
-    classification_interval = int(np.round(model_input_length * (1 - overlap)))
+    # Check if starttime and endtime are within the time bounds of the input stream
+    if len(stream) == 0:
+        raise ValueError("Input stream is empty.")
+    stream_start = np.min([trace.stats.starttime for trace in stream])
+    stream_end = np.max([trace.stats.endtime for trace in stream])
 
-    # Enforce the duration to be a multiple of the model's time step
-    if (endtime - starttime - model_input_length) % classification_interval != 0:
-        print('The desired analysis duration is not a multiple of the inbuilt time step.')
-        endtime = endtime + (
-                    classification_interval - (endtime - starttime - model_input_length) % classification_interval)
-        print('Rounding up endtime to %s.' % str(endtime))
+    # Check if starttime and endtime are within the time bounds of the input stream
+    if not ((starttime < endtime) and (starttime >= stream_start) and (endtime <= stream_end)):
+        raise ValueError("Input starttime and endtime must be within the input stream's time bounds.")
+
+    # Raise warning in case of exact match, that spectrogram edge effects might influence classification
+    if (abs(starttime - stream_start) < 240) or (abs(endtime == stream_end) < 240):
+        warnings.warn(
+            "Starttime or endtime are close to the stream bounds. Spectrogram edge effects may influence classification.",
+            UserWarning)
+
+    # Extract station list and define fixed values
+    stations = [trace.stats.station for trace in stream]
+    saved_model = load_model(model_path)
+    interval = saved_model.input_shape[2]
+    time_step = int(np.round(interval * (1 - overlap)))
 
     # Parse spec_kwargs
     spec_kwargs = {} if spec_kwargs is None else spec_kwargs
-    pad = spec_kwargs['pad'] if 'pad' in spec_kwargs else 360
-    window_duration = spec_kwargs['window_duration'] if 'window_duration' in \
-                                                        spec_kwargs else 10
-    freq_lims = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else \
-        (0.5, 10)
-    v_percent_lims = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in \
-                                                      spec_kwargs else (20, 97.5)
+    window_duration = spec_kwargs['window_duration'] if 'window_duration' in spec_kwargs else 10
+    freq_lims = spec_kwargs['freq_lims'] if 'freq_lims' in spec_kwargs else (0.5, 10)
+    v_percent_lims = spec_kwargs['v_percent_lims'] if 'v_percent_lims' in spec_kwargs else (20, 97.5)
 
-    # Load data of spec station for spectrogram
-    successfully_loaded = False
-    load_starttime = time.time()
-    while not successfully_loaded:
-        try:
-            stream_raw = gather_waveforms(source=source, network=network, station=spec_station,
-                                          location=location, channel=channel,
-                                          starttime=starttime - pad, endtime=endtime + pad,
-                                          verbose=False, n_jobs=n_jobs)
-            stream = process_waveform(stream_raw.copy(), remove_response=True, detrend=False,
-                                      taper_length=pad, verbose=False)
-            successfully_loaded = True
-        except:
-            print('Data pull failed, trying again in 10 seconds...')
-            time.sleep(10)
-            load_currenttime = time.time()
-            if load_currenttime - load_starttime < 60:
-                pass
-            else:
-                raise Exception('Data pull timeout for starttime=%s, endtime=%s' % (str(starttime), str(endtime)))
+    # Taper data and remove response. Set aside data for spectrogram plot.
+    duration_allowance = np.min([abs(starttime - stream_start), abs(endtime - stream_end)])
+    taper_length = np.max([int(duration_allowance / 2 / window_duration) * window_duration, window_duration])
+    # NOTE: for 1:1 compatability with version 1's check_timline, use pad=360
+    stream_processed = process_waveform(stream.copy(), remove_response=True, detrend=False,
+                                        taper_length=taper_length, verbose=False)
+    stream_spec = stream_processed.select(station=spec_station)
 
     # If stream sampling rate is not an integer, fix
     for tr in stream:
@@ -1251,12 +1240,18 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
             tr.stats.sampling_rate = np.round(tr.stats.sampling_rate)
 
     # Determine if infrasound
-    infrasound = True if channel[-1] == 'F' else False
+    infrasound = True if stream[0].stats.channel[-1] == 'F' else False
     reference_value = 20 * 10 ** -6 if infrasound else 1  # Pa for infrasound, m/s for seismic
     spec_thresh = 0 if infrasound else -220  # Power value indicative of gap
 
+    # Enforce the duration to be a multiple of the model's time step
+    if (endtime - starttime - interval) % time_step != 0:
+        print('The desired analysis duration is not a multiple of the inbuilt time step.')
+        endtime = endtime - (endtime - starttime - interval) % time_step
+        print('Rounding down endtime to %s.' % str(endtime))
+
     # Extract trace information for FFT
-    trace = stream[0]
+    trace = stream_spec[0]
     sampling_rate = trace.stats.sampling_rate
     samples_per_segment = int(window_duration * sampling_rate)
 
@@ -1278,9 +1273,8 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     spec_db_plot = spec_db[np.flatnonzero((sample_frequencies > freq_lims[0]) & (sample_frequencies < freq_lims[1])), :]
 
     # Obtain class mat for binned timeline
-    class_mat, _ = check_timeline(source, network, station, channel, location, starttime, endtime, model_path,
-                                  meanvar_path, overlap, pnorm_thresh=pnorm_thresh, spec_kwargs=spec_kwargs,
-                                  generate_fig=False)
+    class_mat, _ = check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap,
+                                  pnorm_thresh=pnorm_thresh, spec_kwargs=spec_kwargs, generate_fig=False)
 
     # Define time ticks on x-axis
     if xtick_interval != 'month':
@@ -1303,29 +1297,29 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
     timeline_input = class_mat[-1, :]
 
     # Check if binning interval divides perfectly by classification interval
-    if binning_interval % classification_interval != 0:
-        raise ValueError('binning_interval (%.1f s) must divide perfectly by classification_interval (%.1f s).' % (
-            binning_interval, classification_interval))
+    if binning_interval % time_step != 0:
+        raise ValueError('binning_interval (%.1f s) must divide perfectly by time_step (%.1f s).' % (
+            binning_interval, time_step))
 
     # Determine number of classes from model
     nclasses = saved_model.layers[-1].get_config()['units']
 
     # Check dimensions and pad voted timeline
-    required_shape = (int((endtime - starttime - model_input_length) / classification_interval + 1),)
+    required_shape = (int((endtime - starttime - interval) / time_step + 1),)
     if np.shape(timeline_input) != required_shape:
         raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
     voted_timeline = np.concatenate(
-        (nclasses * np.ones(int(model_input_length / 2 / classification_interval), ), timeline_input,
-         nclasses * np.ones(int(model_input_length / 2 / classification_interval - 1), )))
+        (nclasses * np.ones(int(interval / 2 / time_step), ), timeline_input,
+         nclasses * np.ones(int(interval / 2 / time_step - 1), )))
 
     # Count classes per bin
     num_bins = int((endtime - starttime) / binning_interval)
-    num_classification_intervals_per_bin = int(binning_interval / classification_interval)
+    num_time_steps_per_bin = int(binning_interval / time_step)
     count_array = np.zeros((num_bins, nclasses + 1))
-    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_classification_intervals_per_bin))
+    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_time_steps_per_bin))
     for i in range(nclasses + 1):
         count_array[:, i] = np.sum(voted_timeline_reshaped == i, axis=1)
-    count_array[:, nclasses] = num_classification_intervals_per_bin
+    count_array[:, nclasses] = num_time_steps_per_bin
 
     # Prepare dummy matrix plot and calculate alpha value
     matrix_plot = np.ones((nclasses, num_bins))
@@ -1387,7 +1381,7 @@ def check_timeline_binned(source, network, station, spec_station, channel, locat
         np.array(xtick_pcts) * (endtime.matplotlib_date - starttime.matplotlib_date) + starttime.matplotlib_date)
     ax0.set_xticklabels([])
     ax0.tick_params(axis='y', labelsize=font_s)
-    plot_title = 'VOISS-Net results using %s' % station
+    plot_title = 'VOISS-Net results using %s' % ','.join(stations)
     plot_title_split = plot_title.split(spec_station)
     ax0.set_title(plot_title_split[0] + r"$\bf{" + spec_station + "}$" + plot_title_split[1], fontsize=font_s + 2)
 
