@@ -1175,8 +1175,8 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
 
 
 def check_timeline_binned(stream, spec_station, starttime, endtime, model_path, meanvar_path, overlap, pnorm_thresh,
-                          binning_interval,
-                          xtick_interval, xtick_format, spec_kwargs=None, figsize=(10, 4), font_s=12, export_path=None):
+                          binning_interval, xtick_interval, xtick_format, spec_kwargs=None, figsize=(10, 4), font_s=12,
+                          export_path=None):
     """
     Runs VOISS-Net on an input stream and plots a selected spectrogram alongside VOISS-Net "VOTE" results in a binned format.
     :param stream (:class:`~obspy.core.stream.Stream`): Input data, with response attached
