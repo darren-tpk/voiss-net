@@ -1890,16 +1890,16 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
 
     # Determine classification interval using model file and overlap
     saved_model = load_model(model_path)
-    model_input_length = saved_model.input_shape[2]
-    classification_interval = model_input_length * (1-overlap)
+    interval = saved_model.input_shape[2]
+    time_step = interval * (1-overlap)
 
     saved_model = load_model(model_path)
-    if abs(classification_interval - int(classification_interval)) < 1e-6:
-        classification_interval = int(classification_interval)
+    if abs(time_step - int(time_step)) < 1e-6:
+        time_step = int(time_step)
 
     # Check if binning interval divides perfectly by classification interval
-    if binning_interval % classification_interval != 0:
-        raise ValueError('binning_interval (%.1f s) must divide perfectly by classification_interval (%.1f s).' % (binning_interval, classification_interval))
+    if binning_interval % time_step != 0:
+        raise ValueError('binning_interval (%.1f s) must divide perfectly by time_step (%.1f s).' % (binning_interval, time_step))
 
     # Determine number of classes from model
     nclasses = saved_model.layers[-1].get_config()['units']
@@ -1912,7 +1912,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
         indicators = [indicator for indicator in indicators if (starttime <= indicator[1] < endtime)]
 
         # Populate matrix to derive voted timeline
-        classification_steps = np.arange(starttime, endtime + 1, classification_interval)
+        classification_steps = np.arange(starttime, endtime + 1, time_step)
         matrix_length = len(classification_steps) - 1
         stations = list(np.unique([indicator[0] for indicator in indicators]))
         matrix_height = len(stations)
@@ -1921,7 +1921,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
         for indicator in indicators:
             utc = indicator[1]
             row_index = stations.index(indicator[0])
-            col_index = int((indicator[1] - starttime) / classification_interval)
+            col_index = int((indicator[1] - starttime) / time_step)
             matrix_plot[row_index, col_index] = indicator[2]
             matrix_probs[row_index, col_index, :] = indicator[3]
 
@@ -1932,20 +1932,20 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
         voted_timeline[matrix_probs_contributing_station_count == 0] = nclasses
 
         # # Corresponding time array
-        # voted_utctimes = np.arange(starttime, endtime, classification_interval)
+        # voted_utctimes = np.arange(starttime, endtime, time_step)
 
     # If the timeline_input is an array, check shape and assign to voted timeline
     elif type(timeline_input) == np.ndarray:
 
         # Check dimensions
-        required_shape = (int((endtime - starttime - model_input_length) / classification_interval + 1),)
+        required_shape = (int((endtime - starttime - interval) / time_step + 1),)
         if np.shape(timeline_input) != required_shape:
             raise ValueError('The input array does not have the required dimensions (%d,)' % required_shape[0])
-        voted_timeline = np.concatenate((nclasses*np.ones(int(model_input_length/2/classification_interval),), timeline_input,
-                                         nclasses*np.ones(int(model_input_length/2/classification_interval-1),)))
+        voted_timeline = np.concatenate((nclasses*np.ones(int(interval/2/time_step),), timeline_input,
+                                         nclasses*np.ones(int(interval/2/time_step-1),)))
 
         # # Corresponding time array
-        # voted_utctimes = np.arange(starttime + model_input_length/2, endtime - model_input_length/2 + 1, classification_interval)
+        # voted_utctimes = np.arange(starttime + interval/2, endtime - interval/2 + 1, time_step)
 
     # If the input is invalid, raise error
     else:
@@ -1953,12 +1953,12 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
 
     # Count classes per bin
     num_bins = int((endtime-starttime) / binning_interval)
-    num_classification_intervals_per_bin = int(binning_interval / classification_interval)
+    num_time_steps_per_bin = int(binning_interval / time_step)
     count_array = np.zeros((num_bins, nclasses + 1))
-    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_classification_intervals_per_bin))
+    voted_timeline_reshaped = np.reshape(voted_timeline, (num_bins, num_time_steps_per_bin))
     for i in range(nclasses + 1):
         count_array[:, i] = np.sum(voted_timeline_reshaped == i, axis=1)
-    count_array[:, nclasses] = num_classification_intervals_per_bin
+    count_array[:, nclasses] = num_time_steps_per_bin
 
     # Prepare dummy matrix plot and calculate alpha value
     matrix_plot = np.ones((nclasses, num_bins))
