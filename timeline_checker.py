@@ -2,7 +2,7 @@
 from obspy import UTCDateTime, Stream
 from obspy.geodetics import gps2dist_azimuth
 from waveform_collection import gather_waveforms
-from toolbox import check_timeline, sort_sta_distance
+from toolbox import check_timeline
 
 # Define variables for data pull
 SOURCE = "IRIS"

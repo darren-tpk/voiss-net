@@ -2,7 +2,7 @@
 from obspy import UTCDateTime, Stream, read_inventory
 from obspy.geodetics import gps2dist_azimuth
 from waveform_collection import read_local
-from toolbox import check_timeline, sort_sta_distance, download_data
+from toolbox import check_timeline, download_data
 
 # Define variables for data download & reading local miniseeds
 SOURCE = "IRIS"
