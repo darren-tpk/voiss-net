@@ -585,7 +585,9 @@ def calculate_spectrogram(trace,starttime,endtime,window_duration,freq_lims,over
 
     return spec_db, utc_times
 
-def check_timeline(stream,starttime,endtime,model_path,meanvar_path,overlap,pnorm_thresh=None,generate_fig=True,fig_width=32,fig_height=None,font_s=22,spec_kwargs=None,dr_kwargs=None,fi_kwargs=None,export_path=None,transparent=False):
+def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap, pnorm_thresh=None, generate_fig=True,
+                   fig_width=32, fig_height=None, font_s=22, spec_kwargs=None, dr_kwargs=None, fi_kwargs=None,
+                   export_path=None, transparent=False):
 
     """
     Calculates spectrograms from an input stream and runs it through a VOISS-Net model to predict the timeline of classes.
@@ -611,13 +613,11 @@ def check_timeline(stream,starttime,endtime,model_path,meanvar_path,overlap,pnor
 
     rcParams['font.size'] = font_s
 
-    # Check if starttime and endtime are within the time bounds of the input stream
+    # Check input stream and if starttime and endtime are within the time bounds of the input stream
     if len(stream) == 0:
         raise ValueError("Input stream is empty.")
     stream_start = np.min([trace.stats.starttime for trace in stream])
     stream_end = np.max([trace.stats.endtime for trace in stream])
-
-    # Check if starttime and endtime are within the time bounds of the input stream
     if not ((starttime < endtime) and (starttime >= stream_start) and (endtime <= stream_end)):
         raise ValueError("Input starttime and endtime must be within the input stream's time bounds.")
 
@@ -838,8 +838,9 @@ def check_timeline(stream,starttime,endtime,model_path,meanvar_path,overlap,pnor
 
     # Define plotting parameters based on reduced displacement kwargs
     header_panels = 3 if any([dr_kwargs, fi_kwargs]) else 2
-    top_space = 0.905 if any([dr_kwargs, fi_kwargs]) else 0.89
+    top_space = (0.905 if any([dr_kwargs, fi_kwargs]) else 0.89) if len(stations) < 10 else None
 
+    # Define line width and label size
     LW = 0.75
     LW_LABEL = 2
 
@@ -847,6 +848,7 @@ def check_timeline(stream,starttime,endtime,model_path,meanvar_path,overlap,pnor
     fig_height = fig_height if fig_height else (fig_width * .75)
     fig = plt.figure(figsize=(fig_width, fig_height))
     height_ratios = np.ones(len(stations) + header_panels)
+    height_ratios[0] = 0.175 * len(stations)
     height_ratios[1:header_panels] = 0.5
     gs_top = plt.GridSpec(len(stations) + header_panels, 2, top=top_space,
                           height_ratios=height_ratios, width_ratios=[35, 1],
