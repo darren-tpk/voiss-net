@@ -17,7 +17,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from matplotlib import dates, rcParams
 from matplotlib.transforms import Bbox
 from matplotlib.colors import ListedColormap
-from obspy import UTCDateTime, Stream, Trace, Inventory
+from obspy import UTCDateTime, Stream, Trace, Inventory, read_inventory
 from obspy.clients.fdsn import Client as FDSN_Client
 from obspy.clients.fdsn.header import FDSNNoDataException
 from ordpy import complexity_entropy
@@ -1411,17 +1411,42 @@ def check_timeline_binned(stream, spec_station, starttime, endtime, model_path, 
         fig.show()
 
 
-def generate_timeline_indicators(source,network,station,channel,location,starttime,endtime,processing_step,model_path,meanvar_path,overlap,spec_kwargs=None,export_path=None,n_jobs=1):
+def generate_timeline_indicators(data_keys: dict, starttime, endtime, processing_step, model_path, meanvar_path,
+                                 overlap, spec_kwargs=None, export_path=None, n_jobs=1):
 
     """
-    Pulls data or leverage npy directory to generate list of timeline indicators
-    :param source (str): Which source to gather waveforms from (e.g. IRIS)
-    :param network (str): SEED network code [wildcards (``*``, ``?``) accepted]
-    :param station (str): SEED station code or comma separated station codes [wildcards NOT accepted]
-    :param channel (str): SEED location code [wildcards (``*``, ``?``) accepted]
-    :param location (str): SEED channel code [wildcards (``*``, ``?``) accepted]
-    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data request
-    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data request
+    Pulls data from an online repository or loads it from a local miniSEED directory
+    to generate a list of timeline indicators.
+
+    :param data_keys (dict):
+        Defines how and where to obtain waveform data.
+        Keys are passed into `waveform_collection`'s `gather_waveforms` or `read_local` functions.
+
+        For EarthScope/IRIS data pulls:
+            {
+                "source" (str): Data source (e.g., "IRIS")
+                "network" (str): SEED network code [wildcards (*, ?) accepted]
+                "station" (str): SEED station code or comma-separated list [wildcards accepted]
+                "channel" (str): SEED channel code [wildcards (*, ?) accepted]
+                "location" (str): SEED location code [wildcards (*, ?) accepted]
+            }
+
+        For local miniSEED directory pulls:
+            {
+                "data_dir" (str): Directory containing miniSEED files
+                "metadata_file" (str): Full path to xml file containing station metadata
+                "coord_file" (str): Full path to JSON file containing station coordinates
+                "network" (str): SEED network code [wildcards (*, ?) accepted]
+                "station" (str): SEED station code or comma-separated list [wildcards accepted]
+                "channel" (str): SEED channel code [wildcards (*, ?) accepted]
+                "location" (str): SEED location code [wildcards (*, ?) accepted]
+                "pattern" (str, optional): miniSEED filename pattern.
+                    Valid keys: ``net``, ``sta``, ``loc``, ``cha``, ``year``, ``jday``, ``hour``.
+                    If `None`, defaults to "{net}.{sta}.{loc}.{cha}.{year}.{jday}.{hour}"
+            }
+
+    :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for data analysis
+    :param endtime (:class:`~obspy.core.utcdatetime.UTCDateTime`): End time for data analysis
     :param processing_step (int): Time step used for data pull and processing, in seconds.
     :param model_path (str): Path to model .keras file
     :param meanvar_path (str): Path to model's meanvar .npy file. If `None`, no meanvar standardization will be applied.
@@ -1430,6 +1455,29 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
     :param export_path (str): (str or `None`): If str, export indicators in a .pkl with the full filepath export_path + 'indicators.pkl'
     :param n_jobs (int): Number of CPUs used for data retrieval in parallel. If n_jobs = -1, all CPUs are used. If n_jobs < -1, (n_cpus + 1 + n_jobs) are used. Default is 1 (a single processor).
     """
+
+    # Check if data source is from Client or from a miniseed directory, then define all the corresponding variables
+    if "source" in data_keys:
+        print("Data keys indicate data pull from Client. Commencing...\n")
+        local = False
+        source = data_keys["source"]
+        network = data_keys["network"]
+        station = data_keys["station"]
+        channel = data_keys["channel"]
+        location = data_keys["location"]
+    elif all(k in data_keys for k in ("data_dir", "coord_file")):
+        print("Data keys indicate data load from miniseed directory. Commencing...\n")
+        local = True
+        data_dir = data_keys["data_dir"]
+        metadata_file = data_keys["metadata_file"]
+        coord_file = data_keys["coord_file"]
+        network = data_keys["network"]
+        station = data_keys["station"]
+        channel = data_keys["channel"]
+        location = data_keys["location"]
+        pattern = data_keys["pattern"] if "pattern" in data_keys else "{net}.{sta}.{loc}.{cha}.{year}.{jday}.{hour}"
+    else:
+        raise ValueError("waveform_source must contain either 'source' or both 'data_dir' and 'coord_file'.")
 
     # Enforce the duration to be a multiple of the desired time step
     if (endtime - starttime) % processing_step != 0:
@@ -1480,30 +1528,35 @@ def generate_timeline_indicators(source,network,station,channel,location,startti
         print('Now at %s, time elapsed: %.2f hours' %
               ((t1+interval/2).strftime('%Y-%m-%dT%H:%M:%S'),(time.time()-process_tstart)/3600))
 
-        # Load data, remove response, and re-order
-        successfully_loaded = False
-        load_starttime = time.time()
-        while not successfully_loaded:
-            try:
-                stream = gather_waveforms(source=source, network=network, station=station,
-                                          location=location, channel=channel,
-                                          starttime=t1 - pad, endtime=t2 + pad,
-                                          verbose=False, n_jobs=n_jobs)
-                stream = process_waveform(stream, remove_response=True, detrend=False,
-                                          taper_length=pad, verbose=False)
-                successfully_loaded = True
-            except:
-                print('Data pull failed, trying again in 10 seconds...')
-                time.sleep(10)
-                load_currenttime = time.time()
-                if load_currenttime-load_starttime < 180:
-                    pass
-                else:
-                    raise Exception('Data pull timeout for t1=%s, t2=%s' % (str(t1),str(t2)))
-        stream_default_order = [tr.stats.station for tr in stream]
-        desired_index_order = [stream_default_order.index(stn) for stn in
-                               station.split(',') if stn in stream_default_order]
-        stream = Stream([stream[i] for i in desired_index_order])
+        # Pull data from Client
+        if not local:
+
+            # Set up while loop in case query fails
+            successfully_loaded = False
+            load_starttime = time.time()
+            while not successfully_loaded:
+                try:
+                    stream = gather_waveforms(source=source, network=network, station=station, location=location,
+                                              channel=channel, starttime=t1 - pad, endtime=t2 + pad, verbose=False,
+                                              n_jobs=n_jobs)
+                    successfully_loaded = True
+                except:
+                    print('Data pull failed, trying again in 10 seconds...')
+                    time.sleep(10)
+                    load_currenttime = time.time()
+                    if load_currenttime-load_starttime < 180:
+                        pass
+                    else:
+                        raise Exception('Data pull timeout for t1=%s, t2=%s' % (str(t1),str(t2)))
+
+        # Otherwise, load data from local miniseed directory
+        else:
+
+            stream = read_local(data_dir=data_dir, coord_file=coord_file, network=network, station=station,
+                                location=location, channel=channel, starttime=t1 - pad, endtime=t2 + pad,
+                                pattern=pattern)
+            inventory = read_inventory(metadata_file)
+            stream.attach_response(inventory)
 
         # If stream sampling rate is not an integer, fix
         for tr in stream:
