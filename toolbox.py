@@ -1811,7 +1811,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     for y in range(0, matrix_height, nsubrows):
         ax.axhline(y=y, color='black')
         for i, station in enumerate(stations):
-            ax.text(100, y + i + 1, station, fontsize=font_s-7)
+            ax.text(1, y + i + 1, station, fontsize=font_s-7)
     if plot_labels:
         ax.plot([labeled_start_index, matrix_length], [labeled_start_row * nsubrows, labeled_start_row * nsubrows],
                 'k-', linewidth=LW_LABEL)
