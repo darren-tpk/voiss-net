@@ -759,7 +759,7 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
     voted_labels[matrix_contributing_station_count==0] = na_label
     voted_probabilities = np.max(matrix_probs_sum, axis=1) / matrix_contributing_station_count  # normalize by number of stations
 
-    # remove low probability votes
+    # Remove low probability votes
     if pnorm_thresh:
         print(f'Removing low probability classifications (Pnorm < {pnorm_thresh})'
               f' from voting scheme.')
@@ -1634,7 +1634,7 @@ def generate_timeline_indicators(data_keys: dict, starttime, endtime, processing
         else:
             continue
 
-def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, plot_title,
+def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_path, pnorm_thresh=None, plot_title="",
                   export_path=None, transparent=False, fig_width=None, fig_height=None, font_s=18,
                   plot_stations=None, plot_labels=False, labels_kwargs=None):
     """
@@ -1645,6 +1645,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     :param type (str): defined as either 'seismic' or 'infrasound' to determine color palette
     :param model_path (str): path to model .keras file
     :param indicators_path (str): path to pkl file that stores timeline indicators for plotting
+    :param pnorm_thresh (float): threshold for network-averaged probability cutoff. If `None` [default], no threshold is applied
     :param plot_title (str): plot title to use
     :param export_path (str): filepath to export figures (condensed plot will tag "_condensed" to filename)
     :param transparent (bool): if `True`, export figures with transparent background
@@ -1689,9 +1690,6 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     saved_model = load_model(model_path)
     nclasses = saved_model.layers[-1].get_config()['units']
     na_label = nclasses
-
-    # Define fixed params
-    TICK_DAYS = [0, 7, 14, 28]
 
     # Craft unlabeled matrix and store probabilities
     matrix_length = int(31 * (86400 / time_step))
@@ -1850,6 +1848,10 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         matrix_condensed[i, :][sub_probs_contributing_station_count == 0] = na_label
         matrix_pnorm[i, :] = np.max(sub_probs_sum, axis=1) / sub_probs_contributing_station_count
 
+        # If pnorm threshold is defined, filter voted timeline
+        if pnorm_thresh:
+            matrix_condensed[matrix_pnorm < pnorm_thresh] = na_label
+
         # Use majority voting to condense manual labels
         if plot_labels:
             for j in range(matrix_length):
@@ -1903,7 +1905,7 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
         fig.show()
     print('Done!')
 
-def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,binning_interval,xtick_interval,xtick_format,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
+def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,pnorm_thresh,binning_interval,xtick_interval,xtick_format,cumsum_panel=False,cumsum_style='normalized',cumsum_legend=True,plot_title=None,figsize=(10,4.5),fs=12,export_path=None):
     """
     Plot flattened timeline figure, separated by class and using user-specified times.
     :param starttime (:class:`~obspy.core.utcdatetime.UTCDateTime`): Start time for timeline
@@ -1911,6 +1913,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
     :param model_path (str): path to model .keras file
     :param overlap (float): Percentage/ratio of overlap for successive spectrogram slices used to generate timeline_input
     :param timeline_input (ndarray or str): input array or path to indicators.pkl
+    :param pnorm_thresh (float): threshold for network-averaged probability cutoff
     :param binning_interval (float): interval to bin results into occurence ratios, in seconds
     :param xtick_interval (float or str): tick interval to label x-axis, in seconds, or 'month' to use month ticks
     :param xtick_format (str): UTCDateTime-compatible strftime for xtick format
@@ -1978,17 +1981,21 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,bin
             matrix_plot[row_index, col_index] = indicator[2]
             matrix_probs[row_index, col_index, :] = indicator[3]
 
-        # Derive voted timeline
+        # Derive voted timeline, and filter by pnorm_thresh
         matrix_probs_sum = np.sum(matrix_probs, axis=0)
         matrix_probs_contributing_station_count = np.sum(np.sum(matrix_probs, axis=2) != 0, axis=0)
         voted_timeline = np.argmax(matrix_probs_sum, axis=1)
         voted_timeline[matrix_probs_contributing_station_count == 0] = nclasses
+        voted_pnorm = np.max(matrix_probs_sum, axis=1) / matrix_probs_contributing_station_count
+        voted_timeline[voted_pnorm < pnorm_thresh] = nclasses
 
         # # Corresponding time array
         # voted_utctimes = np.arange(starttime, endtime, time_step)
 
     # If the timeline_input is an array, check shape and assign to voted timeline
     elif type(timeline_input) == np.ndarray:
+
+        print('Using input numpy array -- pnorm_thresh is not used as no probability information is available.')
 
         # Check dimensions
         required_shape = (int((endtime - starttime - interval) / time_step + 1),)
