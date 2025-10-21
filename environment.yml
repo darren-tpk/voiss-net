@@ -19,4 +19,4 @@ dependencies:
   - pip:
       - label-studio
       - ordpy
-      - git+https://github.com/uafgeotools/waveform_collection.git
+      - git+https://github.com/uafgeotools/waveform_collection.git@read_local_update
