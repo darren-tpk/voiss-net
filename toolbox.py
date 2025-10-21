@@ -1833,6 +1833,8 @@ def plot_timeline(starttime, endtime, time_step, type, model_path, indicators_pa
     else:
         fig.show()
 
+    print("Timeline plotted. Now condensing timeline using pnorm and filtering by pnorm threshold if defined.")
+
     # Condense timeline figure using probability sum and majority voting
     matrix_condensed = np.ones((nmonths, matrix_length)) * na_label
     matrix_pnorm = np.zeros((nmonths, matrix_length))
@@ -1927,6 +1929,8 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,pno
     :return: None
     """
 
+    print('Plotting binned timeline...')
+
     # Define time ticks on x-axis
     if xtick_interval != 'month':
         xtick_utcdatetimes = np.arange(starttime, endtime + 1, xtick_interval)
@@ -1962,6 +1966,8 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,pno
 
     # If the timeline_input is a pickle file, configure voted timeline
     if isinstance(timeline_input, str) and timeline_input[-4:] == '.pkl':
+
+        print('Using input pickle file -- populating timeline and filtering by pnorm threshold.')
 
         # Filter indicators by time
         indicators = pd.read_pickle(timeline_input)
@@ -2108,6 +2114,7 @@ def plot_timeline_binned(starttime,endtime,model_path,overlap,timeline_input,pno
         plt.savefig(export_path, bbox_inches='tight')
     else:
         fig.show()
+    print('Done!')
 
 def indicators_to_voted_dataframe(starttime, endtime, time_step, indicators_path, class_order=None, export_path=None):
     """
