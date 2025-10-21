@@ -12,14 +12,14 @@ LOCATION = ""
 CHANNEL = "BHZ"
 STARTTIME = UTCDateTime(2021, 7, 27, 7, 30)
 ENDTIME = STARTTIME + 3*3600
-DATA_DIR = './miniseed/'
-METADATA_FILEPATH = './miniseed/metadata.xml'
-COORD_FILEPATH = './miniseed/coords.json'
+DATA_DIR = "./miniseed/"
+METADATA_FILEPATH = "./miniseed/metadata.xml"
+COORD_FILEPATH = "./miniseed/coords.json"
 N_JOBS = 1  # number of parallel jobs for data pull, can be -1 for all cores
 
 # Additional variables for reading local miniseeds
 PAD = 360
-PATTERN = '{net}.{sta}.{loc}.{cha}.{year}.{jday}.{hour}.mseed'
+PATTERN = "{net}.{sta}.{loc}.{cha}.{year}.{jday}.{hour}.mseed"
 
 # Define variables for check_timeline function
 OVERLAP = 0.5  # 1 min time step for 1 min interval
@@ -35,7 +35,7 @@ EXPORT_PATH = None
 TRANSPARENT = None
 
 # Set up the DR kwargs, can leave as None if not using DR
-DR_STATION = STATION.split(',')[0]
+DR_STATION = STATION.split(",")[0]
 VOLC_COORDS = (51.926630, 179.591230)
 DR_KWARGS = {"reference_station": DR_STATION,   # station code
              "filter_band": (1, 10),            # Hz
