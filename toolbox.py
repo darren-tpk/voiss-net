@@ -218,7 +218,7 @@ def plot_spectrogram(stream,starttime,endtime,window_duration,freq_lims,log=Fals
 
             # Process waveform trace
             trace_wavefilt = process_waveform(trace.copy(),
-                                              remove_response=False,
+                                              remove_response=True,
                                               detrend=False,
                                               taper_length=None,
                                               taper_percentage=5,
@@ -389,7 +389,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
     """
 
     # Initialize figure based on length of input stream
-    figsize = (32, 4 * len(stream))
+    figsize = (16, 4 * len(stream))
     fig, axs = plt.subplots(len(stream), 1, figsize=figsize)
     fig.subplots_adjust(hspace=0)
 
@@ -515,7 +515,7 @@ def plot_spectrogram_multi(stream,starttime,endtime,window_duration,freq_lims,lo
         label.set_ha('right')
         label.set_rotation_mode('anchor')
 
-    bottom_ax.set_xlabel('UTC1 Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
+    bottom_ax.set_xlabel('UTC Time on ' + starttime.date.strftime('%b %d, %Y'), fontsize=25)
     if export_path is None:
         fig.show()
     else:
