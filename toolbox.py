@@ -20,6 +20,7 @@ from matplotlib.colors import ListedColormap
 from obspy import UTCDateTime, Stream, Trace, Inventory, read_inventory
 from obspy.clients.fdsn import Client as FDSN_Client
 from obspy.clients.fdsn.header import FDSNNoDataException
+from obspy.geodetics import gps2dist_azimuth
 from ordpy import complexity_entropy
 from scipy.signal import spectrogram, find_peaks, medfilt
 from scipy.fft import rfft, rfftfreq
@@ -1091,10 +1092,21 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
                                   vmax=np.percentile(spec_db_plot[spec_db_plot > spec_thresh], v_percent_lims[1]),
                                   origin='lower', aspect='auto', interpolation='None', cmap=cc.cm.rainbow)
 
+            # If volc_lat and volc_lon are provided in dr_kwargs or fi_kwargs, add source-station distance to y-label.
+            if dr_kwargs and 'volc_lat' in dr_kwargs:
+                volc_lat, volc_lon = dr_kwargs['volc_lat'], dr_kwargs['volc_lon']
+            elif fi_kwargs and 'volc_lat' in fi_kwargs:
+                volc_lat, volc_lon = fi_kwargs['volc_lat'], fi_kwargs['volc_lon']
+            else:
+                volc_lat = volc_lon = None
+
             # Label y-axis with trace information
-            station_label = station + '\n' + stream_processed[stations.index(station)].stats.channel
-            axs[axs_index].set_ylabel(station_label, fontsize=font_s, fontweight='bold')
-            # axs[axs_index].set_ylabel(stream_processed[stations.index(station)].id, fontsize=font_s, fontweight='bold')
+            if volc_lat:
+                source_station_dist_km = gps2dist_azimuth(volc_lat, volc_lon, trace.stats.latitude, trace.stats.longitude)[0] / 1000
+                label = f"{trace.stats.station}\n{source_station_dist_km:.1f} km"
+            else:
+                label = f"{trace.stats.station}\n{trace.stats.channel}"
+            axs[axs_index].set_ylabel(label, fontsize=font_s, fontweight='bold')
 
         else:
             # If corresponding trace does not exist, label station as 'No Data'
