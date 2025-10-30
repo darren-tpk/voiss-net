@@ -29,7 +29,7 @@ EXPORT_PATH = None
 TRANSPARENT = None
 
 # [Reduced Displacement] Set up the DR kwargs, can leave as None if not using DR
-DR_STATION = STATION.split(',')[0]
+DR_STATION = STATION.split(",")[0]
 VOLC_COORDS = (51.926630, 179.591230)
 DR_KWARGS = {"reference_station": DR_STATION,   # station code
              "filter_band": (1, 10),            # Hz
