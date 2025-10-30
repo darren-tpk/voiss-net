@@ -922,8 +922,8 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
             rms_disp = np.array([np.sqrt(np.mean(np.square(tr_disp_segment))) for tr_disp_segment in tr_disp_segments])
             station_dist = GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
                               (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m
-            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
-            dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            wavelength = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr = rms_disp * np.sqrt(station_dist) * np.sqrt(wavelength) * 100 * 100  # cm^2
             if 'med_filt_kernel' in dr_kwargs:
                 dr = medfilt(dr, dr_kwargs['med_filt_kernel'])
 
@@ -957,8 +957,8 @@ def check_timeline(stream, starttime, endtime, model_path, meanvar_path, overlap
                             for station_segments in st_disp_segments]
             station_dists = [GD((tr_disp.stats.latitude, tr_disp.stats.longitude),
                                 (dr_kwargs['volc_lat'], dr_kwargs['volc_lon'])).m for tr_disp in st_disp_trimmed]
-            wavenumber = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
-            dr_all = [[rms_disp * np.sqrt(station_dists[i]) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            wavelength = dr_kwargs['seis_vel'] / dr_kwargs['dominant_freq']
+            dr_all = [[rms_disp * np.sqrt(station_dists[i]) * np.sqrt(wavelength) * 100 * 100  # cm^2
                        for rms_disp in station_rms] for i, station_rms in enumerate(rms_disp_all)]
             if 'med_filt_kernel' in dr_kwargs:
                 dr_all = [medfilt(dr_station, dr_kwargs['med_filt_kernel']) for dr_station in dr_all]
@@ -2293,8 +2293,8 @@ def compute_metrics(stream_unprocessed, process_taper=None, metric_taper=None, f
             trace_disp_matrix = trace_disp.data[window_indices]
             rms_disp = np.sqrt(np.mean(np.square(trace_disp_matrix), axis=1))
             station_dist = GD((trace_disp.stats.latitude, trace_disp.stats.longitude), vlatlon).m
-            wavenumber = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
-            dr[j, :] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavenumber) * 100 * 100  # cm^2
+            wavelength = 1500 / 2  # assume seisvel = 1500 m/s, dominant frequency = 2 Hz
+            dr[j, :] = rms_disp * np.sqrt(station_dist) * np.sqrt(wavelength) * 100 * 100  # cm^2
 
     if infrasound:
         return tmpl, rmsp, pe, fc, fd, fsd
