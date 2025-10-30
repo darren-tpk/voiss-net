@@ -28,19 +28,31 @@ SPEC_KWARGS = None
 EXPORT_PATH = None
 TRANSPARENT = None
 
-# Set up the DR kwargs, can leave as None if not using DR
+# [Reduced Displacement] Set up the DR kwargs, can leave as None if not using DR
 DR_STATION = STATION.split(',')[0]
 VOLC_COORDS = (51.926630, 179.591230)
-DR_KWARGS = {"reference_station": DR_STATION,       # station code
+DR_KWARGS = {"reference_station": DR_STATION,   # station code
              "filter_band": (1, 10),            # Hz
              "window_length": 120,              # seconds
              "overlap": 0.5,                    # fraction of window length
-             "volc_lat": VOLC_COORDS[0],             # decimal degrees
-             "volc_lon": VOLC_COORDS[1],            # decimal degrees
+             "volc_lat": VOLC_COORDS[0],        # decimal degrees
+             "volc_lon": VOLC_COORDS[1],        # decimal degrees
              "seis_vel": 1500,                  # m/s
              "dominant_freq": 2}                # Hz
 
-# Pull data and sort by station-source distance
+# [Frequency Index] Set up FI kwargs as an alternative to DR kwargs
+FI_KWARGS = {"reference_station": "all",        # station code or "all"
+             "window_length": 10,               # seconds
+             "overlap": 0.5,                    # fraction of window length
+             "filomin": 1,                      # Hz -- FI lower band minimum
+             "filomax": 2.5,                    # Hz -- FI lower band maximum
+             "fiupmin": 5,                      # Hz -- FI upper band minimum
+             "fiupmax": 10,                     # Hz -- FI upper band maximum
+             "med_filt_kernel": None,           # Kernel size for median filter smoothing
+             "volc_lat": VOLC_COORDS[0],        # decimal degrees (only for source-station distance in y-label)
+             "volc_lon": VOLC_COORDS[1]}        # decimal degrees (only for source-station distance in y-label)
+
+# Pull data
 stream = gather_waveforms(SOURCE,
                           NETWORK,
                           STATION,
@@ -50,7 +62,7 @@ stream = gather_waveforms(SOURCE,
                           ENDTIME + PAD,
                           n_jobs=N_JOBS)
 
-# Sort stream by distance to volcano
+# Sort stream by distance to volcano (order of the stream input determines order of subplots)
 stream.traces.sort(key=lambda tr: gps2dist_azimuth(VOLC_COORDS[0], VOLC_COORDS[1], tr.stats.latitude, tr.stats.longitude)[0])
 
 # Run VOISS-Net
@@ -66,6 +78,6 @@ class_mat, prob_mat = check_timeline(stream,
                                      fig_height=FIG_HEIGHT,
                                      font_s=FONT_S,
                                      spec_kwargs=SPEC_KWARGS,
-                                     dr_kwargs=DR_KWARGS,
+                                     dr_kwargs=DR_KWARGS,        # or fi_kwargs=FI_KWARGS
                                      export_path=EXPORT_PATH,
                                      transparent=TRANSPARENT)
