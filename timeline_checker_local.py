@@ -1,10 +1,10 @@
 # Import dependencies
-from obspy import UTCDateTime, Stream
+from obspy import UTCDateTime, Stream, read_inventory
 from obspy.geodetics import gps2dist_azimuth
-from waveform_collection import gather_waveforms
-from toolbox import check_timeline
+from waveform_collection import read_local
+from toolbox import check_timeline, download_data
 
-# Define variables for data pull
+# Define variables for data download & reading local miniseeds
 SOURCE = "IRIS"
 NETWORK = "AV"
 STATION = "CERB,CESW,CEPE,CETU,CEAP"
@@ -12,8 +12,14 @@ LOCATION = ""
 CHANNEL = "BHZ"
 STARTTIME = UTCDateTime(2021, 7, 27, 7, 30)
 ENDTIME = STARTTIME + 3*3600
-PAD = 360  # s
+DATA_DIR = "./miniseed/"
+METADATA_FILEPATH = "./miniseed/metadata.xml"
+COORD_FILEPATH = "./miniseed/coords.json"
 N_JOBS = 1  # number of parallel jobs for data pull, can be -1 for all cores
+
+# Additional variables for reading local miniseeds
+PAD = 360
+PATTERN = "{net}.{sta}.{loc}.{cha}.{year}.{jday}.{hour}.mseed"
 
 # Define variables for check_timeline function
 OVERLAP = 0.5  # 1 min time step for 1 min interval
@@ -52,18 +58,36 @@ FI_KWARGS = {"reference_station": "all",        # station code or "all"
              "volc_lat": VOLC_COORDS[0],        # decimal degrees (only for source-station distance in y-label)
              "volc_lon": VOLC_COORDS[1]}        # decimal degrees (only for source-station distance in y-label)
 
-# Pull data
-stream = gather_waveforms(SOURCE,
-                          NETWORK,
-                          STATION,
-                          LOCATION,
-                          CHANNEL,
-                          STARTTIME - PAD,
-                          ENDTIME + PAD,
-                          n_jobs=N_JOBS)
+# Download data (only need to do this once)
+download_data(SOURCE,
+              NETWORK,
+              STATION,
+              LOCATION,
+              CHANNEL,
+              STARTTIME - 3600,
+              ENDTIME + 3600,
+              data_dir=DATA_DIR,
+              metadata_filepath=METADATA_FILEPATH,
+              coord_filepath=COORD_FILEPATH,
+              n_jobs=N_JOBS)
+
+# Read data from local miniseed directory and sort by station-source distance
+stream = read_local(DATA_DIR,
+                    COORD_FILEPATH,
+                    NETWORK,
+                    STATION,
+                    LOCATION,
+                    CHANNEL,
+                    STARTTIME - PAD,
+                    ENDTIME + PAD,
+                    pattern=PATTERN)
 
 # Sort stream by distance to volcano (order of the stream input determines order of subplots)
 stream.traces.sort(key=lambda tr: gps2dist_azimuth(VOLC_COORDS[0], VOLC_COORDS[1], tr.stats.latitude, tr.stats.longitude)[0])
+
+# Attach response information
+inventory = read_inventory(METADATA_FILEPATH)
+stream.attach_response(inventory)
 
 # Run VOISS-Net
 class_mat, prob_mat = check_timeline(stream,
@@ -81,3 +105,6 @@ class_mat, prob_mat = check_timeline(stream,
                                      dr_kwargs=DR_KWARGS,        # or fi_kwargs=FI_KWARGS
                                      export_path=EXPORT_PATH,
                                      transparent=TRANSPARENT)
+
+
+

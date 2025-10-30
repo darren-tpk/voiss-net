@@ -36,7 +36,11 @@ conda activate voiss-net
 3. Run example to check 3 hour seismic timeline for Semisopochnoi Volcano (Fig. 6 in Fee et al. (2025))
 
 ```
+# Pull data from Earthscope
 python timeline_checker.py
+
+# Local miniseed directory example (pulls data from Earthscope and saves it)
+python timeline_checker_local.py
 ```
 
 (OPTIONAL) Train alternate models (skip to step 3 if using labels by Tan et al. (2024))
@@ -58,9 +62,11 @@ label-studio
 3. Use python to build labeled spectrograms (saved as .npy files), augment the labeled dataset, and train the CNNs. 
 
 ```
+# Architecture and hyperparameters from Tan et al. (2024)
 python train_voiss_net_seismic.py
 python train_voiss_net_infrasound.py
-or
+
+# Architecture and hyperparameters from Fee et al. (2025)
 python train_voiss_net_seismic_generalized.py
 ```
 
